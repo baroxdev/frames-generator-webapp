@@ -72,7 +72,7 @@ function App() {
     formData.append('text', text);
     formData.append('avatar', avatar as File);
     setLoading(true);
-    const response = await fetch('http://localhost:9090/upload', {
+    const response = await fetch(import.meta.env.VITE_API_URL as string, {
       method: 'POST',
       body: formData,
     });
@@ -100,11 +100,7 @@ function App() {
       >
         {resultImage && <img alt='example' style={{ width: '100%' }} src={resultImage} />}
       </Modal>
-      <form
-        className='w-full max-w-2xl overflow-hidden rounded-lg shadow-lg'
-        action='https://frames-generator-api.onrender.com/upload'
-        method='POST'
-      >
+      <form className='w-full max-w-2xl overflow-hidden rounded-lg shadow-lg'>
         <div className='flex flex-col justify-center p-6 mx-auto bg-white'>
           <h1 className='pb-10 text-3xl font-bold text-center text-blue-800 uppercase'>
             Thông điệp gửi đại hội

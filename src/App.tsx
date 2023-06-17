@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 import { useEffect, useRef, useState } from 'react';
 import FileResizer from 'react-image-file-resizer';
 import backgroundHorizontial from './assets/bg-hoz.png';
-import backgroundImage from './storage/background.png';
+import backgroundImage from './storage/background.jpg';
 import backgroundName from './storage/bg-name.svg';
 import welcomeBottomImage from './storage/welcome-bottom.png';
 import welcomeTopImage from './storage/welcome-top.png';
@@ -107,7 +107,7 @@ function App() {
     }
     await resizeFile(avatar as File);
     const canvas = await html2canvas(cardRef.current, {
-      windowWidth: 1550,
+      windowWidth: 1928,
     });
     return canvas.toDataURL();
   };
@@ -117,7 +117,9 @@ function App() {
     if (!text || text.trim() === '') _errors.text = 'Vui lòng nhập thông điệp';
     if (text && text.length > 400) _errors.text = 'Vui lòng nhập thông điệp dưới 400 kí tự';
     if (!fullName || fullName.trim() === '') _errors.fullName = 'Vui lòng nhập Họ và tên';
+    if (fullName || fullName.length > 25) _errors.fullName = 'Họ và tên tối đa 45 kí tự';
     if (!role || role.trim() === '') _errors.role = 'Vui lòng nhập Đơn vị - Chức vụ';
+    if (role || role.length > 36) _errors.role = 'Đơn vị - Chức vụ tối đa 60 kí tự';
     if (!imageUrl || imageUrl.trim() === '') _errors.avatar = 'Vui lòng thêm ảnh đại diện';
     if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
 
@@ -142,7 +144,8 @@ function App() {
         content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
       });
     try {
-      await generateDataUrl();
+      const dataUrl = await generateDataUrl();
+      setResultImage(dataUrl);
     } catch (error) {
       messageApi.open({
         type: 'error',
@@ -155,6 +158,15 @@ function App() {
   };
 
   const handleSubmit = async () => {
+    const _errors = { ...errors };
+    if (!text || text.trim() === '') _errors.text = 'Vui lòng nhập thông điệp';
+    if (text && text.length > 400) _errors.text = 'Vui lòng nhập thông điệp dưới 400 kí tự';
+    if (!fullName || fullName.trim() === '') _errors.fullName = 'Vui lòng nhập Họ và tên';
+    if (fullName || fullName.length > 25) _errors.fullName = 'Họ và tên tối đa 45 kí tự';
+    if (!role || role.trim() === '') _errors.role = 'Vui lòng nhập Đơn vị - Chức vụ';
+    if (role || role.length > 36) _errors.role = 'Đơn vị - Chức vụ tối đa 60 kí tự';
+    if (!imageUrl || imageUrl.trim() === '') _errors.avatar = 'Vui lòng thêm ảnh đại diện';
+    if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
     try {
       const dataUrl = await generateDataUrl();
       if (!dataUrl) return console.error('Không thể tạo thông điệp.');
@@ -216,23 +228,29 @@ function App() {
           <img src={backgroundImage} width={1500} height={843} />
           <div>
             <div className='absolute bottom-[191px] left-[120.5px]'>
-              <div className='w-[367px] aspect-square rounded-full overflow-hidden'>
+              <div className='w-[340px] aspect-square rounded-full overflow-hidden'>
                 <img className='object-cover w-full h-full' src={imageUrl} />
               </div>
             </div>
             <div className='absolute bottom-[120px] left-[105.5px]'>
-              <img className='object-cover max-w-[400px] h-full' src={backgroundName} />
+              <img className='object-cover max-w-[400px] h-[110px]' src={backgroundName} />
             </div>
-            <div className='absolute bottom-[185px] left-[130px] bg-transparent w-[350px]'>
-              <h3 className='text-4xl font-bold text-center text-white'>
-                {fullName || 'Tên của bạn'}
+            <div className='absolute bottom-[185px] left-[115px] bg-transparent w-[350px]'>
+              <h3
+                className={clsx('font-bold text-center text-white whitespace-nowrap', {
+                  'text-4xl': role.length <= 15,
+                  'text-3xl': role.length > 15,
+                  'text-2xl': role.length > 20,
+                })}
+              >
+                {fullName || 'Lê Hoàng Trương Minh Hải'}
               </h3>
             </div>
-            <div className='absolute bottom-[145px] left-[105px] bg-transparent w-[400px]'>
+            <div className='absolute bottom-[80px] left-[105px] bg-transparent w-[400px] h-[100px]  whitespace-nowrap'>
               <p
                 className={clsx(' font-bold text-center text-white', {
-                  'text-xl': role.length > 36,
-                  'text-2xl': role.length < 20,
+                  'text-xl': role.length > 25,
+                  'text-2xl': role.length <= 25,
                 })}
               >
                 {role || 'Chức vụ của bạn'}
@@ -258,12 +276,12 @@ function App() {
           </div>
         </div>
       </div>
-      <div
+      {/* <div
         className='bg-white absolute inset-0 z-[1]'
         style={{
           background: `url(${backgroundHorizontial})`,
         }}
-      ></div>
+      ></div> */}
       <Modal
         open={preview}
         title={'Ảnh thông điệp của bạn'}
@@ -285,12 +303,12 @@ function App() {
           </div>
         )}
       </Modal>
-      <div className='absolute z-[2] max-w-2xl w-full flex items-center justify-center pt-8 flex-col px-3'>
-        <div className='max-w-lg mb-8 max-md:max-w-full'>
+      <div className='flex flex-col items-center justify-center w-full max-w-2xl px-3'>
+        <div className='max-w-lg mb-5 max-md:max-w-full'>
           <img src={welcomeTopImage} alt='welcome image' />
-          <img src={welcomeBottomImage} className='mt-6' alt='welcome image' />
+          <img src={welcomeBottomImage} className='mt-4' alt='welcome image' />
         </div>
-        <form className='relative z-[2] w-full overflow-hidden shadow-lg rounded-xl'>
+        <form className='relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl'>
           <div className='flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-4'>
             <div className='flex flex-col items-center justify-center'>
               <ImgCrop
@@ -371,7 +389,12 @@ function App() {
                 <Input
                   name='full_name'
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => {
+                    if (e.target.value.length > 25) {
+                      return;
+                    }
+                    setFullName(e.target.value);
+                  }}
                   placeholder='Họ và tên'
                   className='mb-2 text-lg'
                   size='large'
@@ -383,7 +406,12 @@ function App() {
               <div>
                 <Input
                   value={role}
-                  onChange={(e) => setRole(e.target.value)}
+                  onChange={(e) => {
+                    if (e.target.value.length > 36) {
+                      return;
+                    }
+                    setRole(e.target.value);
+                  }}
                   name='role'
                   placeholder='Đơn vị - Chức vụ'
                   className='mb-2 text-lg'
@@ -396,7 +424,12 @@ function App() {
               <div>
                 <Input.TextArea
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    if (e.target.value.length > 400) {
+                      return;
+                    }
+                    setText(e.target.value);
+                  }}
                   name='text'
                   rows={4}
                   className='!mb-1 text-lg'

@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer {
+  input,
+  textarea {
+    @apply !py-3 !border-slate-200 placeholder:!text-slate-400 placeholder:font-sans;
+  }
+}
+
+.ant-btn {
+  @apply !px-4 !h-fit font-sans !rounded-lg;
+}
+
+.ant-btn-primary {
+  @apply !bg-blue-500;
+}
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

@@ -2,12 +2,17 @@ import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Input, Modal, Upload, message } from 'antd';
 import ImgCrop from 'antd-img-crop';
 import { RcFile, UploadChangeParam, UploadFile, UploadProps } from 'antd/es/upload';
+import clsx from 'clsx';
 import html2canvas from 'html2canvas';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import FileResizer from 'react-image-file-resizer';
 import backgroundHorizontial from './assets/bg-hoz.png';
 import backgroundImage from './storage/background.png';
+import backgroundName from './storage/bg-name.svg';
+import welcomeBottomImage from './storage/welcome-bottom.png';
+import welcomeTopImage from './storage/welcome-top.png';
 import { convertDataURIToBinary, saveToDb } from './utils';
+import saveToSheet, { FormData } from './services/google-sheet';
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (img: RcFile | File, callback: (url: string) => void) => {
   const reader = new FileReader();
@@ -15,8 +20,16 @@ export const getBase64 = (img: RcFile | File, callback: (url: string) => void) =
   reader.readAsDataURL(img);
 };
 
+type Errors = {
+  fullName: string | null;
+  role: string | null;
+  text: string | null;
+  avatar: string | null;
+};
+
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
+  const [preview, setPreview] = useState(false);
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>();
   const [avatar, setAvatar] = useState<File>();
@@ -25,6 +38,22 @@ function App() {
   const [text, setText] = useState('');
   const [resultImage, setResultImage] = useState<string | null | undefined>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const [errors, setErrors] = useState<Errors>({
+    fullName: null,
+    role: null,
+    text: null,
+    avatar: null,
+  });
+
+  useEffect(() => {
+    setErrors({
+      fullName: null,
+      role: null,
+      text: null,
+      avatar: null,
+    });
+  }, [fullName, role, text, avatar]);
+
   const handleChange: UploadProps['onChange'] = (info: UploadChangeParam<UploadFile>) => {
     if (info.file.status === 'uploading') {
       setLoading(true);
@@ -67,7 +96,31 @@ function App() {
       );
     });
 
-  const handleSubmit = async () => {
+  const generateDataUrl = async () => {
+    if (!cardRef.current) {
+      messageApi.open({
+        key: 'handling',
+        type: 'error',
+        content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
+      });
+      return null;
+    }
+    await resizeFile(avatar as File);
+    const canvas = await html2canvas(cardRef.current, {
+      windowWidth: 1550,
+    });
+    return canvas.toDataURL();
+  };
+
+  const handlePreview = async () => {
+    const _errors = { ...errors };
+    if (!text || text.trim() === '') _errors.text = 'Vui lòng nhập thông điệp';
+    if (text && text.length > 400) _errors.text = 'Vui lòng nhập thông điệp dưới 400 kí tự';
+    if (!fullName || fullName.trim() === '') _errors.fullName = 'Vui lòng nhập Họ và tên';
+    if (!role || role.trim() === '') _errors.role = 'Vui lòng nhập Đơn vị - Chức vụ';
+    if (!imageUrl || imageUrl.trim() === '') _errors.avatar = 'Vui lòng thêm ảnh đại diện';
+    if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
+
     messageApi.open({
       key: 'optimize',
       content: 'Đang nén ảnh',
@@ -89,22 +142,7 @@ function App() {
         content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
       });
     try {
-      const vp = document.querySelectorAll('meta[name="viewport"]')?.[0]?.getAttribute('content');
-      document
-        .querySelectorAll('meta[name="viewport"]')?.[0]
-        ?.setAttribute('content', 'width=1600');
-      const canvas = await html2canvas(cardRef.current, {
-        windowWidth: 1550,
-      });
-      setResultImage(canvas.toDataURL());
-      document
-        .querySelectorAll('meta[name="viewport"]')?.[0]
-        ?.setAttribute('content', vp || 'width=device-width, initial-scale=1.0');
-      messageApi.open({
-        type: 'success',
-        key: 'handling',
-        content: 'Tạo thông điệp thành công',
-      });
+      await generateDataUrl();
     } catch (error) {
       messageApi.open({
         type: 'error',
@@ -116,50 +154,125 @@ function App() {
     }
   };
 
+  const handleSubmit = async () => {
+    try {
+      const dataUrl = await generateDataUrl();
+      if (!dataUrl) return console.error('Không thể tạo thông điệp.');
+      setLoading(true);
+      messageApi.open({
+        key: 'handling',
+        type: 'loading',
+        content: 'Đang tạo thông điệp',
+      });
+      const blob = convertDataURIToBinary(dataUrl);
+      const image_url = await saveToDb(blob);
+      setResultImage(dataUrl);
+      messageApi.open({
+        key: 'handling',
+        type: 'loading',
+        content: 'Đang gửi thông điệp',
+      });
+      const formData: FormData = {
+        full_name: fullName,
+        role: role,
+        text: text,
+        image_url: image_url || '',
+      };
+      await saveToSheet(formData);
+      messageApi.open({
+        key: 'handling',
+        type: 'success',
+        content: 'Gửi thông điệp thành công',
+      });
+    } catch (error) {
+      messageApi.open({
+        type: 'error',
+        key: 'handling',
+        content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
+      });
+    } finally {
+      setLoading(false);
+      setPreview(true);
+    }
+  };
+
   const handleDownloadImage = async () => {
     if (!resultImage) return;
     const link = document.createElement('a');
     link.href = resultImage;
     link.download = 'anh-thong-diep-dai-hoi-2023.png';
     link.click();
-    const blob = convertDataURIToBinary(resultImage);
-    await saveToDb(blob);
   };
 
   return (
     <div
-      className='flex items-center justify-center w-full h-screen bg-white'
+      className='flex justify-center w-full h-screen bg-white'
       style={{
         background: `url(${backgroundHorizontial})`,
       }}
     >
-      <div className='overflow-hidden'>
+      <div className='overflow-hidden max-md:hidden'>
         <div className='absolute top-0 left-0 z-[-1]' ref={cardRef}>
           <img src={backgroundImage} width={1500} height={843} />
           <div>
-            <div className='absolute bottom-[190px] left-[146px] overflow-hidden max-h-[313px]'>
-              <div className='w-[343px] aspect-square rounded-full overflow-hidden'>
+            <div className='absolute bottom-[191px] left-[120.5px]'>
+              <div className='w-[367px] aspect-square rounded-full overflow-hidden'>
                 <img className='object-cover w-full h-full' src={imageUrl} />
               </div>
             </div>
-            <div className='absolute bottom-[138px] left-[146px] bg-transparent w-[350px]'>
-              <h3 className='text-4xl font-bold text-center text-white'>{fullName}</h3>
+            <div className='absolute bottom-[120px] left-[105.5px]'>
+              <img className='object-cover max-w-[400px] h-full' src={backgroundName} />
             </div>
-            <div className='absolute bottom-[60px] left-[146px] bg-transparent w-[350px]'>
-              <p className='text-3xl font-bold text-center text-blue-900'>{role}</p>
+            <div className='absolute bottom-[185px] left-[130px] bg-transparent w-[350px]'>
+              <h3 className='text-4xl font-bold text-center text-white'>
+                {fullName || 'Tên của bạn'}
+              </h3>
+            </div>
+            <div className='absolute bottom-[145px] left-[105px] bg-transparent w-[400px]'>
+              <p
+                className={clsx(' font-bold text-center text-white', {
+                  'text-xl': role.length > 36,
+                  'text-2xl': role.length < 20,
+                })}
+              >
+                {role || 'Chức vụ của bạn'}
+              </p>
             </div>
           </div>
-          <div className='absolute w-[690px] h-[380px] bottom-[130px] right-[140px] bg-transparent'>
-            <p className='text-3xl font-medium text-blue-900'>{text}</p>
+          <div
+            className={clsx(
+              'absolute w-[690px] h-[340px] bottom-[220px] right-[140px] bg-transparent',
+              {
+                'flex items-center justify-center': text.length < 150,
+              }
+            )}
+          >
+            <p
+              className={clsx('font-medium text-blue-900', {
+                'text-3xl ': text.length > 150,
+                'text-5xl text-center': text.length < 150,
+              })}
+            >
+              {text || 'Thông điệp của bạn'}
+            </p>
           </div>
         </div>
       </div>
+      <div
+        className='bg-white absolute inset-0 z-[1]'
+        style={{
+          background: `url(${backgroundHorizontial})`,
+        }}
+      ></div>
       <Modal
-        open={!!resultImage}
+        open={preview}
         title={'Ảnh thông điệp của bạn'}
         footer={null}
         width={800}
-        onCancel={() => setResultImage(null)}
+        onCancel={() => {
+          setResultImage(null);
+          setPreview(false);
+        }}
       >
         {resultImage && (
           <div>
@@ -172,116 +285,159 @@ function App() {
           </div>
         )}
       </Modal>
-      <form className='w-full max-w-2xl overflow-hidden rounded-lg shadow-lg'>
-        <div className='flex flex-col justify-center p-6 mx-auto bg-white'>
-          <h1 className='pb-10 text-3xl font-bold text-center text-blue-800 uppercase'>
-            Thông điệp gửi đại hội
-          </h1>
-          <ImgCrop
-            showGrid
-            rotationSlider
-            aspectSlider
-            showReset
-            aspect={1}
-            cropShape='rect'
-            resetText='Đặt lại'
-            modalCancel='Hủy'
-            modalOk='Xác nhận'
-            modalTitle='Chỉnh sửa ảnh đại diện'
-          >
-            <Upload
-              name='avatar'
-              multiple={false}
-              listType='picture-circle'
-              className='avatar-uploader !w-[250px] aspect-square !mx-auto mb-8'
-              showUploadList={false}
-              accept='.png,.jpg,.jpeg'
-              progress={{
-                size: 'small',
-                style: { top: 10 },
-              }}
-              customRequest={(options) => {
-                const { file, onProgress } = options;
-
-                const isImage = (file as File).type?.startsWith('image');
-
-                if (isImage && onProgress) {
-                  let progress = 0;
-                  const timer = setInterval(() => {
-                    progress += 10;
-                    onProgress({ percent: progress });
-
-                    if (progress >= 100 && options.onSuccess) {
-                      clearInterval(timer);
-                      options.onSuccess('ok');
-                    }
-                  }, 100);
-                } else if (isImage && options.onError) {
-                  options.onError(new Error('Invalid file format'));
-                }
-              }}
-              beforeUpload={(file) => {
-                const isImage = file.type.startsWith('image');
-                const acceptedFormats = isImage;
-                if (!message) return console.error('Message API not supported');
-                if (!acceptedFormats) {
-                  message.error('Sai định dạng file, hãy kiểm tra lại!');
-                } else {
-                  message.success('Tải file thành công.');
-                }
-                return acceptedFormats ? file : Upload.LIST_IGNORE;
-              }}
-              onChange={handleChange}
-            >
-              {imageUrl ? (
-                <div className='overflow-hidden rounded-full'>
-                  <img
-                    src={imageUrl}
-                    alt='avatar'
-                    className='object-cover w-full h-full aspect-square'
-                  />
-                </div>
-              ) : (
-                uploadButton
-              )}
-            </Upload>
-          </ImgCrop>
-          <Input
-            name='full_name'
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder='Họ và tên...'
-            className='mb-2 text-lg'
-            size='large'
-          />
-          <Input
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            name='role'
-            placeholder='Chức vụ...'
-            className='mb-2 text-lg'
-            size='large'
-          />
-          <Input.TextArea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            name='text'
-            rows={4}
-            className='text-lg'
-            size='large'
-            placeholder='Thông điệp của bạn...'
-          />
-          <Button
-            type='primary'
-            onClick={handleSubmit}
-            loading={loading}
-            size='large'
-            className='w-full mt-8'
-          >
-            Gửi thông điệp
-          </Button>
+      <div className='absolute z-[2] max-w-2xl w-full flex items-center justify-center pt-8 flex-col px-3'>
+        <div className='max-w-lg mb-8 max-md:max-w-full'>
+          <img src={welcomeTopImage} alt='welcome image' />
+          <img src={welcomeBottomImage} className='mt-6' alt='welcome image' />
         </div>
-      </form>
+        <form className='relative z-[2] w-full overflow-hidden shadow-lg rounded-xl'>
+          <div className='flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-4'>
+            <div className='flex flex-col items-center justify-center'>
+              <ImgCrop
+                showGrid
+                rotationSlider
+                aspectSlider
+                showReset
+                aspect={1}
+                cropShape='rect'
+                resetText='Đặt lại'
+                modalCancel='Hủy'
+                modalOk='Xác nhận'
+                modalTitle='Chỉnh sửa ảnh đại diện'
+              >
+                <Upload
+                  name='avatar'
+                  multiple={false}
+                  listType='picture-circle'
+                  className='avatar-uploader !w-[250px] aspect-square !mx-auto mb-8'
+                  showUploadList={false}
+                  accept='.png,.jpg,.jpeg'
+                  progress={{
+                    size: 'small',
+                    style: { top: 10 },
+                  }}
+                  customRequest={(options) => {
+                    const { file, onProgress } = options;
+
+                    const isImage = (file as File).type?.startsWith('image');
+
+                    if (isImage && onProgress) {
+                      let progress = 0;
+                      const timer = setInterval(() => {
+                        progress += 10;
+                        onProgress({ percent: progress });
+
+                        if (progress >= 100 && options.onSuccess) {
+                          clearInterval(timer);
+                          options.onSuccess('ok');
+                        }
+                      }, 100);
+                    } else if (isImage && options.onError) {
+                      options.onError(new Error('Invalid file format'));
+                    }
+                  }}
+                  beforeUpload={(file) => {
+                    const isImage = file.type.startsWith('image');
+                    const acceptedFormats = isImage;
+                    if (!message) return console.error('Message API not supported');
+                    if (!acceptedFormats) {
+                      message.error('Sai định dạng file, hãy kiểm tra lại!');
+                    } else {
+                      message.success('Tải file thành công.');
+                    }
+                    return acceptedFormats ? file : Upload.LIST_IGNORE;
+                  }}
+                  onChange={handleChange}
+                >
+                  {imageUrl ? (
+                    <div className='overflow-hidden rounded-full'>
+                      <img
+                        src={imageUrl}
+                        alt='avatar'
+                        className='object-cover w-full h-full aspect-square'
+                      />
+                    </div>
+                  ) : (
+                    uploadButton
+                  )}
+                </Upload>
+              </ImgCrop>
+              {errors.avatar && (
+                <div className='ml-1 font-sans text-sm text-red-600 '>{errors.avatar}</div>
+              )}
+            </div>
+            <div className='flex flex-col gap-2'>
+              <div>
+                <Input
+                  name='full_name'
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder='Họ và tên'
+                  className='mb-2 text-lg'
+                  size='large'
+                />
+                {errors.fullName && (
+                  <div className='ml-1 font-sans text-sm text-red-600 '>{errors.fullName}</div>
+                )}
+              </div>
+              <div>
+                <Input
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  name='role'
+                  placeholder='Đơn vị - Chức vụ'
+                  className='mb-2 text-lg'
+                  size='large'
+                />
+                {errors.role && (
+                  <div className='ml-1 font-sans text-sm text-red-600 '>{errors.role}</div>
+                )}
+              </div>
+              <div>
+                <Input.TextArea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  name='text'
+                  rows={4}
+                  className='!mb-1 text-lg'
+                  size='large'
+                  placeholder='Thông điệp (Tối đa 400 kí tự)'
+                />
+                {errors.text && (
+                  <div className='ml-1 font-sans text-sm text-red-600 '>{errors.text}</div>
+                )}
+              </div>
+            </div>
+            <div className='flex items-center gap-3'>
+              <Button
+                type='default'
+                loading={loading}
+                onClick={async () => {
+                  await handlePreview();
+                  setPreview(true);
+                }}
+                style={{
+                  padding: '12px 20px',
+                }}
+                className='mt-8 !text-base w-fit !h-fit font-sans text-slate-700 !rounded-lg'
+              >
+                Xem trước
+              </Button>
+              <Button
+                type='primary'
+                onClick={handleSubmit}
+                loading={loading}
+                style={{
+                  padding: '12px 20px',
+                }}
+                className='w-full mt-8 !text-base bg-blue-600 !h-fit font-sans !rounded-lg'
+              >
+                Gửi thông điệp
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
       {contextHolder}
     </div>
   );

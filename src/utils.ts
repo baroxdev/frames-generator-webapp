@@ -1,16 +1,14 @@
-import { ref, uploadBytes } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { storage } from './firebase';
 
 export async function saveToDb(image: Uint8Array) {
-  if (!image) return console.error('cannot');
+  if (!image) return null;
   const imageRef = ref(storage, 'images/' + crypto.randomUUID() + '.jpg');
-  try {
-    await uploadBytes(imageRef, image, {
-      contentType: 'image/jpeg',
-    });
-  } catch (error) {
-    console.error(error);
-  }
+  await uploadBytes(imageRef, image, {
+    contentType: 'image/jpeg',
+  });
+
+  return await getDownloadURL(imageRef);
 }
 
 const BASE64_MARKER = ';base64,';

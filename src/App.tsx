@@ -12,6 +12,7 @@ import backgroundImage from './storage/background.png';
 import welcomeBottomImage from './storage/welcome-bottom.png';
 import welcomeTopImage from './storage/welcome-top.png';
 import { convertDataURIToBinary, saveToDb } from './utils';
+import { EyeIcon } from 'lucide-react';
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (img: RcFile | File, callback: (url: string) => void) => {
   const reader = new FileReader();
@@ -145,6 +146,7 @@ function App() {
     try {
       const dataUrl = await generateDataUrl();
       setResultImage(dataUrl);
+      setPreview(true);
     } catch (error) {
       messageApi.open({
         type: 'error',
@@ -215,72 +217,71 @@ function App() {
     link.click();
   };
 
+  const showMockImage =
+    fullName.trim() !== '' && role.trim() !== '' && text.trim() !== '' && imageUrl;
+
   return (
     <div
-      className='flex justify-center w-full h-screen bg-white'
+      className='flex justify-center w-full min-h-screen py-4 bg-white'
       style={{
         background: `url(${backgroundHorizontial})`,
       }}
     >
-      <div className='overflow-hidden max-md:hidden'>
-        <div className='absolute top-0 left-0 z-[-1]' ref={cardRef}>
-          <img src={backgroundImage} width={1500} height={843} />
-          <div>
-            <div className='absolute bottom-[245px] left-[121px] h-[310px] overflow-hidden'>
-              <div className='w-[365px] aspect-square rounded-full overflow-hidden'>
-                <img className='object-cover w-full h-full' src={imageUrl} />
+      {showMockImage && (
+        <div className='overflow-hidden max-md:hidden'>
+          <div className='absolute top-0 left-0 z-[-1]' ref={cardRef}>
+            <img src={backgroundImage} width={1500} height={843} />
+            <div>
+              <div className='absolute bottom-[245px] left-[121px] h-[310px] overflow-hidden'>
+                <div className='w-[365px] aspect-square rounded-full overflow-hidden'>
+                  <img className='object-cover w-full h-full' src={imageUrl} />
+                </div>
               </div>
-            </div>
-            {/* <div className='absolute bottom-[120px] left-[105.5px]'>
+              {/* <div className='absolute bottom-[120px] left-[105.5px]'>
               <img className='object-cover max-w-[400px] h-[110px]' src={backgroundName} />
             </div> */}
-            <div className='absolute bottom-[195px] left-[115px] bg-transparent w-[350px]'>
-              <h3
-                className={clsx('font-bold text-center text-white whitespace-nowrap', {
-                  'text-4xl': role.length <= 15,
-                  'text-3xl': role.length > 15,
-                  'text-2xl': role.length > 20,
-                })}
-              >
-                {fullName || 'Lê Hoàng Trương Minh Hải'}
-              </h3>
+              <div className='absolute bottom-[195px] left-[115px] bg-transparent w-[350px]'>
+                <h3
+                  className={clsx('font-bold text-center text-white whitespace-nowrap', {
+                    'text-4xl': role.length <= 15,
+                    'text-3xl': role.length > 15,
+                    'text-2xl': role.length > 20,
+                  })}
+                >
+                  {fullName || 'Tên của bạn'}
+                </h3>
+              </div>
+              <div className='absolute bottom-[90px] left-[105px] bg-transparent w-[400px] h-[100px]  whitespace-nowrap'>
+                <p
+                  className={clsx(' font-medium text-center text-white', {
+                    'text-xl': role.length > 25,
+                    'text-2xl': role.length <= 25,
+                  })}
+                >
+                  {role || 'Chức vụ của bạn'}
+                </p>
+              </div>
             </div>
-            <div className='absolute bottom-[90px] left-[105px] bg-transparent w-[400px] h-[100px]  whitespace-nowrap'>
+            <div
+              className={clsx(
+                'absolute w-[690px] h-[340px] bottom-[220px] right-[140px] bg-transparent',
+                {
+                  'flex items-center justify-center': text.length < 150,
+                }
+              )}
+            >
               <p
-                className={clsx(' font-bold text-center text-white', {
-                  'text-xl': role.length > 25,
-                  'text-2xl': role.length <= 25,
+                className={clsx('font-medium text-blue-900', {
+                  'text-3xl ': text.length > 150,
+                  'text-5xl text-center': text.length < 150,
                 })}
               >
-                {role || 'Chức vụ của bạn'}
+                {text || 'Thông điệp của bạn'}
               </p>
             </div>
           </div>
-          <div
-            className={clsx(
-              'absolute w-[690px] h-[340px] bottom-[220px] right-[140px] bg-transparent',
-              {
-                'flex items-center justify-center': text.length < 150,
-              }
-            )}
-          >
-            <p
-              className={clsx('font-medium text-blue-900', {
-                'text-3xl ': text.length > 150,
-                'text-5xl text-center': text.length < 150,
-              })}
-            >
-              {text || 'Thông điệp của bạn'}
-            </p>
-          </div>
         </div>
-      </div>
-      {/* <div
-        className='bg-white absolute inset-0 z-[1]'
-        style={{
-          background: `url(${backgroundHorizontial})`,
-        }}
-      ></div> */}
+      )}
       <Modal
         open={preview}
         title={'Ảnh thông điệp của bạn'}
@@ -302,19 +303,19 @@ function App() {
           </div>
         )}
       </Modal>
-      <div className='flex flex-col items-center justify-center w-full max-w-2xl px-3'>
-        <div className='max-w-lg mb-5 max-md:max-w-full'>
+      <div className='flex flex-col items-center justify-center w-full max-w-2xl px-2'>
+        <div className='max-w-lg mb-7 max-md:mb-4 max-md:max-w-full'>
           <img src={welcomeTopImage} alt='welcome image' />
           <img src={welcomeBottomImage} className='mt-4' alt='welcome image' />
         </div>
         <form className='relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl'>
-          <div className='flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-4'>
+          <div className='flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-3'>
             <div className='flex flex-col items-center justify-center'>
               <ImgCrop
                 showGrid
                 rotationSlider
                 aspectSlider
-                showReset
+                showReset={true}
                 aspect={1}
                 cropShape='rect'
                 resetText='Đặt lại'
@@ -326,7 +327,7 @@ function App() {
                   name='avatar'
                   multiple={false}
                   listType='picture-circle'
-                  className='avatar-uploader !w-[250px] aspect-square !mx-auto mb-8'
+                  className='avatar-uploader !w-[250px] max-md:!w-[200px] aspect-square !mx-auto md:mb-3'
                   showUploadList={false}
                   accept='.png,.jpg,.jpeg'
                   progress={{
@@ -380,7 +381,7 @@ function App() {
                 </Upload>
               </ImgCrop>
               {errors.avatar && (
-                <div className='ml-1 font-sans text-sm text-red-600 '>{errors.avatar}</div>
+                <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.avatar}</div>
               )}
             </div>
             <div className='flex flex-col gap-2'>
@@ -390,16 +391,17 @@ function App() {
                   value={fullName}
                   onChange={(e) => {
                     if (e.target.value.length > 25) {
-                      return;
+                      messageApi.warning('Vui lòng nhập tối đa 25 kí tự');
+                      return setFullName(e.target.value.slice(0, 25));
                     }
                     setFullName(e.target.value);
                   }}
                   placeholder='Họ và tên'
-                  className='mb-2 text-lg'
+                  className='mt-2 text-base'
                   size='large'
                 />
                 {errors.fullName && (
-                  <div className='ml-1 font-sans text-sm text-red-600 '>{errors.fullName}</div>
+                  <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.fullName}</div>
                 )}
               </div>
               <div>
@@ -407,17 +409,18 @@ function App() {
                   value={role}
                   onChange={(e) => {
                     if (e.target.value.length > 36) {
-                      return;
+                      messageApi.warning('Vui lòng nhập tối đa 36 kí tự');
+                      return setRole(e.target.value.slice(0, 36));
                     }
                     setRole(e.target.value);
                   }}
                   name='role'
                   placeholder='Đơn vị - Chức vụ'
-                  className='mb-2 text-lg'
+                  className='mt-2 text-base'
                   size='large'
                 />
                 {errors.role && (
-                  <div className='ml-1 font-sans text-sm text-red-600 '>{errors.role}</div>
+                  <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.role}</div>
                 )}
               </div>
               <div>
@@ -425,33 +428,37 @@ function App() {
                   value={text}
                   onChange={(e) => {
                     if (e.target.value.length > 400) {
-                      return;
+                      messageApi.warning('Vui lòng nhập tối đa 400 kí tự');
+                      return setText(e.target.value.slice(0, 399));
                     }
                     setText(e.target.value);
                   }}
                   name='text'
                   rows={4}
-                  className='!mb-1 text-lg'
+                  className='!mt-2 text-base'
                   size='large'
                   placeholder='Thông điệp (Tối đa 400 kí tự)'
                 />
-                {errors.text && (
-                  <div className='ml-1 font-sans text-sm text-red-600 '>{errors.text}</div>
-                )}
+                <div className='flex items-center justify-between'>
+                  {errors.text && (
+                    <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.text}</div>
+                  )}
+                  <span className='ml-auto text-sm text-slate-500'>{text.length} / 400</span>
+                </div>
               </div>
             </div>
-            <div className='flex items-center gap-3'>
+            <div className='flex items-center gap-3 mt-8 max-md:flex-col max-md:mt-5'>
               <Button
-                type='default'
+                type='text'
                 loading={loading}
                 onClick={async () => {
                   await handlePreview();
-                  setPreview(true);
                 }}
+                icon={<EyeIcon />}
                 style={{
                   padding: '12px 20px',
                 }}
-                className='mt-8 !text-base w-fit !h-fit font-sans text-slate-700 !rounded-lg'
+                className='!text-sm w-fit !flex items-center justify-center !h-fit font-sans text-slate-700 !rounded-lg'
               >
                 Xem trước
               </Button>
@@ -462,7 +469,7 @@ function App() {
                 style={{
                   padding: '12px 20px',
                 }}
-                className='w-full mt-8 !text-base bg-blue-600 !h-fit font-sans !rounded-lg'
+                className='w-full !text-sm bg-[#006ded] !h-fit font-sans !rounded-lg'
               >
                 Gửi thông điệp
               </Button>

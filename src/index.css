@@ -5,16 +5,16 @@
 @layer {
   input,
   textarea {
-    @apply !py-2 max-md:py-3 !border-slate-200 placeholder:!text-slate-400 placeholder:font-sans;
+    @apply !py-2 max-md:py-3 !border-slate-200 placeholder:!text-gray-400 placeholder:font-normal placeholder:text-sm font-sans placeholder:font-sans;
   }
 }
 
 .ant-btn {
-  @apply !px-4 !h-fit font-sans !rounded-lg;
+  @apply !px-3 !py-3 max-md:w-full !h-fit font-sans !rounded-lg font-medium;
 }
 
 .ant-btn-primary {
-  @apply !bg-blue-500;
+  @apply !bg-[#006ded];
 }
 
 :root {
@@ -30,8 +30,5 @@
 }
 
 .ant-upload.ant-upload-select {
-  flex-shrink: 0;
-  margin: 0 auto !important;
-  width: 100% !important;
-  height: 100% !important;
+  @apply flex-shrink-0 !w-full !h-full !mx-auto max-md:!w-[200px] max-md:!h-[200px];
 }

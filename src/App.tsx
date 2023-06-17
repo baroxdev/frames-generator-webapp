@@ -7,12 +7,11 @@ import html2canvas from 'html2canvas';
 import { useEffect, useRef, useState } from 'react';
 import FileResizer from 'react-image-file-resizer';
 import backgroundHorizontial from './assets/bg-hoz.png';
+import saveToSheet, { FormData } from './services/google-sheet';
 import backgroundImage from './storage/background.png';
-import backgroundName from './storage/bg-name.svg';
 import welcomeBottomImage from './storage/welcome-bottom.png';
 import welcomeTopImage from './storage/welcome-top.png';
 import { convertDataURIToBinary, saveToDb } from './utils';
-import saveToSheet, { FormData } from './services/google-sheet';
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (img: RcFile | File, callback: (url: string) => void) => {
   const reader = new FileReader();

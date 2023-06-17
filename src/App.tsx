@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 import { useEffect, useRef, useState } from 'react';
 import FileResizer from 'react-image-file-resizer';
 import backgroundHorizontial from './assets/bg-hoz.png';
-import backgroundImage from './storage/background.jpg';
+import backgroundImage from './storage/background.png';
 import backgroundName from './storage/bg-name.svg';
 import welcomeBottomImage from './storage/welcome-bottom.png';
 import welcomeTopImage from './storage/welcome-top.png';
@@ -227,15 +227,15 @@ function App() {
         <div className='absolute top-0 left-0 z-[-1]' ref={cardRef}>
           <img src={backgroundImage} width={1500} height={843} />
           <div>
-            <div className='absolute bottom-[191px] left-[120.5px]'>
-              <div className='w-[340px] aspect-square rounded-full overflow-hidden'>
+            <div className='absolute bottom-[245px] left-[121px] h-[310px] overflow-hidden'>
+              <div className='w-[365px] aspect-square rounded-full overflow-hidden'>
                 <img className='object-cover w-full h-full' src={imageUrl} />
               </div>
             </div>
-            <div className='absolute bottom-[120px] left-[105.5px]'>
+            {/* <div className='absolute bottom-[120px] left-[105.5px]'>
               <img className='object-cover max-w-[400px] h-[110px]' src={backgroundName} />
-            </div>
-            <div className='absolute bottom-[185px] left-[115px] bg-transparent w-[350px]'>
+            </div> */}
+            <div className='absolute bottom-[195px] left-[115px] bg-transparent w-[350px]'>
               <h3
                 className={clsx('font-bold text-center text-white whitespace-nowrap', {
                   'text-4xl': role.length <= 15,
@@ -246,7 +246,7 @@ function App() {
                 {fullName || 'Lê Hoàng Trương Minh Hải'}
               </h3>
             </div>
-            <div className='absolute bottom-[80px] left-[105px] bg-transparent w-[400px] h-[100px]  whitespace-nowrap'>
+            <div className='absolute bottom-[90px] left-[105px] bg-transparent w-[400px] h-[100px]  whitespace-nowrap'>
               <p
                 className={clsx(' font-bold text-center text-white', {
                   'text-xl': role.length > 25,

@@ -47,15 +47,6 @@ function App() {
     avatar: null,
   });
 
-  useEffect(() => {
-    setErrors({
-      fullName: null,
-      role: null,
-      text: null,
-      avatar: null,
-    });
-  }, [fullName, role, text, avatar]);
-
   const compressImage = async (image: File) => {
     const options = {
       maxSizeMB: 0.7,
@@ -143,22 +134,28 @@ function App() {
   };
 
   const handlePreview = async () => {
-    const _errors = { ...errors };
+    const _errors: Errors = {
+      fullName: null,
+      role: null,
+      text: null,
+      avatar: null,
+    };
     if (!text || text.trim() === '') _errors.text = 'Vui lòng nhập thông điệp';
     if (text && text.length > 400) _errors.text = 'Vui lòng nhập thông điệp dưới 400 kí tự';
+    if (text.length < 10) _errors.fullName = 'Thông điệp cần có ít nhất 10 ký tự';
     if (!fullName || fullName.trim() === '') _errors.fullName = 'Vui lòng nhập Họ và tên';
-    if (fullName || fullName.length > 25) _errors.fullName = 'Họ và tên tối đa 45 kí tự';
+    if (fullName && fullName.length > 25) _errors.fullName = 'Họ và tên tối đa 45 kí tự';
+    if (fullName.length < 2) _errors.fullName = 'Họ và tên cần có ít nhất 2 ký tự';
     if (!role || role.trim() === '') _errors.role = 'Vui lòng nhập Đơn vị - Chức vụ';
-    if (role || role.length > 36) _errors.role = 'Đơn vị - Chức vụ tối đa 60 kí tự';
+    if (role && role.length > 36) _errors.role = 'Đơn vị - Chức vụ tối đa 60 kí tự';
+    if (role.length < 3) _errors.fullName = 'Đơn vị - Chức vụ cần có ít nhất 3 ký tự';
     if (!imageUrl || imageUrl.trim() === '') _errors.avatar = 'Vui lòng thêm ảnh đại diện';
     if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
-
     messageApi.open({
       key: 'optimize',
       content: 'Đang nén ảnh',
       type: 'loading',
     });
-    messageApi.destroy('optimize');
     if (!avatar) return messageApi.warning('Vui lòng chọn ảnh đại diện.');
     setLoading(true);
     messageApi.open({
@@ -189,19 +186,26 @@ function App() {
   };
 
   const handleSubmit = async (existedDataUrl?: string) => {
-    const _errors = { ...errors };
+    const _errors: Errors = {
+      fullName: null,
+      role: null,
+      text: null,
+      avatar: null,
+    };
     if (!text || text.trim() === '') _errors.text = 'Vui lòng nhập thông điệp';
     if (text && text.length > 400) _errors.text = 'Vui lòng nhập thông điệp dưới 400 kí tự';
+    if (text.length < 10) _errors.fullName = 'Thông điệp cần có ít nhất 10 ký tự';
     if (!fullName || fullName.trim() === '') _errors.fullName = 'Vui lòng nhập Họ và tên';
-    if (fullName || fullName.length > 25) _errors.fullName = 'Họ và tên tối đa 45 kí tự';
+    if (fullName && fullName.length > 25) _errors.fullName = 'Họ và tên tối đa 45 kí tự';
+    if (fullName.length < 2) _errors.fullName = 'Họ và tên cần có ít nhất 2 ký tự';
     if (!role || role.trim() === '') _errors.role = 'Vui lòng nhập Đơn vị - Chức vụ';
-    if (role || role.length > 36) _errors.role = 'Đơn vị - Chức vụ tối đa 60 kí tự';
+    if (role && role.length > 36) _errors.role = 'Đơn vị - Chức vụ tối đa 60 kí tự';
+    if (role.length < 3) _errors.fullName = 'Đơn vị - Chức vụ cần có ít nhất 3 ký tự';
     if (!imageUrl || imageUrl.trim() === '') _errors.avatar = 'Vui lòng thêm ảnh đại diện';
     if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
     try {
       if (!avatar) return messageApi.warning('Vui lòng chọn ảnh đại diện.');
       const dataUrl = existedDataUrl ? existedDataUrl : await generateDataUrl(avatar);
-      console.log('🚀 ~ file: App.tsx:173 ~ handleSubmit ~ dataUrl:', dataUrl);
       if (!dataUrl) return console.error('Không thể tạo thông điệp.');
       setLoading(true);
       messageApi.open({
@@ -211,10 +215,10 @@ function App() {
       });
       const blob = convertDataURIToBinary(dataUrl);
       const image_url = await saveToDb(blob);
-      console.log('🚀 ~ file: App.tsx:182 ~ handleSubmit ~ image_url:', image_url);
+      message.destroy('handling');
       setResultImage(dataUrl);
       messageApi.open({
-        key: 'handling',
+        key: 'sending',
         type: 'loading',
         content: 'Đang gửi thông điệp',
       });
@@ -226,7 +230,7 @@ function App() {
       };
       await saveToSheet(formData);
       messageApi.open({
-        key: 'handling',
+        key: 'sending',
         type: 'success',
         content: 'Gửi thông điệp thành công',
       });
@@ -234,7 +238,7 @@ function App() {
       console.error({ error });
       messageApi.open({
         type: 'error',
-        key: 'handling',
+        key: 'sending',
         content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
       });
     } finally {
@@ -258,13 +262,13 @@ function App() {
     setAvatar(undefined);
   };
 
-  const handleDownloadImage = async () => {
-    if (!resultImage) return;
-    const link = document.createElement('a');
-    link.href = resultImage;
-    link.download = 'anh-thong-diep-dai-hoi-2023.png';
-    link.click();
-  };
+  // const handleDownloadImage = async () => {
+  //   if (!resultImage) return;
+  //   const link = document.createElement('a');
+  //   link.href = resultImage;
+  //   link.download = 'anh-thong-diep-dai-hoi-2023.png';
+  //   link.click();
+  // };
 
   const handleCancelPreview = () => {
     setResultImage(null);
@@ -353,10 +357,14 @@ function App() {
               </Button>
               <div className='flex items-center gap-3'>
                 <Button
+                  download
+                  target='_blank'
+                  data-href={resultImage}
+                  title='Download message image'
+                  href={resultImage}
                   type='default'
                   size='small'
                   className='flex items-center justify-center'
-                  onClick={handleDownloadImage}
                   icon={<DownloadIcon />}
                 >
                   Lưu về máy
@@ -369,7 +377,6 @@ function App() {
                     onClick={() => {
                       handleSubmit(resultImage);
                     }}
-                    icon={<Send />}
                   >
                     Gửi thông điệp
                   </Button>
@@ -545,9 +552,8 @@ function App() {
                 }}
                 loading={loading}
                 className='w-full !text-sm bg-[#006ded] !h-fit font-sans !rounded-lg flex items-center justify-center'
-                icon={<Send />}
               >
-                Gửi thông điệp
+                Lưu và gửi thông điệp
               </Button>
             </div>
           </div>

@@ -10,7 +10,7 @@
 }
 
 .ant-btn {
-  @apply !px-3 !py-3 max-md:w-full !h-fit font-sans !rounded-lg font-medium;
+  @apply !px-3 !py-3 !h-fit font-sans !rounded-lg font-medium;
 }
 
 .ant-btn-primary {

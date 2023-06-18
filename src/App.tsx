@@ -12,7 +12,9 @@ import backgroundImage from './storage/background.png';
 import welcomeBottomImage from './storage/welcome-bottom.png';
 import welcomeTopImage from './storage/welcome-top.png';
 import { convertDataURIToBinary, saveToDb } from './utils';
-import { EyeIcon } from 'lucide-react';
+import { DownloadIcon, EyeIcon, Send } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
+import { useDebounce, useDebouncedCallback } from 'use-debounce';
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (img: RcFile | File, callback: (url: string) => void) => {
   const reader = new FileReader();
@@ -29,6 +31,7 @@ type Errors = {
 
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
+  const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState(false);
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>();
@@ -45,6 +48,17 @@ function App() {
     avatar: null,
   });
 
+  const debouncedText = useDebouncedCallback(
+    // function
+    (value) => {
+      setText(value);
+    },
+    // delay in ms
+    300
+  );
+  const [fullNameDebounced] = useDebounce(fullName, 500);
+  const [roleDebounced] = useDebounce(role, 500);
+
   useEffect(() => {
     setErrors({
       fullName: null,
@@ -54,18 +68,33 @@ function App() {
     });
   }, [fullName, role, text, avatar]);
 
-  const handleChange: UploadProps['onChange'] = (info: UploadChangeParam<UploadFile>) => {
+  const compressImage = async (image: File) => {
+    const options = {
+      maxSizeMB: 0.7,
+      maxWidthOrHeight: 1920,
+      useWebWorker: false,
+      alwaysKeepResolution: true,
+    };
+
+    try {
+      const compressedFile = await imageCompression(image, options);
+      return compressedFile;
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
+  };
+
+  const handleChange: UploadProps['onChange'] = async (info: UploadChangeParam<UploadFile>) => {
     if (info.file.status === 'uploading') {
       setLoading(true);
       return;
     }
     if (info.file.status === 'done') {
       setAvatar(info.file.originFileObj);
-      // Get this url from response in real world.
       getBase64(info.file.originFileObj as RcFile, (url) => {
-        console.log('🚀 ~ file: App.tsx:37 ~ getBase64 ~ url:', url);
-        setLoading(false);
         setImageUrl(url);
+        setLoading(false);
       });
     }
   };
@@ -79,8 +108,8 @@ function App() {
     </div>
   );
 
-  const resizeFile = (file: File) =>
-    new Promise((resolve) => {
+  const resizeFile = (file: File) => {
+    const image: Promise<File | null> = new Promise((resolve) => {
       FileResizer.imageFileResizer(
         file,
         500,
@@ -89,12 +118,13 @@ function App() {
         50,
         0,
         (uri) => {
-          setAvatar(uri as RcFile);
-          resolve(uri);
+          resolve(uri as File);
         },
         'file'
       );
     });
+    return image;
+  };
 
   const generateDataUrl = async (avatar: File) => {
     if (!cardRef.current) {
@@ -105,7 +135,19 @@ function App() {
       });
       return null;
     }
-    await resizeFile(avatar);
+    const resizeImage = await resizeFile(avatar);
+    if (!resizeImage) {
+      console.error('Cannot resize image');
+      return null;
+    }
+
+    if (previewing) {
+      setAvatar(resizeImage as RcFile);
+    } else {
+      const compressedAvatar = await compressImage(resizeImage);
+      console.log('🚀 ~ file: App.tsx:136 ~ generateDataUrl ~ compressedAvatar:', compressedAvatar);
+      setAvatar(compressedAvatar as RcFile);
+    }
     const canvas = await html2canvas(cardRef.current, {
       windowWidth: 1928,
     });
@@ -158,7 +200,7 @@ function App() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (existedDataUrl?: string) => {
     const _errors = { ...errors };
     if (!text || text.trim() === '') _errors.text = 'Vui lòng nhập thông điệp';
     if (text && text.length > 400) _errors.text = 'Vui lòng nhập thông điệp dưới 400 kí tự';
@@ -170,7 +212,7 @@ function App() {
     if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
     try {
       if (!avatar) return messageApi.warning('Vui lòng chọn ảnh đại diện.');
-      const dataUrl = await generateDataUrl(avatar);
+      const dataUrl = existedDataUrl ? existedDataUrl : await generateDataUrl(avatar);
       console.log('🚀 ~ file: App.tsx:173 ~ handleSubmit ~ dataUrl:', dataUrl);
       if (!dataUrl) return console.error('Không thể tạo thông điệp.');
       setLoading(true);
@@ -209,8 +251,23 @@ function App() {
       });
     } finally {
       setLoading(false);
-      setPreview(true);
     }
+    if (!previewing) {
+      setPreview(true);
+      return;
+    }
+
+    setPreview(false);
+    resetState();
+  };
+
+  const resetState = () => {
+    setText('');
+    setFullName('');
+    setRole('');
+    setImageUrl(undefined);
+    setResultImage(null);
+    setAvatar(undefined);
   };
 
   const handleDownloadImage = async () => {
@@ -219,6 +276,13 @@ function App() {
     link.href = resultImage;
     link.download = 'anh-thong-diep-dai-hoi-2023.png';
     link.click();
+  };
+
+  const handleCancelPreview = () => {
+    setResultImage(null);
+    setPreview(false);
+    if (!previewing) resetState();
+    setPreviewing(false);
   };
 
   const showMockImage =
@@ -244,11 +308,10 @@ function App() {
               {/* <div className='absolute bottom-[120px] left-[105.5px]'>
               <img className='object-cover max-w-[400px] h-[110px]' src={backgroundName} />
             </div> */}
-              <div className='absolute bottom-[195px] left-[115px] bg-transparent w-[350px]'>
+              <div className='absolute bottom-[195px] left-[90px] bg-black w-[450px]'>
                 <h3
                   className={clsx('font-bold text-center text-white whitespace-nowrap', {
                     'text-4xl': role.length <= 15,
-                    'text-3xl': role.length > 15,
                     'text-2xl': role.length > 20,
                   })}
                 >
@@ -291,18 +354,39 @@ function App() {
         title={'Ảnh thông điệp của bạn'}
         footer={null}
         width={800}
-        onCancel={() => {
-          setResultImage(null);
-          setPreview(false);
-        }}
+        onCancel={handleCancelPreview}
       >
         {resultImage && (
           <div>
             <img alt='example' style={{ width: '100%' }} src={resultImage} />
-            <div className='flex items-center justify-end pt-8 max-md:pt-3'>
-              <Button type='primary' size='large' className='w-full' onClick={handleDownloadImage}>
-                Lưu về máy
+            <div className='flex items-center justify-between pt-8 max-md:pt-3'>
+              <Button type='text' size='middle' onClick={handleCancelPreview}>
+                Thay đổi
               </Button>
+              <div className='flex items-center'>
+                <Button
+                  type='default'
+                  size='middle'
+                  className='flex items-center justify-center'
+                  onClick={handleDownloadImage}
+                  icon={<DownloadIcon />}
+                >
+                  Lưu về máy
+                </Button>
+                {previewing && (
+                  <Button
+                    type='primary'
+                    size='middle'
+                    className='flex items-center justify-center'
+                    onClick={() => {
+                      handleSubmit(resultImage);
+                    }}
+                    icon={<Send />}
+                  >
+                    Gửi thông điệp
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -392,7 +476,7 @@ function App() {
               <div>
                 <Input
                   name='full_name'
-                  value={fullName}
+                  value={fullNameDebounced}
                   onChange={(e) => {
                     if (e.target.value.length > 25) {
                       messageApi.warning('Vui lòng nhập tối đa 25 kí tự');
@@ -410,7 +494,7 @@ function App() {
               </div>
               <div>
                 <Input
-                  value={role}
+                  value={roleDebounced}
                   onChange={(e) => {
                     if (e.target.value.length > 36) {
                       messageApi.warning('Vui lòng nhập tối đa 36 kí tự');
@@ -456,6 +540,7 @@ function App() {
                 type='text'
                 loading={loading}
                 onClick={async () => {
+                  setPreviewing(true);
                   await handlePreview();
                 }}
                 icon={<EyeIcon />}
@@ -468,12 +553,15 @@ function App() {
               </Button>
               <Button
                 type='primary'
-                onClick={handleSubmit}
+                onClick={() => {
+                  handleSubmit();
+                }}
                 loading={loading}
                 style={{
                   padding: '12px 20px',
                 }}
-                className='w-full !text-sm bg-[#006ded] !h-fit font-sans !rounded-lg'
+                className='w-full !text-sm bg-[#006ded] !h-fit font-sans !rounded-lg flex items-center justify-center'
+                icon={<Send />}
               >
                 Gửi thông điệp
               </Button>

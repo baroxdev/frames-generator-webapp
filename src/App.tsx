@@ -299,7 +299,7 @@ function App() {
               <div className='absolute bottom-[195px] left-[90px] w-[450px]'>
                 <h3
                   className={clsx('font-bold text-center text-white whitespace-nowrap', {
-                    'text-4xl': role.length <= 15,
+                    'text-4xl': role.length <= 20,
                     'text-2xl': role.length > 20,
                   })}
                 >
@@ -348,13 +348,13 @@ function App() {
           <div>
             <img alt='example' style={{ width: '100%' }} src={resultImage} />
             <div className='flex items-center justify-between pt-8 max-md:pt-3'>
-              <Button type='text' size='middle' onClick={handleCancelPreview}>
+              <Button type='text' size='small' onClick={handleCancelPreview}>
                 Thay đổi
               </Button>
-              <div className='flex items-center'>
+              <div className='flex items-center gap-3'>
                 <Button
                   type='default'
-                  size='middle'
+                  size='small'
                   className='flex items-center justify-center'
                   onClick={handleDownloadImage}
                   icon={<DownloadIcon />}
@@ -364,7 +364,7 @@ function App() {
                 {previewing && (
                   <Button
                     type='primary'
-                    size='middle'
+                    size='small'
                     className='flex items-center justify-center'
                     onClick={() => {
                       handleSubmit(resultImage);
@@ -379,7 +379,7 @@ function App() {
           </div>
         )}
       </Modal>
-      <div className='flex flex-col items-center justify-center w-full max-w-2xl px-2'>
+      <div className='flex flex-col items-center w-full max-w-2xl px-2'>
         <div className='max-w-lg mb-7 max-md:mb-4 max-md:max-w-full'>
           <img src={welcomeTopImage} alt='welcome image' />
           <img src={welcomeBottomImage} className='mt-4' alt='welcome image' />
@@ -523,7 +523,7 @@ function App() {
                 </div>
               </div>
             </div>
-            <div className='flex items-center gap-3 mt-8 max-md:flex-col max-md:mt-5'>
+            <div className='flex items-center gap-3 mt-8 max-md:gap-2 max-md:flex-col max-md:mt-5'>
               <Button
                 type='text'
                 size='middle'
@@ -533,7 +533,7 @@ function App() {
                   await handlePreview();
                 }}
                 icon={<EyeIcon />}
-                className='!text-sm w-fit !flex items-center justify-center !h-fit font-sans text-slate-700 !rounded-lg'
+                className='!text-sm w-fit max-md:w-full !flex items-center justify-center !h-fit font-sans text-slate-700 !rounded-lg'
               >
                 Xem trước
               </Button>

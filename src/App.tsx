@@ -96,7 +96,7 @@ function App() {
       );
     });
 
-  const generateDataUrl = async () => {
+  const generateDataUrl = async (avatar: File) => {
     if (!cardRef.current) {
       messageApi.open({
         key: 'handling',
@@ -105,7 +105,7 @@ function App() {
       });
       return null;
     }
-    await resizeFile(avatar as File);
+    await resizeFile(avatar);
     const canvas = await html2canvas(cardRef.current, {
       windowWidth: 1928,
     });
@@ -128,7 +128,6 @@ function App() {
       content: 'Đang nén ảnh',
       type: 'loading',
     });
-    await resizeFile(avatar as File);
     messageApi.destroy('optimize');
     if (!avatar) return messageApi.warning('Vui lòng chọn ảnh đại diện.');
     setLoading(true);
@@ -144,10 +143,11 @@ function App() {
         content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
       });
     try {
-      const dataUrl = await generateDataUrl();
+      const dataUrl = await generateDataUrl(avatar);
       setResultImage(dataUrl);
       setPreview(true);
     } catch (error) {
+      console.error({ error: error });
       messageApi.open({
         type: 'error',
         key: 'handling',
@@ -169,7 +169,9 @@ function App() {
     if (!imageUrl || imageUrl.trim() === '') _errors.avatar = 'Vui lòng thêm ảnh đại diện';
     if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
     try {
-      const dataUrl = await generateDataUrl();
+      if (!avatar) return messageApi.warning('Vui lòng chọn ảnh đại diện.');
+      const dataUrl = await generateDataUrl(avatar);
+      console.log('🚀 ~ file: App.tsx:173 ~ handleSubmit ~ dataUrl:', dataUrl);
       if (!dataUrl) return console.error('Không thể tạo thông điệp.');
       setLoading(true);
       messageApi.open({
@@ -179,6 +181,7 @@ function App() {
       });
       const blob = convertDataURIToBinary(dataUrl);
       const image_url = await saveToDb(blob);
+      console.log('🚀 ~ file: App.tsx:182 ~ handleSubmit ~ image_url:', image_url);
       setResultImage(dataUrl);
       messageApi.open({
         key: 'handling',
@@ -198,6 +201,7 @@ function App() {
         content: 'Gửi thông điệp thành công',
       });
     } catch (error) {
+      console.error({ error });
       messageApi.open({
         type: 'error',
         key: 'handling',

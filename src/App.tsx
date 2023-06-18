@@ -2,8 +2,10 @@ import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Input, Modal, Upload, message } from 'antd';
 import ImgCrop from 'antd-img-crop';
 import { RcFile, UploadChangeParam, UploadFile, UploadProps } from 'antd/es/upload';
+import imageCompression from 'browser-image-compression';
 import clsx from 'clsx';
 import html2canvas from 'html2canvas';
+import { DownloadIcon, EyeIcon, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import FileResizer from 'react-image-file-resizer';
 import backgroundHorizontial from './assets/bg-hoz.png';
@@ -12,9 +14,6 @@ import backgroundImage from './storage/background.png';
 import welcomeBottomImage from './storage/welcome-bottom.png';
 import welcomeTopImage from './storage/welcome-top.png';
 import { convertDataURIToBinary, saveToDb } from './utils';
-import { DownloadIcon, EyeIcon, Send } from 'lucide-react';
-import imageCompression from 'browser-image-compression';
-import { useDebounce, useDebouncedCallback } from 'use-debounce';
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (img: RcFile | File, callback: (url: string) => void) => {
   const reader = new FileReader();
@@ -47,17 +46,6 @@ function App() {
     text: null,
     avatar: null,
   });
-
-  const debouncedText = useDebouncedCallback(
-    // function
-    (value) => {
-      setText(value);
-    },
-    // delay in ms
-    300
-  );
-  const [fullNameDebounced] = useDebounce(fullName, 500);
-  const [roleDebounced] = useDebounce(role, 500);
 
   useEffect(() => {
     setErrors({
@@ -476,7 +464,7 @@ function App() {
               <div>
                 <Input
                   name='full_name'
-                  value={fullNameDebounced}
+                  value={fullName}
                   onChange={(e) => {
                     if (e.target.value.length > 25) {
                       messageApi.warning('Vui lòng nhập tối đa 25 kí tự');
@@ -494,7 +482,7 @@ function App() {
               </div>
               <div>
                 <Input
-                  value={roleDebounced}
+                  value={role}
                   onChange={(e) => {
                     if (e.target.value.length > 36) {
                       messageApi.warning('Vui lòng nhập tối đa 36 kí tự');

@@ -1,9 +1,9 @@
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { storage } from './firebase';
-
+import { v4 as uuidv4 } from 'uuid';
 export async function saveToDb(image: Uint8Array) {
   if (!image) return null;
-  const imageRef = ref(storage, 'images/' + crypto.randomUUID() + '.jpg');
+  const imageRef = ref(storage, 'images/' + uuidv4() + '.jpg');
   await uploadBytes(imageRef, image, {
     contentType: 'image/jpeg',
   });

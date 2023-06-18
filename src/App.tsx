@@ -5,8 +5,8 @@ import { RcFile, UploadChangeParam, UploadFile, UploadProps } from 'antd/es/uplo
 import imageCompression from 'browser-image-compression';
 import clsx from 'clsx';
 import html2canvas from 'html2canvas';
-import { DownloadIcon, EyeIcon, Send } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { DownloadIcon, EyeIcon } from 'lucide-react';
+import { useRef, useState } from 'react';
 import FileResizer from 'react-image-file-resizer';
 import backgroundHorizontial from './assets/bg-hoz.png';
 import saveToSheet, { FormData } from './services/google-sheet';

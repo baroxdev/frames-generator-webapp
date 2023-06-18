@@ -296,7 +296,7 @@ function App() {
               {/* <div className='absolute bottom-[120px] left-[105.5px]'>
               <img className='object-cover max-w-[400px] h-[110px]' src={backgroundName} />
             </div> */}
-              <div className='absolute bottom-[195px] left-[90px] bg-black w-[450px]'>
+              <div className='absolute bottom-[195px] left-[90px] w-[450px]'>
                 <h3
                   className={clsx('font-bold text-center text-white whitespace-nowrap', {
                     'text-4xl': role.length <= 15,
@@ -526,28 +526,24 @@ function App() {
             <div className='flex items-center gap-3 mt-8 max-md:flex-col max-md:mt-5'>
               <Button
                 type='text'
+                size='middle'
                 loading={loading}
                 onClick={async () => {
                   setPreviewing(true);
                   await handlePreview();
                 }}
                 icon={<EyeIcon />}
-                style={{
-                  padding: '12px 20px',
-                }}
                 className='!text-sm w-fit !flex items-center justify-center !h-fit font-sans text-slate-700 !rounded-lg'
               >
                 Xem trước
               </Button>
               <Button
+                size='middle'
                 type='primary'
                 onClick={() => {
                   handleSubmit();
                 }}
                 loading={loading}
-                style={{
-                  padding: '12px 20px',
-                }}
                 className='w-full !text-sm bg-[#006ded] !h-fit font-sans !rounded-lg flex items-center justify-center'
                 icon={<Send />}
               >

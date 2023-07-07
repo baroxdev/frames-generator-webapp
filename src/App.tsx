@@ -1,19 +1,27 @@
-import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Input, Modal, Upload, message } from 'antd';
+import { Button, Input, message, Modal, Upload } from 'antd';
 import ImgCrop from 'antd-img-crop';
 import { RcFile, UploadChangeParam, UploadFile, UploadProps } from 'antd/es/upload';
 import imageCompression from 'browser-image-compression';
 import clsx from 'clsx';
+import domtoimage from 'dom-to-image';
 import html2canvas from 'html2canvas';
 import { DownloadIcon, EyeIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import FileResizer from 'react-image-file-resizer';
+
+import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
+
 import backgroundHorizontial from './assets/bg-hoz.png';
+import Avatar from './components/Avatar';
+import Message from './components/Message';
+import Role from './components/Role';
+import { config } from './config';
 import saveToSheet, { FormData } from './services/google-sheet';
 import backgroundImage from './storage/background.png';
 import welcomeBottomImage from './storage/welcome-bottom.png';
 import welcomeTopImage from './storage/welcome-top.png';
 import { convertDataURIToBinary, saveToDb } from './utils';
+
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (img: RcFile | File, callback: (url: string) => void) => {
   const reader = new FileReader();
@@ -82,7 +90,7 @@ function App() {
     <div>
       {loading ? <LoadingOutlined /> : <PlusOutlined />}
       <div style={{ marginTop: 8 }} className='font-medium'>
-        Ảnh của bạn
+        {config.text.your_picture}
       </div>
     </div>
   );
@@ -110,7 +118,7 @@ function App() {
       messageApi.open({
         key: 'handling',
         type: 'error',
-        content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
+        content: config.text.error.cannot_create_message,
       });
       return null;
     }
@@ -127,10 +135,18 @@ function App() {
       console.log('🚀 ~ file: App.tsx:136 ~ generateDataUrl ~ compressedAvatar:', compressedAvatar);
       setAvatar(compressedAvatar as RcFile);
     }
-    const canvas = await html2canvas(cardRef.current, {
-      windowWidth: 1928,
+    // const canvas = await html2canvas(cardRef.current, {
+    //   windowWidth: 1928,
+
+    // });
+    // return canvas.toDataURL();
+
+    const imageUrl = await domtoimage.toPng(cardRef.current, {
+      width: 1500,
+      height: 843,
     });
-    return canvas.toDataURL();
+    console.log('🚀 ~ file: App.tsx:144 ~ generateDataUrl ~ imageUrl:', imageUrl);
+    return imageUrl;
   };
 
   const handlePreview = async () => {
@@ -140,23 +156,24 @@ function App() {
       text: null,
       avatar: null,
     };
-    if (!text || text.trim() === '') _errors.text = 'Vui lòng nhập thông điệp';
-    if (text && text.length > 400) _errors.text = 'Vui lòng nhập thông điệp dưới 400 kí tự';
-    if (text.length < 10) _errors.fullName = 'Thông điệp cần có ít nhất 10 ký tự';
-    if (!fullName || fullName.trim() === '') _errors.fullName = 'Vui lòng nhập Họ và tên';
-    if (fullName && fullName.length > 25) _errors.fullName = 'Họ và tên tối đa 45 kí tự';
-    if (fullName.length < 2) _errors.fullName = 'Họ và tên cần có ít nhất 2 ký tự';
-    if (!role || role.trim() === '') _errors.role = 'Vui lòng nhập Đơn vị - Chức vụ';
-    if (role && role.length > 36) _errors.role = 'Đơn vị - Chức vụ tối đa 60 kí tự';
-    if (role.length < 3) _errors.fullName = 'Đơn vị - Chức vụ cần có ít nhất 3 ký tự';
-    if (!imageUrl || imageUrl.trim() === '') _errors.avatar = 'Vui lòng thêm ảnh đại diện';
+    if (!text || text.trim() === '') _errors.text = config.text.error.missing_message;
+    if (text && text.length > config.limit.message) _errors.text = config.text.error.exceed_message;
+    if (text.length < 10) _errors.text = config.text.error.message_too_short;
+    if (!fullName || fullName.trim() === '') _errors.fullName = config.text.error.fullName_empty;
+    if (fullName && fullName.length > config.limit.fullName)
+      _errors.fullName = config.text.error.fullName_too_long;
+    if (fullName.length < 2) _errors.fullName = config.text.error.fullName_too_short;
+    if (!role || role.trim() === '') _errors.role = config.text.error.role_empty;
+    if (role && role.length > 36) _errors.role = config.text.error.role_too_long;
+    if (role.length < 3) _errors.role = config.text.error.role_too_short;
+    if (!imageUrl || imageUrl.trim() === '') _errors.avatar = config.text.error.avatar_empty;
     if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
     messageApi.open({
       key: 'optimize',
       content: 'Đang nén ảnh',
       type: 'loading',
     });
-    if (!avatar) return messageApi.warning('Vui lòng chọn ảnh đại diện.');
+    if (!avatar) return messageApi.warning(config.text.warning.choose_avatar);
     setLoading(true);
     messageApi.open({
       key: 'handling',
@@ -167,7 +184,7 @@ function App() {
       return messageApi.open({
         key: 'handling',
         type: 'error',
-        content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
+        content: config.text.error.cannot_create_message,
       });
     try {
       const dataUrl = await generateDataUrl(avatar);
@@ -178,7 +195,7 @@ function App() {
       messageApi.open({
         type: 'error',
         key: 'handling',
-        content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
+        content: config.text.error.cannot_create_message,
       });
     } finally {
       setLoading(false);
@@ -192,26 +209,27 @@ function App() {
       text: null,
       avatar: null,
     };
-    if (!text || text.trim() === '') _errors.text = 'Vui lòng nhập thông điệp';
-    if (text && text.length > 400) _errors.text = 'Vui lòng nhập thông điệp dưới 400 kí tự';
-    if (text.length < 10) _errors.fullName = 'Thông điệp cần có ít nhất 10 ký tự';
-    if (!fullName || fullName.trim() === '') _errors.fullName = 'Vui lòng nhập Họ và tên';
-    if (fullName && fullName.length > 25) _errors.fullName = 'Họ và tên tối đa 45 kí tự';
-    if (fullName.length < 2) _errors.fullName = 'Họ và tên cần có ít nhất 2 ký tự';
-    if (!role || role.trim() === '') _errors.role = 'Vui lòng nhập Đơn vị - Chức vụ';
-    if (role && role.length > 36) _errors.role = 'Đơn vị - Chức vụ tối đa 60 kí tự';
-    if (role.length < 3) _errors.fullName = 'Đơn vị - Chức vụ cần có ít nhất 3 ký tự';
-    if (!imageUrl || imageUrl.trim() === '') _errors.avatar = 'Vui lòng thêm ảnh đại diện';
+    if (!text || text.trim() === '') _errors.text = config.text.error.missing_message;
+    if (text && text.length > config.limit.message) _errors.text = config.text.error.exceed_message;
+    if (text.length < 10) _errors.text = config.text.error.message_too_short;
+    if (!fullName || fullName.trim() === '') _errors.fullName = config.text.error.fullName_empty;
+    if (fullName && fullName.length > config.limit.fullName)
+      _errors.fullName = config.text.error.fullName_too_long;
+    if (fullName.length < 2) _errors.fullName = config.text.error.fullName_too_short;
+    if (!role || role.trim() === '') _errors.role = config.text.error.role_empty;
+    if (role && role.length > 36) _errors.role = config.text.error.role_too_long;
+    if (role.length < 3) _errors.role = config.text.error.role_too_short;
+    if (!imageUrl || imageUrl.trim() === '') _errors.avatar = config.text.error.avatar_empty;
     if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
     try {
-      if (!avatar) return messageApi.warning('Vui lòng chọn ảnh đại diện.');
+      if (!avatar) return messageApi.warning(config.text.warning.choose_avatar);
       const dataUrl = existedDataUrl ? existedDataUrl : await generateDataUrl(avatar);
       if (!dataUrl) return console.error('Không thể tạo thông điệp.');
       setLoading(true);
       messageApi.open({
         key: 'handling',
         type: 'loading',
-        content: 'Đang tạo thông điệp',
+        content: config.text.loading.creating_message,
       });
       const blob = convertDataURIToBinary(dataUrl);
       const image_url = await saveToDb(blob);
@@ -220,7 +238,7 @@ function App() {
       messageApi.open({
         key: 'sending',
         type: 'loading',
-        content: 'Đang gửi thông điệp',
+        content: config.text.loading.sending_message,
       });
       const formData: FormData = {
         full_name: fullName,
@@ -232,14 +250,14 @@ function App() {
       messageApi.open({
         key: 'sending',
         type: 'success',
-        content: 'Gửi thông điệp thành công',
+        content: config.text.success.sent_message,
       });
     } catch (error) {
       console.error({ error });
       messageApi.open({
         type: 'error',
         key: 'sending',
-        content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
+        content: config.text.error.cannot_create_message,
       });
     } finally {
       setLoading(false);
@@ -280,64 +298,57 @@ function App() {
   const showMockImage =
     fullName.trim() !== '' && role.trim() !== '' && text.trim() !== '' && imageUrl;
 
+  const isDevMod = false;
+
   return (
     <div
       className='flex justify-center w-full min-h-screen py-4 bg-white'
       style={{
         background: `url(${backgroundHorizontial})`,
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+        backgroundSize: 'cover',
       }}
     >
       {showMockImage && (
-        <div className='overflow-hidden max-md:hidden'>
-          <div className='absolute top-0 left-0 z-[-1]' ref={cardRef}>
+        <div className={clsx('overflow-hidden max-md:hidden')}>
+          <div
+            className={clsx('absolute top-0 left-0', isDevMod ? 'z-[99]' : 'z-[-1]')}
+            ref={cardRef}
+          >
             <img src={backgroundImage} width={1500} height={843} />
             <div>
-              <div className='absolute bottom-[245px] left-[121px] h-[310px] overflow-hidden'>
-                <div className='w-[365px] aspect-square rounded-full overflow-hidden'>
-                  <img className='object-cover w-full h-full' src={imageUrl} />
-                </div>
-              </div>
-              {/* <div className='absolute bottom-[120px] left-[105.5px]'>
-              <img className='object-cover max-w-[400px] h-[110px]' src={backgroundName} />
-            </div> */}
-              <div className='absolute bottom-[195px] left-[90px] w-[450px]'>
-                <h3
-                  className={clsx('font-bold text-center text-white whitespace-nowrap', {
-                    'text-4xl': role.length <= 20,
-                    'text-2xl': role.length > 20,
-                  })}
-                >
-                  {fullName || 'Tên của bạn'}
-                </h3>
-              </div>
-              <div className='absolute bottom-[90px] left-[105px] bg-transparent w-[400px] h-[100px]  whitespace-nowrap'>
-                <p
-                  className={clsx(' font-medium text-center text-white', {
-                    'text-xl': role.length > 25,
-                    'text-2xl': role.length <= 25,
-                  })}
-                >
-                  {role || 'Chức vụ của bạn'}
-                </p>
-              </div>
+              <Avatar
+                height={498}
+                width={498}
+                x={242}
+                y={116}
+                style={{
+                  height: 453,
+                  // opacity: 0.4,
+                }}
+                content={imageUrl}
+              />
+              <Role
+                height={40}
+                width={425}
+                x={710}
+                y={140}
+                content={'Họ tên: ' + fullName}
+                limit={30}
+              />
+              <Role
+                height={35}
+                width={450}
+                x={750}
+                y={125}
+                content={'Chức vụ: ' + role}
+                limit={29}
+              />
+              {/* <Role height={40} width={500} x={755} y={240} isDev /> */}
             </div>
-            <div
-              className={clsx(
-                'absolute w-[690px] h-[340px] bottom-[220px] right-[140px] bg-transparent',
-                {
-                  'flex items-center justify-center': text.length < 150,
-                }
-              )}
-            >
-              <p
-                className={clsx('font-medium text-blue-900', {
-                  'text-3xl ': text.length > 150,
-                  'text-5xl text-center': text.length < 150,
-                })}
-              >
-                {text || 'Thông điệp của bạn'}
-              </p>
-            </div>
+            <Message width={690} height={340} x={345} y={716} content={text} />
           </div>
         </div>
       )}

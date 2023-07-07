@@ -1,8 +1,6 @@
-import React from 'react';
-
 import { ObjectLayer } from '../types';
 
-const Avatar = ({ height, width, x, y, content, isDev, style }: ObjectLayer) => {
+const Avatar = ({ height, width, x, y, content, style }: ObjectLayer) => {
   const imageUrl = content ?? 'https://source.unsplash.com/random';
 
   return (

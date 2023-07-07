@@ -4,7 +4,6 @@ import { RcFile, UploadChangeParam, UploadFile, UploadProps } from 'antd/es/uplo
 import imageCompression from 'browser-image-compression';
 import clsx from 'clsx';
 import domtoimage from 'dom-to-image';
-import html2canvas from 'html2canvas';
 import { DownloadIcon, EyeIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import FileResizer from 'react-image-file-resizer';

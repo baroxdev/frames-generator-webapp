@@ -131,7 +131,6 @@ function App() {
       setAvatar(resizeImage as RcFile);
     } else {
       const compressedAvatar = await compressImage(resizeImage);
-      console.log('🚀 ~ file: App.tsx:136 ~ generateDataUrl ~ compressedAvatar:', compressedAvatar);
       setAvatar(compressedAvatar as RcFile);
     }
     // const canvas = await html2canvas(cardRef.current, {

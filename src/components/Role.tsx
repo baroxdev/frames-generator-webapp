@@ -20,7 +20,7 @@ const Role = ({ content, height, width, x, y, isDev, limit }: ObjectLayer) => {
       }}
     >
       <p
-        className={clsx(' font-bold text-center text-white', {
+        className={clsx('font-sans font-bold text-center text-white', {
           'text-xl': gt,
           'text-3xl': lte,
         })}

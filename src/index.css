@@ -10,7 +10,7 @@
 @layer {
   input,
   textarea {
-    @apply !py-2 max-md:py-3 !border-slate-200 placeholder:!text-gray-400 placeholder:font-normal placeholder:text-sm font-sans placeholder:font-sans;
+    @apply !py-2 max-md:py-3 !border-gray-300 placeholder:!text-gray-400 placeholder:font-normal placeholder:text-sm font-sans placeholder:font-sans;
   }
 }
 
@@ -35,7 +35,7 @@
 }
 
 .ant-upload.ant-upload-select {
-  @apply flex-shrink-0 !w-full !h-full !mx-auto max-md:!w-[200px] max-md:!h-[200px];
+  @apply flex-shrink-0 !w-full !h-full !mx-auto max-md:!w-[130px] max-md:!h-[130px];
 }
 
 .octagonWrap {

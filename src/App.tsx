@@ -1,22 +1,17 @@
 import { Button, Input, message, Modal, Upload } from 'antd';
 import ImgCrop from 'antd-img-crop';
 import { RcFile, UploadChangeParam, UploadFile, UploadProps } from 'antd/es/upload';
-import imageCompression from 'browser-image-compression';
-import clsx from 'clsx';
 import domtoimage from 'dom-to-image';
 import { DownloadIcon, EyeIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import FileResizer from 'react-image-file-resizer';
 
-import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
-
 import backgroundHorizontial from './assets/bg-hoz.png';
-import Avatar from './components/Avatar';
-import Message from './components/Message';
-import Role from './components/Role';
+import PrintArea from './components/PrintArea';
+import UploadButton from './components/UploadButton';
 import { config } from './config';
-import saveToSheet, { FormData } from './services/google-sheet';
-import backgroundImage from './storage/background.png';
+import saveToSheet, { FormData } from './services/gsheet.service';
+import imageService from './services/image.service';
 import welcomeBottomImage from './storage/welcome-bottom.png';
 import welcomeTopImage from './storage/welcome-top.png';
 import { convertDataURIToBinary, saveToDb } from './utils';
@@ -54,23 +49,6 @@ function App() {
     avatar: null,
   });
 
-  const compressImage = async (image: File) => {
-    const options = {
-      maxSizeMB: 0.7,
-      maxWidthOrHeight: 1920,
-      useWebWorker: false,
-      alwaysKeepResolution: true,
-    };
-
-    try {
-      const compressedFile = await imageCompression(image, options);
-      return compressedFile;
-    } catch (error) {
-      console.log(error);
-      return null;
-    }
-  };
-
   const handleChange: UploadProps['onChange'] = async (info: UploadChangeParam<UploadFile>) => {
     if (info.file.status === 'uploading') {
       setLoading(true);
@@ -84,15 +62,6 @@ function App() {
       });
     }
   };
-
-  const uploadButton = (
-    <div>
-      {loading ? <LoadingOutlined /> : <PlusOutlined />}
-      <div style={{ marginTop: 8 }} className='font-medium'>
-        {config.text.your_picture}
-      </div>
-    </div>
-  );
 
   const resizeFile = (file: File) => {
     const image: Promise<File | null> = new Promise((resolve) => {
@@ -112,7 +81,7 @@ function App() {
     return image;
   };
 
-  const generateDataUrl = async (avatar: File) => {
+  const getDataUrl = async (avatar: File) => {
     if (!cardRef.current) {
       messageApi.open({
         key: 'handling',
@@ -130,20 +99,15 @@ function App() {
     if (previewing) {
       setAvatar(resizeImage as RcFile);
     } else {
-      const compressedAvatar = await compressImage(resizeImage);
+      const compressedAvatar = await imageService.compressImage(resizeImage);
       setAvatar(compressedAvatar as RcFile);
     }
-    // const canvas = await html2canvas(cardRef.current, {
-    //   windowWidth: 1928,
-
-    // });
-    // return canvas.toDataURL();
 
     const imageUrl = await domtoimage.toPng(cardRef.current, {
       width: 1500,
       height: 843,
     });
-    console.log('🚀 ~ file: App.tsx:144 ~ generateDataUrl ~ imageUrl:', imageUrl);
+    console.log('🚀 ~ file: App.tsx:144 ~ getDataUrl ~ imageUrl:', imageUrl);
     return imageUrl;
   };
 
@@ -185,7 +149,7 @@ function App() {
         content: config.text.error.cannot_create_message,
       });
     try {
-      const dataUrl = await generateDataUrl(avatar);
+      const dataUrl = await getDataUrl(avatar);
       setResultImage(dataUrl);
       setPreview(true);
     } catch (error) {
@@ -221,7 +185,7 @@ function App() {
     if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
     try {
       if (!avatar) return messageApi.warning(config.text.warning.choose_avatar);
-      const dataUrl = existedDataUrl ? existedDataUrl : await generateDataUrl(avatar);
+      const dataUrl = existedDataUrl ? existedDataUrl : await getDataUrl(avatar);
       if (!dataUrl) return console.error('Không thể tạo thông điệp.');
       setLoading(true);
       messageApi.open({
@@ -265,7 +229,6 @@ function App() {
       return;
     }
 
-    setPreview(false);
     resetState();
   };
 
@@ -276,15 +239,13 @@ function App() {
     setImageUrl(undefined);
     setResultImage(null);
     setAvatar(undefined);
+    setErrors({
+      fullName: null,
+      role: null,
+      text: null,
+      avatar: null,
+    });
   };
-
-  // const handleDownloadImage = async () => {
-  //   if (!resultImage) return;
-  //   const link = document.createElement('a');
-  //   link.href = resultImage;
-  //   link.download = 'anh-thong-diep-dai-hoi-2023.png';
-  //   link.click();
-  // };
 
   const handleCancelPreview = () => {
     setResultImage(null);
@@ -293,9 +254,7 @@ function App() {
     setPreviewing(false);
   };
 
-  const showMockImage =
-    fullName.trim() !== '' && role.trim() !== '' && text.trim() !== '' && imageUrl;
-
+  const showMockImage = Boolean(imageUrl);
   const isDevMod = false;
 
   return (
@@ -310,45 +269,14 @@ function App() {
       }}
     >
       {showMockImage && (
-        <div className={clsx('overflow-hidden max-md:hidden')}>
-          <div
-            className={clsx('absolute top-0 left-0', isDevMod ? 'z-[99]' : 'z-[-1]')}
-            ref={cardRef}
-          >
-            <img src={backgroundImage} width={1500} height={843} />
-            <div>
-              <Avatar
-                height={498}
-                width={498}
-                x={242}
-                y={116}
-                style={{
-                  height: 453,
-                  // opacity: 0.4,
-                }}
-                content={imageUrl}
-              />
-              <Role
-                height={40}
-                width={425}
-                x={710}
-                y={140}
-                content={'Họ tên: ' + fullName}
-                limit={30}
-              />
-              <Role
-                height={35}
-                width={450}
-                x={750}
-                y={125}
-                content={'Chức vụ: ' + role}
-                limit={29}
-              />
-              {/* <Role height={40} width={500} x={755} y={240} isDev /> */}
-            </div>
-            <Message width={690} height={340} x={345} y={716} content={text} />
-          </div>
-        </div>
+        <PrintArea
+          avatar={imageUrl}
+          ref={cardRef}
+          role={role}
+          message={text}
+          isDevMod={isDevMod}
+          fullName={fullName}
+        />
       )}
       <Modal
         open={preview}
@@ -396,12 +324,12 @@ function App() {
         )}
       </Modal>
       <div className='flex flex-col items-center w-full max-w-2xl px-2'>
-        <div className='max-w-lg mb-7 max-md:mb-4 max-md:max-w-full'>
+        <div className='max-w-md mb-7 max-md:mb-4 max-md:max-w-full'>
           <img src={welcomeTopImage} alt='welcome image' />
           <img src={welcomeBottomImage} className='mt-4' alt='welcome image' />
         </div>
         <form className='relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl'>
-          <div className='flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-3'>
+          <div className='flex flex-col justify-center p-6 mx-auto bg-white max-md:py-5 max-md:px-3'>
             <div className='flex flex-col items-center justify-center'>
               <ImgCrop
                 showGrid
@@ -419,7 +347,7 @@ function App() {
                   name='avatar'
                   multiple={false}
                   listType='picture-circle'
-                  className='avatar-uploader !w-[250px] max-md:!w-[200px] aspect-square !mx-auto md:mb-3'
+                  className='avatar-uploader !w-[170px] max-md:!w-[130px] aspect-square !mx-auto md:mb-3'
                   showUploadList={false}
                   accept='.png,.jpg,.jpeg'
                   progress={{
@@ -468,7 +396,7 @@ function App() {
                       />
                     </div>
                   ) : (
-                    uploadButton
+                    <UploadButton loading={loading} />
                   )}
                 </Upload>
               </ImgCrop>
@@ -476,7 +404,7 @@ function App() {
                 <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.avatar}</div>
               )}
             </div>
-            <div className='flex flex-col gap-2'>
+            <div className='flex flex-col gap-1'>
               <div>
                 <Input
                   name='full_name'
@@ -489,7 +417,7 @@ function App() {
                     setFullName(e.target.value);
                   }}
                   placeholder='Họ và tên'
-                  className='mt-2 text-base'
+                  className='mt-1 text-base'
                   size='large'
                 />
                 {errors.fullName && (
@@ -508,7 +436,7 @@ function App() {
                   }}
                   name='role'
                   placeholder='Đơn vị - Chức vụ'
-                  className='mt-2 text-base'
+                  className='mt-1 text-base'
                   size='large'
                 />
                 {errors.role && (

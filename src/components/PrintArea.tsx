@@ -63,6 +63,15 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
           </div>
           <Message width={690} height={340} x={360} y={716} content={message} />
         </div>
+        <img
+          crossOrigin='anonymous'
+          src={backgroundImage}
+          width={0}
+          height={0}
+          onLoad={() => {
+            console.log('mock background loaded!');
+          }}
+        />
       </div>
     );
   }

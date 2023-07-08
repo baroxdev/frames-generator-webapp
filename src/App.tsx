@@ -104,6 +104,7 @@ function App() {
       return null;
     }
     await delay(100);
+    console.log('🚀 ~ file: App.tsx:108 ~ getDataUrl ~ cardRef:', cardRef);
     await domtoimage.toPng(cardRef.current, {
       width: 1500,
       height: 843,

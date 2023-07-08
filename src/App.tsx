@@ -103,7 +103,7 @@ function App() {
       setAvatar(compressedAvatar as RcFile);
     }
 
-    const imageUrl = await domtoimage.toPng(cardRef.current, {
+    const imageUrl = await domtoimage.toSvg(cardRef.current, {
       width: 1500,
       height: 843,
     });

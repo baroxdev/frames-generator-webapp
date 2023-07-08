@@ -254,7 +254,7 @@ function App() {
     setPreviewing(false);
   };
 
-  const showMockImage = Boolean(imageUrl);
+  // const showMockImage = Boolean(imageUrl);
   const isDevMod = false;
 
   return (

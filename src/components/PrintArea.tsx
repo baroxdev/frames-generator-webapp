@@ -18,8 +18,20 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
   ({ isDevMod, avatar, fullName, role, message }, ref) => {
     return (
       <div className={clsx('overflow-hidden hidden')}>
-        <div className={clsx('absolute top-0 left-0', isDevMod ? 'z-[99]' : 'z-[-1]')} ref={ref}>
+        <div
+          // style={{
+          //   width: 1500,
+          //   height: 843,
+          //   backgroundImage: 'url(' + backgroundImage + ')',
+          //   backgroundRepeat: 'no-repeat',
+          //   backgroundPosition: 'center',
+          //   backgroundSize: 'cover',
+          // }}
+          className={clsx('absolute top-0 left-0', isDevMod ? 'z-[99]' : 'z-[-1]')}
+          ref={ref}
+        >
           <img
+            crossOrigin='anonymous'
             src={backgroundImage}
             width={1500}
             height={843}

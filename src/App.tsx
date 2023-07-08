@@ -14,7 +14,7 @@ import saveToSheet, { FormData } from './services/gsheet.service';
 import imageService from './services/image.service';
 import welcomeBottomImage from './storage/welcome-bottom.png';
 import welcomeTopImage from './storage/welcome-top.png';
-import { convertDataURIToBinary, saveToDb } from './utils';
+import { convertDataURIToBinary, delay, saveToDb } from './utils';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (img: RcFile | File, callback: (url: string) => void) => {
@@ -82,14 +82,6 @@ function App() {
   };
 
   const getDataUrl = async (avatar: File) => {
-    if (!cardRef.current) {
-      messageApi.open({
-        key: 'handling',
-        type: 'error',
-        content: config.text.error.cannot_create_message,
-      });
-      return null;
-    }
     const resizeImage = await resizeFile(avatar);
     if (!resizeImage) {
       console.error('Cannot resize image');
@@ -103,7 +95,16 @@ function App() {
       setAvatar(compressedAvatar as RcFile);
     }
 
-    const imageUrl = await domtoimage.toSvg(cardRef.current, {
+    if (!cardRef.current) {
+      messageApi.open({
+        key: 'handling',
+        type: 'error',
+        content: config.text.error.cannot_create_message,
+      });
+      return null;
+    }
+    await delay(100);
+    const imageUrl = await domtoimage.toPng(cardRef.current, {
       width: 1500,
       height: 843,
     });

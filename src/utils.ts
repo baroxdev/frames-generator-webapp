@@ -1,6 +1,8 @@
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { storage } from './firebase';
 import { v4 as uuidv4 } from 'uuid';
+
+import { storage } from './firebase';
+
 export async function saveToDb(image: Uint8Array) {
   if (!image) return null;
   const imageRef = ref(storage, 'images/' + uuidv4() + '.jpg');
@@ -25,3 +27,9 @@ export function convertDataURIToBinary(dataURI: string) {
   }
   return array;
 }
+
+export const delay = (milliseconds: number) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+};

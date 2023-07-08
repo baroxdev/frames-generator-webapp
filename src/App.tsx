@@ -104,7 +104,7 @@ function App() {
       return null;
     }
     await delay(100);
-    const imageUrl = await domtoimage.toPng(cardRef.current, {
+    await domtoimage.toPng(cardRef.current, {
       width: 1500,
       height: 843,
     });

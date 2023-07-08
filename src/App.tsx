@@ -268,16 +268,14 @@ function App() {
         backgroundSize: 'cover',
       }}
     >
-      {showMockImage && (
-        <PrintArea
-          avatar={imageUrl}
-          ref={cardRef}
-          role={role}
-          message={text}
-          isDevMod={isDevMod}
-          fullName={fullName}
-        />
-      )}
+      <PrintArea
+        avatar={imageUrl}
+        ref={cardRef}
+        role={role}
+        message={text}
+        isDevMod={isDevMod}
+        fullName={fullName}
+      />
       <Modal
         open={preview}
         title={'Ảnh thông điệp của bạn'}

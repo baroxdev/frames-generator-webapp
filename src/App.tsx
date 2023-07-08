@@ -108,6 +108,10 @@ function App() {
       width: 1500,
       height: 843,
     });
+    const imageUrl = await domtoimage.toPng(cardRef.current, {
+      width: 1500,
+      height: 843,
+    });
     console.log('🚀 ~ file: App.tsx:144 ~ getDataUrl ~ imageUrl:', imageUrl);
     return imageUrl;
   };

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.1.4",
+    "@rollbar/react": "^0.11.2",
     "@types/merge-images": "^1.2.1",
     "antd": "^5.6.1",
     "antd-img-crop": "^4.12.2",
@@ -28,9 +29,11 @@
     "lucide": "^0.244.0",
     "lucide-react": "^0.244.0",
     "merge-images": "^2.0.0",
+    "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-image-file-resizer": "^0.4.8",
+    "rollbar": "^2.26.2",
     "use-debounce": "^9.0.4",
     "uuid": "^9.0.0"
   },

@@ -6,6 +6,8 @@ import { DownloadIcon, EyeIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import FileResizer from 'react-image-file-resizer';
 
+import { ErrorBoundary, Provider } from '@rollbar/react'; // Provider imports 'rollbar'
+
 import backgroundHorizontial from './assets/bg-hoz.png';
 import PrintArea from './components/PrintArea';
 import UploadButton from './components/UploadButton';
@@ -15,6 +17,11 @@ import imageService from './services/image.service';
 import welcomeBottomImage from './storage/welcome-bottom.png';
 import welcomeTopImage from './storage/welcome-top.png';
 import { convertDataURIToBinary, delay, saveToDb } from './utils';
+
+const rollbarConfig = {
+  accessToken: '0ea66c80fb1541d8a8b9187b4d5e12e1',
+  environment: 'testenv',
+};
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (img: RcFile | File, callback: (url: string) => void) => {
@@ -264,244 +271,252 @@ function App() {
   const isDevMod = false;
 
   return (
-    <div
-      className='flex justify-center w-full min-h-screen py-4 bg-white'
-      style={{
-        background: `url(${backgroundHorizontial})`,
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed',
-        backgroundSize: 'cover',
-      }}
-    >
-      <PrintArea
-        avatar={imageUrl}
-        ref={cardRef}
-        role={role}
-        message={text}
-        isDevMod={isDevMod}
-        fullName={fullName}
-      />
-      <Modal
-        open={preview}
-        title={'Ảnh thông điệp của bạn'}
-        footer={null}
-        width={800}
-        onCancel={handleCancelPreview}
-      >
-        {resultImage && (
-          <div>
-            <img alt='example' style={{ width: '100%' }} src={resultImage} />
-            <div className='flex items-center justify-between pt-8 max-md:pt-3'>
-              <Button type='text' size='small' onClick={handleCancelPreview}>
-                Thay đổi
-              </Button>
-              <div className='flex items-center gap-3'>
-                <Button
-                  download
-                  target='_blank'
-                  data-href={resultImage}
-                  title='Download message image'
-                  href={resultImage}
-                  type='default'
-                  size='small'
-                  className='flex items-center justify-center'
-                  icon={<DownloadIcon />}
-                >
-                  Lưu về máy
-                </Button>
-                {previewing && (
-                  <Button
-                    type='primary'
-                    size='small'
-                    className='flex items-center justify-center'
-                    onClick={() => {
-                      handleSubmit(resultImage);
-                    }}
-                  >
-                    Gửi thông điệp
+    <Provider config={rollbarConfig}>
+      <ErrorBoundary>
+        <div
+          className='flex justify-center w-full min-h-screen py-4 bg-white'
+          style={{
+            background: `url(${backgroundHorizontial})`,
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'fixed',
+            backgroundSize: 'cover',
+          }}
+        >
+          <PrintArea
+            avatar={imageUrl}
+            ref={cardRef}
+            role={role}
+            message={text}
+            isDevMod={isDevMod}
+            fullName={fullName}
+          />
+          <Modal
+            open={preview}
+            title={'Ảnh thông điệp của bạn'}
+            footer={null}
+            width={800}
+            onCancel={handleCancelPreview}
+          >
+            {resultImage && (
+              <div>
+                <img alt='example' style={{ width: '100%' }} src={resultImage} />
+                <div className='flex items-center justify-between pt-8 max-md:pt-3'>
+                  <Button type='text' size='small' onClick={handleCancelPreview}>
+                    Thay đổi
                   </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-      <div className='flex flex-col items-center w-full max-w-2xl px-2'>
-        <div className='max-w-md mb-7 max-md:mb-4 max-md:max-w-full'>
-          <img src={welcomeTopImage} alt='welcome image' />
-          <img src={welcomeBottomImage} className='mt-4' alt='welcome image' />
-        </div>
-        <form className='relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl'>
-          <div className='flex flex-col justify-center p-6 mx-auto bg-white max-md:py-5 max-md:px-3'>
-            <div className='flex flex-col items-center justify-center'>
-              <ImgCrop
-                showGrid
-                rotationSlider
-                aspectSlider
-                showReset={true}
-                aspect={1}
-                cropShape='rect'
-                resetText='Đặt lại'
-                modalCancel='Hủy'
-                modalOk='Xác nhận'
-                modalTitle='Chỉnh sửa ảnh đại diện'
-              >
-                <Upload
-                  name='avatar'
-                  multiple={false}
-                  listType='picture-circle'
-                  className='avatar-uploader !w-[170px] max-md:!w-[130px] aspect-square !mx-auto md:mb-3'
-                  showUploadList={false}
-                  accept='.png,.jpg,.jpeg'
-                  progress={{
-                    size: 'small',
-                    style: { top: 10 },
-                  }}
-                  customRequest={(options) => {
-                    const { file, onProgress } = options;
-
-                    const isImage = (file as File).type?.startsWith('image');
-
-                    if (isImage && onProgress) {
-                      let progress = 0;
-                      const timer = setInterval(() => {
-                        progress += 10;
-                        onProgress({ percent: progress });
-
-                        if (progress >= 100 && options.onSuccess) {
-                          clearInterval(timer);
-                          options.onSuccess('ok');
-                        }
-                      }, 100);
-                    } else if (isImage && options.onError) {
-                      options.onError(new Error('Invalid file format'));
-                    }
-                  }}
-                  beforeUpload={(file) => {
-                    const isImage = file.type.startsWith('image');
-                    const acceptedFormats = isImage;
-                    if (!message) return console.error('Message API not supported');
-                    if (!acceptedFormats) {
-                      message.error('Sai định dạng file, hãy kiểm tra lại!');
-                    } else {
-                      message.success('Tải file thành công.');
-                    }
-                    return acceptedFormats ? file : Upload.LIST_IGNORE;
-                  }}
-                  onChange={handleChange}
-                >
-                  {imageUrl ? (
-                    <div className='overflow-hidden rounded-full'>
-                      <img
-                        src={imageUrl}
-                        alt='avatar'
-                        className='object-cover w-full h-full aspect-square'
-                      />
-                    </div>
-                  ) : (
-                    <UploadButton loading={loading} />
-                  )}
-                </Upload>
-              </ImgCrop>
-              {errors.avatar && (
-                <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.avatar}</div>
-              )}
-            </div>
-            <div className='flex flex-col gap-1'>
-              <div>
-                <Input
-                  name='full_name'
-                  value={fullName}
-                  onChange={(e) => {
-                    if (e.target.value.length > 25) {
-                      messageApi.warning('Vui lòng nhập tối đa 25 kí tự');
-                      return setFullName(e.target.value.slice(0, 25));
-                    }
-                    setFullName(e.target.value);
-                  }}
-                  placeholder='Họ và tên'
-                  className='mt-1 text-base'
-                  size='large'
-                />
-                {errors.fullName && (
-                  <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.fullName}</div>
-                )}
-              </div>
-              <div>
-                <Input
-                  value={role}
-                  onChange={(e) => {
-                    if (e.target.value.length > 36) {
-                      messageApi.warning('Vui lòng nhập tối đa 36 kí tự');
-                      return setRole(e.target.value.slice(0, 36));
-                    }
-                    setRole(e.target.value);
-                  }}
-                  name='role'
-                  placeholder='Đơn vị - Chức vụ'
-                  className='mt-1 text-base'
-                  size='large'
-                />
-                {errors.role && (
-                  <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.role}</div>
-                )}
-              </div>
-              <div>
-                <Input.TextArea
-                  value={text}
-                  onChange={(e) => {
-                    if (e.target.value.length > 400) {
-                      messageApi.warning('Vui lòng nhập tối đa 400 kí tự');
-                      return setText(e.target.value.slice(0, 399));
-                    }
-                    setText(e.target.value);
-                  }}
-                  name='text'
-                  rows={4}
-                  className='!mt-2 text-base'
-                  size='large'
-                  placeholder='Thông điệp (Tối đa 400 kí tự)'
-                />
-                <div className='flex items-center justify-between'>
-                  {errors.text && (
-                    <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.text}</div>
-                  )}
-                  <span className='ml-auto text-sm text-slate-500'>{text.length} / 400</span>
+                  <div className='flex items-center gap-3'>
+                    <Button
+                      download
+                      target='_blank'
+                      data-href={resultImage}
+                      title='Download message image'
+                      href={resultImage}
+                      type='default'
+                      size='small'
+                      className='flex items-center justify-center'
+                      icon={<DownloadIcon />}
+                    >
+                      Lưu về máy
+                    </Button>
+                    {previewing && (
+                      <Button
+                        type='primary'
+                        size='small'
+                        className='flex items-center justify-center'
+                        onClick={() => {
+                          handleSubmit(resultImage);
+                        }}
+                      >
+                        Gửi thông điệp
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
+            )}
+          </Modal>
+          <div className='flex flex-col items-center w-full max-w-2xl px-2'>
+            <div className='max-w-md mb-7 max-md:mb-4 max-md:max-w-full'>
+              <img src={welcomeTopImage} alt='welcome image' />
+              <img src={welcomeBottomImage} className='mt-4' alt='welcome image' />
             </div>
-            <div className='flex items-center gap-3 mt-8 max-md:gap-2 max-md:flex-col max-md:mt-5'>
-              <Button
-                type='text'
-                size='middle'
-                loading={loading}
-                onClick={async () => {
-                  setPreviewing(true);
-                  await handlePreview();
-                }}
-                icon={<EyeIcon />}
-                className='!text-sm w-fit max-md:w-full !flex items-center justify-center !h-fit font-sans text-slate-700 !rounded-lg'
-              >
-                Xem trước
-              </Button>
-              <Button
-                size='middle'
-                type='primary'
-                onClick={() => {
-                  handleSubmit();
-                }}
-                loading={loading}
-                className='w-full !text-sm bg-[#006ded] !h-fit font-sans !rounded-lg flex items-center justify-center'
-              >
-                Lưu và gửi thông điệp
-              </Button>
-            </div>
+            <form className='relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl'>
+              <div className='flex flex-col justify-center p-6 mx-auto bg-white max-md:py-5 max-md:px-3'>
+                <div className='flex flex-col items-center justify-center'>
+                  <ImgCrop
+                    showGrid
+                    rotationSlider
+                    aspectSlider
+                    showReset={true}
+                    aspect={1}
+                    cropShape='rect'
+                    resetText='Đặt lại'
+                    modalCancel='Hủy'
+                    modalOk='Xác nhận'
+                    modalTitle='Chỉnh sửa ảnh đại diện'
+                  >
+                    <Upload
+                      name='avatar'
+                      multiple={false}
+                      listType='picture-circle'
+                      className='avatar-uploader !w-[170px] max-md:!w-[130px] aspect-square !mx-auto md:mb-3'
+                      showUploadList={false}
+                      accept='.png,.jpg,.jpeg'
+                      progress={{
+                        size: 'small',
+                        style: { top: 10 },
+                      }}
+                      customRequest={(options) => {
+                        const { file, onProgress } = options;
+
+                        const isImage = (file as File).type?.startsWith('image');
+
+                        if (isImage && onProgress) {
+                          let progress = 0;
+                          const timer = setInterval(() => {
+                            progress += 10;
+                            onProgress({ percent: progress });
+
+                            if (progress >= 100 && options.onSuccess) {
+                              clearInterval(timer);
+                              options.onSuccess('ok');
+                            }
+                          }, 100);
+                        } else if (isImage && options.onError) {
+                          options.onError(new Error('Invalid file format'));
+                        }
+                      }}
+                      beforeUpload={(file) => {
+                        const isImage = file.type.startsWith('image');
+                        const acceptedFormats = isImage;
+                        if (!message) return console.error('Message API not supported');
+                        if (!acceptedFormats) {
+                          message.error('Sai định dạng file, hãy kiểm tra lại!');
+                        } else {
+                          message.success('Tải file thành công.');
+                        }
+                        return acceptedFormats ? file : Upload.LIST_IGNORE;
+                      }}
+                      onChange={handleChange}
+                    >
+                      {imageUrl ? (
+                        <div className='overflow-hidden rounded-full'>
+                          <img
+                            src={imageUrl}
+                            alt='avatar'
+                            className='object-cover w-full h-full aspect-square'
+                          />
+                        </div>
+                      ) : (
+                        <UploadButton loading={loading} />
+                      )}
+                    </Upload>
+                  </ImgCrop>
+                  {errors.avatar && (
+                    <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.avatar}</div>
+                  )}
+                </div>
+                <div className='flex flex-col gap-1'>
+                  <div>
+                    <Input
+                      name='full_name'
+                      value={fullName}
+                      onChange={(e) => {
+                        if (e.target.value.length > 25) {
+                          messageApi.warning('Vui lòng nhập tối đa 25 kí tự');
+                          return setFullName(e.target.value.slice(0, 25));
+                        }
+                        setFullName(e.target.value);
+                      }}
+                      placeholder='Họ và tên'
+                      className='mt-1 text-base'
+                      size='large'
+                    />
+                    {errors.fullName && (
+                      <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>
+                        {errors.fullName}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <Input
+                      value={role}
+                      onChange={(e) => {
+                        if (e.target.value.length > 36) {
+                          messageApi.warning('Vui lòng nhập tối đa 36 kí tự');
+                          return setRole(e.target.value.slice(0, 36));
+                        }
+                        setRole(e.target.value);
+                      }}
+                      name='role'
+                      placeholder='Đơn vị - Chức vụ'
+                      className='mt-1 text-base'
+                      size='large'
+                    />
+                    {errors.role && (
+                      <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.role}</div>
+                    )}
+                  </div>
+                  <div>
+                    <Input.TextArea
+                      value={text}
+                      onChange={(e) => {
+                        if (e.target.value.length > 400) {
+                          messageApi.warning('Vui lòng nhập tối đa 400 kí tự');
+                          return setText(e.target.value.slice(0, 399));
+                        }
+                        setText(e.target.value);
+                      }}
+                      name='text'
+                      rows={4}
+                      className='!mt-2 text-base'
+                      size='large'
+                      placeholder='Thông điệp (Tối đa 400 kí tự)'
+                    />
+                    <div className='flex items-center justify-between'>
+                      {errors.text && (
+                        <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>
+                          {errors.text}
+                        </div>
+                      )}
+                      <span className='ml-auto text-sm text-slate-500'>{text.length} / 400</span>
+                    </div>
+                  </div>
+                </div>
+                <div className='flex items-center gap-3 mt-8 max-md:gap-2 max-md:flex-col max-md:mt-5'>
+                  <Button
+                    type='text'
+                    size='middle'
+                    loading={loading}
+                    onClick={async () => {
+                      setPreviewing(true);
+                      await handlePreview();
+                    }}
+                    icon={<EyeIcon />}
+                    className='!text-sm w-fit max-md:w-full !flex items-center justify-center !h-fit font-sans text-slate-700 !rounded-lg'
+                  >
+                    Xem trước
+                  </Button>
+                  <Button
+                    size='middle'
+                    type='primary'
+                    onClick={() => {
+                      handleSubmit();
+                    }}
+                    loading={loading}
+                    className='w-full !text-sm bg-[#006ded] !h-fit font-sans !rounded-lg flex items-center justify-center'
+                  >
+                    Lưu và gửi thông điệp
+                  </Button>
+                </div>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
-      {contextHolder}
-    </div>
+          {contextHolder}
+        </div>
+      </ErrorBoundary>
+    </Provider>
   );
 }
 

@@ -6,7 +6,7 @@ export type FormData = {
 };
 
 export default async function saveToSheet(formData: FormData) {
-  const api_url = 'https://sheet.best/api/sheets/3b5a2389-5830-43ea-b5cb-78be50640b93';
+  const api_url = 'https://sheet.best/api/sheets/a0c1370c-b074-469e-a2de-056fd5783cbc';
   await fetch(api_url, {
     method: 'POST',
     body: JSON.stringify(formData),

@@ -42,8 +42,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>();
   const [avatar, setAvatar] = useState<File>();
-  const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState("");
+  // const [fullName, setFullName] = useState("");
+  // const [role, setRole] = useState("");
   const [text, setText] = useState("");
   const [resultImage, setResultImage] = useState<string | null | undefined>(
     null

@@ -1,29 +1,36 @@
-import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Input, Modal, Upload, message } from 'antd';
-import ImgCrop from 'antd-img-crop';
-import { RcFile, UploadChangeParam, UploadFile, UploadProps } from 'antd/es/upload';
-import imageCompression from 'browser-image-compression';
-import clsx from 'clsx';
-import html2canvas from 'html2canvas';
-import { DownloadIcon, EyeIcon } from 'lucide-react';
-import { useRef, useState } from 'react';
-import FileResizer from 'react-image-file-resizer';
-import backgroundHorizontial from './assets/bg-hoz.png';
-import saveToSheet, { FormData } from './services/google-sheet';
-import backgroundImage from './storage/background.png';
-import welcomeBottomImage from './storage/welcome-bottom.png';
-import welcomeTopImage from './storage/welcome-top.png';
-import { convertDataURIToBinary, saveToDb } from './utils';
+import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
+import { Button, Input, Modal, Upload, message } from "antd";
+import ImgCrop from "antd-img-crop";
+import {
+  RcFile,
+  UploadChangeParam,
+  UploadFile,
+  UploadProps,
+} from "antd/es/upload";
+import imageCompression from "browser-image-compression";
+import clsx from "clsx";
+import html2canvas from "html2canvas";
+import { DownloadIcon, EyeIcon } from "lucide-react";
+import { useRef, useState } from "react";
+import FileResizer from "react-image-file-resizer";
+import backgroundHorizontial from "./assets/bg-hoz.png";
+import saveToSheet, { FormData } from "./services/google-sheet";
+import backgroundImage from "./storage/background.png";
+import welcomeBottomImage from "./storage/welcome-bottom.png";
+import welcomeTopImage from "./storage/welcome-top.png";
+import flyImage from "./assets/fly.png";
+import { convertDataURIToBinary, saveToDb } from "./utils";
 // eslint-disable-next-line react-refresh/only-export-components
-export const getBase64 = (img: RcFile | File, callback: (url: string) => void) => {
+export const getBase64 = (
+  img: RcFile | File,
+  callback: (url: string) => void
+) => {
   const reader = new FileReader();
-  reader.addEventListener('load', () => callback(reader.result as string));
+  reader.addEventListener("load", () => callback(reader.result as string));
   reader.readAsDataURL(img);
 };
 
 type Errors = {
-  fullName: string | null;
-  role: string | null;
   text: string | null;
   avatar: string | null;
 };
@@ -35,14 +42,14 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>();
   const [avatar, setAvatar] = useState<File>();
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('');
-  const [text, setText] = useState('');
-  const [resultImage, setResultImage] = useState<string | null | undefined>(null);
+  const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState("");
+  const [text, setText] = useState("");
+  const [resultImage, setResultImage] = useState<string | null | undefined>(
+    null
+  );
   const cardRef = useRef<HTMLDivElement>(null);
   const [errors, setErrors] = useState<Errors>({
-    fullName: null,
-    role: null,
     text: null,
     avatar: null,
   });
@@ -64,12 +71,14 @@ function App() {
     }
   };
 
-  const handleChange: UploadProps['onChange'] = async (info: UploadChangeParam<UploadFile>) => {
-    if (info.file.status === 'uploading') {
+  const handleChange: UploadProps["onChange"] = async (
+    info: UploadChangeParam<UploadFile>
+  ) => {
+    if (info.file.status === "uploading") {
       setLoading(true);
       return;
     }
-    if (info.file.status === 'done') {
+    if (info.file.status === "done") {
       setAvatar(info.file.originFileObj);
       getBase64(info.file.originFileObj as RcFile, (url) => {
         setImageUrl(url);
@@ -81,7 +90,7 @@ function App() {
   const uploadButton = (
     <div>
       {loading ? <LoadingOutlined /> : <PlusOutlined />}
-      <div style={{ marginTop: 8 }} className='font-medium'>
+      <div style={{ marginTop: 8 }} className="font-medium">
         Ảnh của bạn
       </div>
     </div>
@@ -93,13 +102,13 @@ function App() {
         file,
         500,
         500,
-        'JPEG',
+        "JPEG",
         50,
         0,
         (uri) => {
           resolve(uri as File);
         },
-        'file'
+        "file"
       );
     });
     return image;
@@ -108,15 +117,15 @@ function App() {
   const generateDataUrl = async (avatar: File) => {
     if (!cardRef.current) {
       messageApi.open({
-        key: 'handling',
-        type: 'error',
-        content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
+        key: "handling",
+        type: "error",
+        content: "Không thể tạo thông điệp. Vui lòng thử lại sau",
       });
       return null;
     }
     const resizeImage = await resizeFile(avatar);
     if (!resizeImage) {
-      console.error('Cannot resize image');
+      console.error("Cannot resize image");
       return null;
     }
 
@@ -124,7 +133,10 @@ function App() {
       setAvatar(resizeImage as RcFile);
     } else {
       const compressedAvatar = await compressImage(resizeImage);
-      console.log('🚀 ~ file: App.tsx:136 ~ generateDataUrl ~ compressedAvatar:', compressedAvatar);
+      console.log(
+        "🚀 ~ file: App.tsx:136 ~ generateDataUrl ~ compressedAvatar:",
+        compressedAvatar
+      );
       setAvatar(compressedAvatar as RcFile);
     }
     const canvas = await html2canvas(cardRef.current, {
@@ -135,39 +147,45 @@ function App() {
 
   const handlePreview = async () => {
     const _errors: Errors = {
-      fullName: null,
-      role: null,
       text: null,
       avatar: null,
     };
-    if (!text || text.trim() === '') _errors.text = 'Vui lòng nhập thông điệp';
-    if (text && text.length > 400) _errors.text = 'Vui lòng nhập thông điệp dưới 400 kí tự';
-    if (text.length < 10) _errors.fullName = 'Thông điệp cần có ít nhất 10 ký tự';
-    if (!fullName || fullName.trim() === '') _errors.fullName = 'Vui lòng nhập Họ và tên';
-    if (fullName && fullName.length > 25) _errors.fullName = 'Họ và tên tối đa 45 kí tự';
-    if (fullName.length < 2) _errors.fullName = 'Họ và tên cần có ít nhất 2 ký tự';
-    if (!role || role.trim() === '') _errors.role = 'Vui lòng nhập Đơn vị - Chức vụ';
-    if (role && role.length > 36) _errors.role = 'Đơn vị - Chức vụ tối đa 60 kí tự';
-    if (role.length < 3) _errors.fullName = 'Đơn vị - Chức vụ cần có ít nhất 3 ký tự';
-    if (!imageUrl || imageUrl.trim() === '') _errors.avatar = 'Vui lòng thêm ảnh đại diện';
-    if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
+    if (!text || text.trim() === "") _errors.text = "Vui lòng nhập thông điệp";
+    if (text && text.length > 400)
+      _errors.text = "Vui lòng nhập thông điệp dưới 400 kí tự";
+    if (text.length < 10) _errors.text = "Thông điệp cần có ít nhất 10 ký tự";
+    // if (!fullName || fullName.trim() === "")
+    //   _errors.fullName = "Vui lòng nhập Họ và tên";
+    // if (fullName && fullName.length > 25)
+    //   _errors.fullName = "Họ và tên tối đa 45 kí tự";
+    // if (fullName.length < 2)
+    //   _errors.fullName = "Họ và tên cần có ít nhất 2 ký tự";
+    // if (!role || role.trim() === "")
+    //   _errors.role = "Vui lòng nhập Đơn vị - Chức vụ";
+    // if (role && role.length > 36)
+    //   _errors.role = "Đơn vị - Chức vụ tối đa 60 kí tự";
+    // if (role.length < 3)
+    //   _errors.fullName = "Đơn vị - Chức vụ cần có ít nhất 3 ký tự";
+    if (!imageUrl || imageUrl.trim() === "")
+      _errors.avatar = "Vui lòng thêm ảnh đại diện";
+    if (!text || !imageUrl) return setErrors(_errors);
     messageApi.open({
-      key: 'optimize',
-      content: 'Đang nén ảnh',
-      type: 'loading',
+      key: "optimize",
+      content: "Đang nén ảnh",
+      type: "loading",
     });
-    if (!avatar) return messageApi.warning('Vui lòng chọn ảnh đại diện.');
+    if (!avatar) return messageApi.warning("Vui lòng chọn ảnh đại diện.");
     setLoading(true);
     messageApi.open({
-      key: 'handling',
-      type: 'loading',
-      content: 'Đang xử lí',
+      key: "handling",
+      type: "loading",
+      content: "Đang xử lí",
     });
     if (!cardRef.current)
       return messageApi.open({
-        key: 'handling',
-        type: 'error',
-        content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
+        key: "handling",
+        type: "error",
+        content: "Không thể tạo thông điệp. Vui lòng thử lại sau",
       });
     try {
       const dataUrl = await generateDataUrl(avatar);
@@ -176,9 +194,9 @@ function App() {
     } catch (error) {
       console.error({ error: error });
       messageApi.open({
-        type: 'error',
-        key: 'handling',
-        content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
+        type: "error",
+        key: "handling",
+        content: "Không thể tạo thông điệp. Vui lòng thử lại sau",
       });
     } finally {
       setLoading(false);
@@ -187,59 +205,68 @@ function App() {
 
   const handleSubmit = async (existedDataUrl?: string) => {
     const _errors: Errors = {
-      fullName: null,
-      role: null,
       text: null,
       avatar: null,
     };
-    if (!text || text.trim() === '') _errors.text = 'Vui lòng nhập thông điệp';
-    if (text && text.length > 400) _errors.text = 'Vui lòng nhập thông điệp dưới 400 kí tự';
-    if (text.length < 10) _errors.fullName = 'Thông điệp cần có ít nhất 10 ký tự';
-    if (!fullName || fullName.trim() === '') _errors.fullName = 'Vui lòng nhập Họ và tên';
-    if (fullName && fullName.length > 25) _errors.fullName = 'Họ và tên tối đa 45 kí tự';
-    if (fullName.length < 2) _errors.fullName = 'Họ và tên cần có ít nhất 2 ký tự';
-    if (!role || role.trim() === '') _errors.role = 'Vui lòng nhập Đơn vị - Chức vụ';
-    if (role && role.length > 36) _errors.role = 'Đơn vị - Chức vụ tối đa 60 kí tự';
-    if (role.length < 3) _errors.fullName = 'Đơn vị - Chức vụ cần có ít nhất 3 ký tự';
-    if (!imageUrl || imageUrl.trim() === '') _errors.avatar = 'Vui lòng thêm ảnh đại diện';
-    if (!text || !fullName || !role || !imageUrl) return setErrors(_errors);
+    if (!text || text.trim() === "") _errors.text = "Vui lòng nhập thông điệp";
+    if (text && text.length > 400)
+      _errors.text = "Vui lòng nhập thông điệp dưới 400 kí tự";
+    // if (text.length < 10)
+    // _errors.fullName = "Thông điệp cần có ít nhất 10 ký tự";
+    // if (!fullName || fullName.trim() === "")
+    //   _errors.fullName = "Vui lòng nhập Họ và tên";
+    // if (fullName && fullName.length > 25)
+    //   _errors.fullName = "Họ và tên tối đa 45 kí tự";
+    // if (fullName.length < 2)
+    //   _errors.fullName = "Họ và tên cần có ít nhất 2 ký tự";
+    // if (!role || role.trim() === "")
+    //   _errors.role = "Vui lòng nhập Đơn vị - Chức vụ";
+    // if (role && role.length > 36)
+    //   _errors.role = "Đơn vị - Chức vụ tối đa 60 kí tự";
+    // if (role.length < 3)
+    //   _errors.fullName = "Đơn vị - Chức vụ cần có ít nhất 3 ký tự";
+    if (!imageUrl || imageUrl.trim() === "")
+      _errors.avatar = "Vui lòng thêm ảnh đại diện";
+    if (!text || !imageUrl) return setErrors(_errors);
     try {
-      if (!avatar) return messageApi.warning('Vui lòng chọn ảnh đại diện.');
-      const dataUrl = existedDataUrl ? existedDataUrl : await generateDataUrl(avatar);
-      if (!dataUrl) return console.error('Không thể tạo thông điệp.');
+      if (!avatar) return messageApi.warning("Vui lòng chọn ảnh đại diện.");
+      const dataUrl = existedDataUrl
+        ? existedDataUrl
+        : await generateDataUrl(avatar);
+      if (!dataUrl) return console.error("Không thể tạo thông điệp.");
       setLoading(true);
       messageApi.open({
-        key: 'handling',
-        type: 'loading',
-        content: 'Đang tạo thông điệp',
+        key: "handling",
+        type: "loading",
+        content: "Đang tạo thông điệp",
       });
       const blob = convertDataURIToBinary(dataUrl);
       const image_url = await saveToDb(blob);
-      message.destroy('handling');
+      message.destroy("handling");
       setResultImage(dataUrl);
       messageApi.open({
-        key: 'sending',
-        type: 'loading',
-        content: 'Đang gửi thông điệp',
+        key: "sending",
+        type: "loading",
+        content: "Đang gửi thông điệp",
       });
       const formData: FormData = {
-        full_name: fullName,
-        role: role,
+        // full_name: fullName,
+        // role: role,
         text: text,
-        image_url: image_url || '',
+        image_url: image_url || "",
       };
       await saveToSheet(formData);
       messageApi.open({
-        key: 'sending',
-        type: 'success',
-        content: 'Gửi thông điệp thành công',
+        key: "sending",
+        type: "success",
+        content: "Gửi thông điệp thành công",
       });
     } catch (error) {
       console.error({ error });
       messageApi.open({
-        type: 'error',
-        key: 'sending',
-        content: 'Không thể tạo thông điệp. Vui lòng thử lại sau',
+        type: "error",
+        key: "sending",
+        content: "Không thể tạo thông điệp. Vui lòng thử lại sau",
       });
     } finally {
       setLoading(false);
@@ -254,9 +281,9 @@ function App() {
   };
 
   const resetState = () => {
-    setText('');
-    setFullName('');
-    setRole('');
+    setText("");
+    // setFullName("");
+    // setRole("");
     setImageUrl(undefined);
     setResultImage(null);
     setAvatar(undefined);
@@ -278,64 +305,58 @@ function App() {
   };
 
   const showMockImage =
-    fullName.trim() !== '' && role.trim() !== '' && text.trim() !== '' && imageUrl;
+    // fullName.trim() !== "" &&
+    // role.trim() !== "" &&
+    text.trim() !== "" && imageUrl;
 
   return (
     <div
-      className='flex justify-center w-full min-h-screen py-4 bg-white'
+      className="flex justify-center w-full min-h-screen py-4 bg-white"
       style={{
         background: `url(${backgroundHorizontial})`,
       }}
     >
-      {showMockImage && (
-        <div className='overflow-hidden max-md:hidden'>
-          <div className='absolute top-0 left-0 z-[-1]' ref={cardRef}>
+      {true && (
+        <div className="overflow-hidden max-md:hidden">
+          <div className="absolute top-0 left-0 z-[-1]" ref={cardRef}>
             <img src={backgroundImage} width={1500} height={843} />
             <div>
-              <div className='absolute bottom-[245px] left-[121px] h-[310px] overflow-hidden'>
-                <div className='w-[365px] aspect-square rounded-full overflow-hidden'>
-                  <img className='object-cover w-full h-full' src={imageUrl} />
+              <div className="absolute bottom-[175px]  left-[100px]">
+                <div className="w-[359px] aspect-square h-[355px] rotate-[-3.2deg] overflow-hidden">
+                  <img
+                    className="object-cover w-full  rotate-[-3.2deg] h-full"
+                    src={imageUrl}
+                  />
+                  {/* <img
+                    className="object-cover w-full h-full bg-black"
+                    src={"/vite.svg"}
+                  /> */}
+                </div>
+              </div>
+              <div className="absolute bottom-[120px] left-[330px]">
+                <div className="aspect-[226/175] w-[150px]">
+                  <img src={flyImage} className="object-contain" />
                 </div>
               </div>
               {/* <div className='absolute bottom-[120px] left-[105.5px]'>
               <img className='object-cover max-w-[400px] h-[110px]' src={backgroundName} />
             </div> */}
-              <div className='absolute bottom-[195px] left-[90px] w-[450px]'>
-                <h3
-                  className={clsx('font-bold text-center text-white whitespace-nowrap', {
-                    'text-4xl': role.length <= 20,
-                    'text-2xl': role.length > 20,
-                  })}
-                >
-                  {fullName || 'Tên của bạn'}
-                </h3>
-              </div>
-              <div className='absolute bottom-[90px] left-[105px] bg-transparent w-[400px] h-[100px]  whitespace-nowrap'>
-                <p
-                  className={clsx(' font-medium text-center text-white', {
-                    'text-xl': role.length > 25,
-                    'text-2xl': role.length <= 25,
-                  })}
-                >
-                  {role || 'Chức vụ của bạn'}
-                </p>
-              </div>
             </div>
             <div
               className={clsx(
-                'absolute w-[690px] h-[340px] bottom-[220px] right-[140px] bg-transparent',
+                "absolute w-[800px] h-[440px] bottom-[100px] right-[95px] bg-transparent",
                 {
-                  'flex items-center justify-center': text.length < 150,
+                  "flex items-center justify-center": text.length < 150,
                 }
               )}
             >
               <p
-                className={clsx('font-medium text-blue-900', {
-                  'text-3xl ': text.length > 150,
-                  'text-5xl text-center': text.length < 150,
+                className={clsx("font-medium text-blue-900", {
+                  "text-3xl ": text.length > 150,
+                  "text-5xl text-center": text.length < 150,
                 })}
               >
-                {text || 'Thông điệp của bạn'}
+                {text || "Thông điệp của bạn"}
               </p>
             </div>
           </div>
@@ -343,37 +364,37 @@ function App() {
       )}
       <Modal
         open={preview}
-        title={'Ảnh thông điệp của bạn'}
+        title={"Ảnh thông điệp của bạn"}
         footer={null}
         width={800}
         onCancel={handleCancelPreview}
       >
         {resultImage && (
           <div>
-            <img alt='example' style={{ width: '100%' }} src={resultImage} />
-            <div className='flex items-center justify-between pt-8 max-md:pt-3'>
-              <Button type='text' size='small' onClick={handleCancelPreview}>
+            <img alt="example" style={{ width: "100%" }} src={resultImage} />
+            <div className="flex items-center justify-between pt-8 max-md:pt-3">
+              <Button type="text" size="small" onClick={handleCancelPreview}>
                 Thay đổi
               </Button>
-              <div className='flex items-center gap-3'>
+              <div className="flex items-center gap-3">
                 <Button
                   download
-                  target='_blank'
+                  target="_blank"
                   data-href={resultImage}
-                  title='Download message image'
+                  title="Download message image"
                   href={resultImage}
-                  type='default'
-                  size='small'
-                  className='flex items-center justify-center'
+                  type="default"
+                  size="small"
+                  className="flex items-center justify-center"
                   icon={<DownloadIcon />}
                 >
                   Lưu về máy
                 </Button>
                 {previewing && (
                   <Button
-                    type='primary'
-                    size='small'
-                    className='flex items-center justify-center'
+                    type="primary"
+                    size="small"
+                    className="flex items-center justify-center"
                     onClick={() => {
                       handleSubmit(resultImage);
                     }}
@@ -386,41 +407,41 @@ function App() {
           </div>
         )}
       </Modal>
-      <div className='flex flex-col items-center w-full max-w-2xl px-2'>
-        <div className='max-w-lg mb-7 max-md:mb-4 max-md:max-w-full'>
-          <img src={welcomeTopImage} alt='welcome image' />
-          <img src={welcomeBottomImage} className='mt-4' alt='welcome image' />
+      <div className="flex flex-col items-center w-full max-w-2xl px-2">
+        <div className="max-w-lg mb-7 max-md:mb-4 max-md:max-w-full">
+          <img src={welcomeTopImage} alt="welcome image" />
+          <img src={welcomeBottomImage} className="mt-4" alt="welcome image" />
         </div>
-        <form className='relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl'>
-          <div className='flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-3'>
-            <div className='flex flex-col items-center justify-center'>
+        <form className="relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl">
+          <div className="flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-3">
+            <div className="flex flex-col items-center justify-center">
               <ImgCrop
                 showGrid
                 rotationSlider
                 aspectSlider
                 showReset={true}
                 aspect={1}
-                cropShape='rect'
-                resetText='Đặt lại'
-                modalCancel='Hủy'
-                modalOk='Xác nhận'
-                modalTitle='Chỉnh sửa ảnh đại diện'
+                cropShape="rect"
+                resetText="Đặt lại"
+                modalCancel="Hủy"
+                modalOk="Xác nhận"
+                modalTitle="Chỉnh sửa ảnh đại diện"
               >
                 <Upload
-                  name='avatar'
+                  name="avatar"
                   multiple={false}
-                  listType='picture-circle'
-                  className='avatar-uploader !w-[250px] max-md:!w-[200px] aspect-square !mx-auto md:mb-3'
+                  listType="picture-circle"
+                  className="avatar-uploader !w-[250px] max-md:!w-[200px] aspect-square !mx-auto md:mb-3"
                   showUploadList={false}
-                  accept='.png,.jpg,.jpeg'
+                  accept=".png,.jpg,.jpeg"
                   progress={{
-                    size: 'small',
+                    size: "small",
                     style: { top: 10 },
                   }}
                   customRequest={(options) => {
                     const { file, onProgress } = options;
 
-                    const isImage = (file as File).type?.startsWith('image');
+                    const isImage = (file as File).type?.startsWith("image");
 
                     if (isImage && onProgress) {
                       let progress = 0;
@@ -430,32 +451,33 @@ function App() {
 
                         if (progress >= 100 && options.onSuccess) {
                           clearInterval(timer);
-                          options.onSuccess('ok');
+                          options.onSuccess("ok");
                         }
                       }, 100);
                     } else if (isImage && options.onError) {
-                      options.onError(new Error('Invalid file format'));
+                      options.onError(new Error("Invalid file format"));
                     }
                   }}
                   beforeUpload={(file) => {
-                    const isImage = file.type.startsWith('image');
+                    const isImage = file.type.startsWith("image");
                     const acceptedFormats = isImage;
-                    if (!message) return console.error('Message API not supported');
+                    if (!message)
+                      return console.error("Message API not supported");
                     if (!acceptedFormats) {
-                      message.error('Sai định dạng file, hãy kiểm tra lại!');
+                      message.error("Sai định dạng file, hãy kiểm tra lại!");
                     } else {
-                      message.success('Tải file thành công.');
+                      message.success("Tải file thành công.");
                     }
                     return acceptedFormats ? file : Upload.LIST_IGNORE;
                   }}
                   onChange={handleChange}
                 >
                   {imageUrl ? (
-                    <div className='overflow-hidden rounded-full'>
+                    <div className="overflow-hidden rounded-full">
                       <img
                         src={imageUrl}
-                        alt='avatar'
-                        className='object-cover w-full h-full aspect-square'
+                        alt="avatar"
+                        className="object-cover w-full h-full aspect-square"
                       />
                     </div>
                   ) : (
@@ -464,27 +486,31 @@ function App() {
                 </Upload>
               </ImgCrop>
               {errors.avatar && (
-                <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.avatar}</div>
+                <div className="mt-1 ml-1 font-sans text-xs text-red-600 ">
+                  {errors.avatar}
+                </div>
               )}
             </div>
-            <div className='flex flex-col gap-2'>
-              <div>
+            <div className="flex flex-col gap-2">
+              {/* <div>
                 <Input
-                  name='full_name'
+                  name="full_name"
                   value={fullName}
                   onChange={(e) => {
                     if (e.target.value.length > 25) {
-                      messageApi.warning('Vui lòng nhập tối đa 25 kí tự');
+                      messageApi.warning("Vui lòng nhập tối đa 25 kí tự");
                       return setFullName(e.target.value.slice(0, 25));
                     }
                     setFullName(e.target.value);
                   }}
-                  placeholder='Họ và tên'
-                  className='mt-2 text-base'
-                  size='large'
+                  placeholder="Họ và tên"
+                  className="mt-2 text-base"
+                  size="large"
                 />
                 {errors.fullName && (
-                  <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.fullName}</div>
+                  <div className="mt-1 ml-1 font-sans text-xs text-red-600 ">
+                    {errors.fullName}
+                  </div>
                 )}
               </div>
               <div>
@@ -492,66 +518,72 @@ function App() {
                   value={role}
                   onChange={(e) => {
                     if (e.target.value.length > 36) {
-                      messageApi.warning('Vui lòng nhập tối đa 36 kí tự');
+                      messageApi.warning("Vui lòng nhập tối đa 36 kí tự");
                       return setRole(e.target.value.slice(0, 36));
                     }
                     setRole(e.target.value);
                   }}
-                  name='role'
-                  placeholder='Đơn vị - Chức vụ'
-                  className='mt-2 text-base'
-                  size='large'
+                  name="role"
+                  placeholder="Đơn vị - Chức vụ"
+                  className="mt-2 text-base"
+                  size="large"
                 />
                 {errors.role && (
-                  <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.role}</div>
+                  <div className="mt-1 ml-1 font-sans text-xs text-red-600 ">
+                    {errors.role}
+                  </div>
                 )}
-              </div>
+              </div> */}
               <div>
                 <Input.TextArea
                   value={text}
                   onChange={(e) => {
                     if (e.target.value.length > 400) {
-                      messageApi.warning('Vui lòng nhập tối đa 400 kí tự');
+                      messageApi.warning("Vui lòng nhập tối đa 400 kí tự");
                       return setText(e.target.value.slice(0, 399));
                     }
                     setText(e.target.value);
                   }}
-                  name='text'
+                  name="text"
                   rows={4}
-                  className='!mt-2 text-base'
-                  size='large'
-                  placeholder='Thông điệp (Tối đa 400 kí tự)'
+                  className="!mt-2 text-base"
+                  size="large"
+                  placeholder="Thông điệp (Tối đa 400 kí tự)"
                 />
-                <div className='flex items-center justify-between'>
+                <div className="flex items-center justify-between">
                   {errors.text && (
-                    <div className='mt-1 ml-1 font-sans text-xs text-red-600 '>{errors.text}</div>
+                    <div className="mt-1 ml-1 font-sans text-xs text-red-600 ">
+                      {errors.text}
+                    </div>
                   )}
-                  <span className='ml-auto text-sm text-slate-500'>{text.length} / 400</span>
+                  <span className="ml-auto text-sm text-slate-500">
+                    {text.length} / 400
+                  </span>
                 </div>
               </div>
             </div>
-            <div className='flex items-center gap-3 mt-8 max-md:gap-2 max-md:flex-col max-md:mt-5'>
+            <div className="flex items-center gap-3 mt-8 max-md:gap-2 max-md:flex-col max-md:mt-5">
               <Button
-                type='text'
-                size='middle'
+                type="text"
+                size="middle"
                 loading={loading}
                 onClick={async () => {
                   setPreviewing(true);
                   await handlePreview();
                 }}
                 icon={<EyeIcon />}
-                className='!text-sm w-fit max-md:w-full !flex items-center justify-center !h-fit font-sans text-slate-700 !rounded-lg'
+                className="!text-sm w-fit max-md:w-full !flex items-center justify-center !h-fit font-sans text-slate-700 !rounded-lg"
               >
                 Xem trước
               </Button>
               <Button
-                size='middle'
-                type='primary'
+                size="middle"
+                type="primary"
                 onClick={() => {
                   handleSubmit();
                 }}
                 loading={loading}
-                className='w-full !text-sm bg-[#006ded] !h-fit font-sans !rounded-lg flex items-center justify-center'
+                className="w-full !text-sm bg-[#006ded] !h-fit font-sans !rounded-lg flex items-center justify-center"
               >
                 Lưu và gửi thông điệp
               </Button>

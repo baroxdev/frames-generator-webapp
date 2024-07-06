@@ -316,7 +316,7 @@ function App() {
         background: `url(${backgroundHorizontial})`,
       }}
     >
-      {true && (
+      {showMockImage && (
         <div className="overflow-hidden max-md:hidden">
           <div className="absolute top-0 left-0 z-[-1]" ref={cardRef}>
             <img src={backgroundImage} width={1500} height={843} />

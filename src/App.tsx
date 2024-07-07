@@ -316,9 +316,9 @@ function App() {
         background: `url(${backgroundHorizontial})`,
       }}
     >
-      {showMockImage && (
+      {true && (
         <div className="overflow-hidden max-md:hidden">
-          <div className="absolute top-0 left-0 z-[-1]" ref={cardRef}>
+          <div className="absolute top-0 left-0 z-[999]" ref={cardRef}>
             <img src={backgroundImage} width={1500} height={843} />
             <div>
               <div className="absolute bottom-[175px]  left-[100px]">
@@ -355,6 +355,15 @@ function App() {
                   "text-3xl ": text.length > 150,
                   "text-5xl text-center": text.length < 150,
                 })}
+                style={{
+                  background:
+                    "linear-gradient(180deg, #d71b0d 0%, #fd5d02 100%)",
+                  color: "transparent",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  lineHeight: "1.6",
+                }}
               >
                 {text || "Thông điệp của bạn"}
               </p>

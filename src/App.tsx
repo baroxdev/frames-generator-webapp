@@ -356,12 +356,8 @@ function App() {
                   "text-5xl text-center": text.length < 150,
                 })}
                 style={{
-                  background:
-                    "linear-gradient(180deg, #d71b0d 0%, #fd5d02 100%)",
-                  color: "transparent",
-                  WebkitBackgroundClip: "text",
-                  backgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
+                  color: "#fd5d02",
+
                   lineHeight: "1.6",
                 }}
               >

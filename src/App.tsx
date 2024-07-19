@@ -13,7 +13,7 @@ import html2canvas from "html2canvas";
 import { DownloadIcon, EyeIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import FileResizer from "react-image-file-resizer";
-import backgroundHorizontial from "./assets/bg-hoz.png";
+import backgroundHorizontial from "./assets/bg-hoz.jpg";
 import saveToSheet, { FormData } from "./services/google-sheet";
 import backgroundImage from "./storage/background.png";
 import welcomeBottomImage from "./storage/welcome-bottom.png";
@@ -311,30 +311,35 @@ function App() {
 
   return (
     <div
-      className="flex justify-center w-full min-h-screen py-4 bg-white"
-      style={{
-        background: `url(${backgroundHorizontial})`,
-      }}
+      className="flex justify-center w-full min-h-screen py-4 bg-white bg-cover"
+      // style={{
+      //   background: `url(${backgroundHorizontial}) no-repeat  fixed`,
+      // }}
     >
+      <div className="absolute inset-0 z-[-0.5]">
+        <img
+          src={backgroundHorizontial}
+          className="w-full h-full object-cover"
+          width={1500}
+          height={843}
+        />
+      </div>
       {showMockImage && (
         <div className="overflow-hidden max-md:hidden">
           <div className="absolute top-0 left-0 z-[-1]" ref={cardRef}>
             <img src={backgroundImage} width={1500} height={843} />
             <div>
-              <div className="absolute bottom-[175px]  left-[100px]">
-                <div className="w-[359px] aspect-square h-[355px] rotate-[-3.2deg] overflow-hidden">
-                  <img
-                    className="object-cover w-full  rotate-[-3.2deg] h-full"
-                    src={imageUrl}
-                  />
+              <div className="absolute bottom-[150px] left-[134px]">
+                <div className="w-[415px] aspect-square rounded-full h-[415px] rotate-[-3.2deg] overflow-hidden">
+                  <img className="object-cover w-full h-full" src={imageUrl} />
                   {/* <img
                     className="object-cover w-full h-full bg-black"
-                    src={"/vite.svg"}
+                    src={"/background.png"}
                   /> */}
                 </div>
               </div>
-              <div className="absolute bottom-[120px] left-[330px]">
-                <div className="aspect-[226/175] w-[150px]">
+              <div className="absolute bottom-[80px] left-[67px]">
+                <div className="aspect-[1276/360] w-[575px]">
                   <img src={flyImage} className="object-contain" />
                 </div>
               </div>
@@ -344,7 +349,7 @@ function App() {
             </div>
             <div
               className={clsx(
-                "absolute w-[800px] h-[440px] bottom-[100px] right-[95px] bg-transparent",
+                "absolute w-[620px] h-[350px] top-[280px] right-[140px] bg-transparent p-3",
                 {
                   "flex items-center justify-center": text.length < 150,
                 }
@@ -352,11 +357,11 @@ function App() {
             >
               <p
                 className={clsx("font-medium text-blue-900", {
-                  "text-3xl ": text.length > 150,
-                  "text-5xl text-center": text.length < 150,
+                  "text-3xl ": text.length > 80,
+                  "text-5xl text-center": text.length < 80,
                 })}
                 style={{
-                  color: "#fd5d02",
+                  color: "#06572a",
 
                   lineHeight: "1.6",
                 }}
@@ -412,10 +417,16 @@ function App() {
           </div>
         )}
       </Modal>
-      <div className="flex flex-col items-center w-full max-w-2xl px-2">
-        <div className="max-w-lg mb-7 max-md:mb-4 max-md:max-w-full">
+      <div className="flex flex-col items-center z-10 w-full max-w-2xl px-2">
+        <div className="max-md:max-w-full mt-6 md:mt-10">
           <img src={welcomeTopImage} alt="welcome image" />
-          <img src={welcomeBottomImage} className="mt-4" alt="welcome image" />
+          <div className="max-w-[270px] mx-auto my-6 md:my-8">
+            <img
+              src={welcomeBottomImage}
+              className=" w-full object-contain"
+              alt="welcome image"
+            />
+          </div>
         </div>
         <form className="relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl">
           <div className="flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-3">

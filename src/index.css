@@ -1,3 +1,8 @@
+@font-face {
+  font-family: Lobster;
+  src: url('./assets/fonts/Lobster-Regular.ttf');
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,7 +10,7 @@
 @layer {
   input,
   textarea {
-    @apply !py-2 max-md:py-3 !border-slate-200 placeholder:!text-gray-400 placeholder:font-normal placeholder:text-sm font-sans placeholder:font-sans;
+    @apply !py-2 max-md:py-3 !border-gray-300 placeholder:!text-gray-400 placeholder:font-normal placeholder:text-sm font-sans placeholder:font-sans;
   }
 }
 
@@ -30,5 +35,40 @@
 }
 
 .ant-upload.ant-upload-select {
-  @apply flex-shrink-0 !w-full !h-full !mx-auto max-md:!w-[200px] max-md:!h-[200px];
+  @apply flex-shrink-0 !w-full !h-full !mx-auto max-md:!w-[130px] max-md:!h-[130px];
+}
+
+.octagonWrap {
+  background: red;
+  width: 200px;
+  height: 200px;
+  position: absolute;
+  -webkit-clip-path: polygon(
+    30% 0%,
+    70% 0%,
+    100% 30%,
+    100% 70%,
+    70% 100%,
+    30% 100%,
+    0% 70%,
+    0% 30%
+  );
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+}
+
+.octagon {
+  position: relative;
+  background: gray;
+  object-fit: cover;
+  -webkit-clip-path: polygon(
+    30% 0%,
+    70% 0%,
+    100% 30%,
+    100% 70%,
+    70% 100%,
+    30% 100%,
+    0% 70%,
+    0% 30%
+  );
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
 }

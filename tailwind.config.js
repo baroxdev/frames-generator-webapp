@@ -3,7 +3,7 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     fontFamily: {
-      sans: ['Inter, sans-serif'],
+      sans: ['Aria, sans-serif'],
     },
     extend: {
       gridTemplateColumns: {

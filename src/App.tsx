@@ -33,6 +33,8 @@ export const getBase64 = (
 type Errors = {
   text: string | null;
   avatar: string | null;
+  fullName: string | null;
+  role: string | null;
 };
 
 function App() {
@@ -42,8 +44,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>();
   const [avatar, setAvatar] = useState<File>();
-  // const [fullName, setFullName] = useState("");
-  // const [role, setRole] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState("");
   const [text, setText] = useState("");
   const [resultImage, setResultImage] = useState<string | null | undefined>(
     null
@@ -52,6 +54,8 @@ function App() {
   const [errors, setErrors] = useState<Errors>({
     text: null,
     avatar: null,
+    fullName: null,
+    role: null,
   });
 
   const compressImage = async (image: File) => {
@@ -149,23 +153,25 @@ function App() {
     const _errors: Errors = {
       text: null,
       avatar: null,
+      fullName: null,
+      role: null,
     };
     if (!text || text.trim() === "") _errors.text = "Vui lòng nhập thông điệp";
     if (text && text.length > 400)
       _errors.text = "Vui lòng nhập thông điệp dưới 400 kí tự";
     if (text.length < 10) _errors.text = "Thông điệp cần có ít nhất 10 ký tự";
-    // if (!fullName || fullName.trim() === "")
-    //   _errors.fullName = "Vui lòng nhập Họ và tên";
-    // if (fullName && fullName.length > 25)
-    //   _errors.fullName = "Họ và tên tối đa 45 kí tự";
-    // if (fullName.length < 2)
-    //   _errors.fullName = "Họ và tên cần có ít nhất 2 ký tự";
-    // if (!role || role.trim() === "")
-    //   _errors.role = "Vui lòng nhập Đơn vị - Chức vụ";
-    // if (role && role.length > 36)
-    //   _errors.role = "Đơn vị - Chức vụ tối đa 60 kí tự";
-    // if (role.length < 3)
-    //   _errors.fullName = "Đơn vị - Chức vụ cần có ít nhất 3 ký tự";
+    if (!fullName || fullName.trim() === "")
+      _errors.fullName = "Vui lòng nhập Họ và tên";
+    if (fullName && fullName.length > 25)
+      _errors.fullName = "Họ và tên tối đa 45 kí tự";
+    if (fullName.length < 2)
+      _errors.fullName = "Họ và tên cần có ít nhất 2 ký tự";
+    if (!role || role.trim() === "")
+      _errors.role = "Vui lòng nhập Đơn vị - Chức vụ";
+    if (role && role.length > 36)
+      _errors.role = "Đơn vị - Chức vụ tối đa 60 kí tự";
+    if (role.length < 3)
+      _errors.fullName = "Đơn vị - Chức vụ cần có ít nhất 3 ký tự";
     if (!imageUrl || imageUrl.trim() === "")
       _errors.avatar = "Vui lòng thêm ảnh đại diện";
     if (!text || !imageUrl) return setErrors(_errors);
@@ -207,24 +213,26 @@ function App() {
     const _errors: Errors = {
       text: null,
       avatar: null,
+      fullName: null,
+      role: null,
     };
     if (!text || text.trim() === "") _errors.text = "Vui lòng nhập thông điệp";
     if (text && text.length > 400)
       _errors.text = "Vui lòng nhập thông điệp dưới 400 kí tự";
-    // if (text.length < 10)
-    // _errors.fullName = "Thông điệp cần có ít nhất 10 ký tự";
-    // if (!fullName || fullName.trim() === "")
-    //   _errors.fullName = "Vui lòng nhập Họ và tên";
-    // if (fullName && fullName.length > 25)
-    //   _errors.fullName = "Họ và tên tối đa 45 kí tự";
-    // if (fullName.length < 2)
-    //   _errors.fullName = "Họ và tên cần có ít nhất 2 ký tự";
-    // if (!role || role.trim() === "")
-    //   _errors.role = "Vui lòng nhập Đơn vị - Chức vụ";
-    // if (role && role.length > 36)
-    //   _errors.role = "Đơn vị - Chức vụ tối đa 60 kí tự";
-    // if (role.length < 3)
-    //   _errors.fullName = "Đơn vị - Chức vụ cần có ít nhất 3 ký tự";
+    if (text.length < 10)
+      _errors.fullName = "Thông điệp cần có ít nhất 10 ký tự";
+    if (!fullName || fullName.trim() === "")
+      _errors.fullName = "Vui lòng nhập Họ và tên";
+    if (fullName && fullName.length > 25)
+      _errors.fullName = "Họ và tên tối đa 45 kí tự";
+    if (fullName.length < 2)
+      _errors.fullName = "Họ và tên cần có ít nhất 2 ký tự";
+    if (!role || role.trim() === "")
+      _errors.role = "Vui lòng nhập Đơn vị - Chức vụ";
+    if (role && role.length > 36)
+      _errors.role = "Đơn vị - Chức vụ tối đa 60 kí tự";
+    if (role.length < 3)
+      _errors.fullName = "Đơn vị - Chức vụ cần có ít nhất 3 ký tự";
     if (!imageUrl || imageUrl.trim() === "")
       _errors.avatar = "Vui lòng thêm ảnh đại diện";
     if (!text || !imageUrl) return setErrors(_errors);
@@ -250,8 +258,8 @@ function App() {
         content: "Đang gửi thông điệp",
       });
       const formData: FormData = {
-        // full_name: fullName,
-        // role: role,
+        full_name: fullName,
+        role: role,
         text: text,
         image_url: image_url || "",
       };
@@ -338,9 +346,37 @@ function App() {
                   /> */}
                 </div>
               </div>
+
               <div className="absolute bottom-[80px] left-[67px]">
                 <div className="aspect-[1276/360] w-[575px]">
                   <img src={flyImage} className="object-contain" />
+                </div>
+              </div>
+              <div className="absolute bottom-[95px] left-[67px] rotate-[-2.3deg]">
+                <div className="aspect-[1276/360] w-[575px] flex items-center justify-center flex-col">
+                  <h3
+                    className={clsx("font-bold text-[#06572a] text-center", {
+                      "!text-3xl": fullName.length >= 29,
+                      "text-4xl": fullName.length > 20 && fullName.length < 28,
+                      "text-5xl": fullName.length < 20,
+                    })}
+                  >
+                    {fullName || "Họ và tên"}
+                  </h3>
+                  <p
+                    className={clsx(
+                      "font-medium text-[#06572a] mt-3 text-center",
+                      {
+                        "text-base": role.length > 100,
+                        "text-xl": role.length > 70 && role.length < 100,
+                        "text-2xl": role.length > 50 && role.length < 70,
+
+                        "text-3xl": role.length <= 50,
+                      }
+                    )}
+                  >
+                    {role || "Đơn vị - Chức vụ"}
+                  </p>
                 </div>
               </div>
               {/* <div className='absolute bottom-[120px] left-[105.5px]'>
@@ -508,7 +544,7 @@ function App() {
               )}
             </div>
             <div className="flex flex-col gap-2">
-              {/* <div>
+              <div>
                 <Input
                   name="full_name"
                   value={fullName}
@@ -549,7 +585,7 @@ function App() {
                     {errors.role}
                   </div>
                 )}
-              </div> */}
+              </div>
               <div>
                 <Input.TextArea
                   value={text}

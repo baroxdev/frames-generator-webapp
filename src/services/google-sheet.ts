@@ -1,6 +1,6 @@
 export type FormData = {
-  // full_name: string;
-  // role: string;
+  full_name: string;
+  role: string;
   text: string;
   image_url: string;
 };

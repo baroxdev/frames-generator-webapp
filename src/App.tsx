@@ -13,10 +13,10 @@ import html2canvas from "html2canvas-pro";
 import { DownloadIcon, EyeIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import FileResizer from "react-image-file-resizer";
-import backgroundHorizontial from "./assets/bg-hoz.jpg";
+import backgroundHorizontial from "./assets/bg-hoz.png";
 import saveToSheet, { FormData } from "./services/google-sheet";
 import backgroundImage from "./storage/thong-diep-01.png";
-import welcomeBottomImage from "./storage/welcome-bottom.png";
+import welcomeBottomImage from "./assets/text.png";
 import welcomeTopImage from "./storage/welcome-top.png";
 import flyImage from "./assets/fly.png";
 import { convertDataURIToBinary, saveToDb } from "./utils";
@@ -350,11 +350,15 @@ function App() {
               <div className="absolute top-[838px] bg-transparent left-[63px]">
                 <div className=" w-[480px] flex items-center justify-center flex-col">
                   <h3
-                    className={clsx("font-bold text-[#047ed5] text-center", {
-                      "!text-3xl": fullName.length >= 29,
-                      "text-4xl": fullName.length > 20 && fullName.length < 28,
-                      "text-5xl": fullName.length < 20,
-                    })}
+                    className={clsx(
+                      "font-bold font-sans text-[#047ed5] text-center",
+                      {
+                        "!text-3xl": fullName.length >= 29,
+                        "text-4xl":
+                          fullName.length > 20 && fullName.length < 28,
+                        "text-5xl": fullName.length < 20,
+                      }
+                    )}
                   >
                     {fullName || "Họ và tên"}
                   </h3>
@@ -363,7 +367,7 @@ function App() {
               <div className="absolute bg-transparent top-[960px] left-[65px] w-[460px]">
                 <p
                   className={clsx(
-                    "font-medium text-[#047ed5] mt-3 text-center",
+                    "font-medium text-[#047ed5] font-sans mt-3 text-center",
                     {
                       "text-base": role.length > 100,
                       "text-xl": role.length > 70 && role.length < 100,
@@ -389,7 +393,7 @@ function App() {
               )}
             >
               <p
-                className={clsx("font-medium text-blue-900", {
+                className={clsx("font-medium font-sans text-blue-900", {
                   "text-3xl ": text.length > 80,
                   "text-5xl text-center": text.length < 80,
                 })}
@@ -535,7 +539,7 @@ function App() {
                 </Upload>
               </ImgCrop>
               {errors.avatar && (
-                <div className="mt-1 ml-1 font-sans text-xs text-red-600 ">
+                <div className="mt-1 ml-1  text-xs text-red-600 ">
                   {errors.avatar}
                 </div>
               )}
@@ -557,7 +561,7 @@ function App() {
                   size="large"
                 />
                 {errors.fullName && (
-                  <div className="mt-1 ml-1 font-sans text-xs text-red-600 ">
+                  <div className="mt-1 ml-1  text-xs text-red-600 ">
                     {errors.fullName}
                   </div>
                 )}
@@ -578,7 +582,7 @@ function App() {
                   size="large"
                 />
                 {errors.role && (
-                  <div className="mt-1 ml-1 font-sans text-xs text-red-600 ">
+                  <div className="mt-1 ml-1  text-xs text-red-600 ">
                     {errors.role}
                   </div>
                 )}
@@ -601,7 +605,7 @@ function App() {
                 />
                 <div className="flex items-center justify-between">
                   {errors.text && (
-                    <div className="mt-1 ml-1 font-sans text-xs text-red-600 ">
+                    <div className="mt-1 ml-1  text-xs text-red-600 ">
                       {errors.text}
                     </div>
                   )}
@@ -621,7 +625,7 @@ function App() {
                   await handlePreview();
                 }}
                 icon={<EyeIcon />}
-                className="!text-sm w-fit max-md:w-full !flex items-center justify-center !h-fit font-sans text-slate-700 !rounded-lg"
+                className="!text-sm w-fit max-md:w-full !flex items-center justify-center !h-fit  text-slate-700 !rounded-lg"
               >
                 Xem trước
               </Button>
@@ -632,7 +636,7 @@ function App() {
                   handleSubmit();
                 }}
                 loading={loading}
-                className="w-full !text-sm bg-[#047ed5] !h-fit font-sans !rounded-lg flex items-center justify-center"
+                className="w-full !text-sm bg-[#047ed5] !h-fit  !rounded-lg flex items-center justify-center"
               >
                 Lưu và gửi thông điệp
               </Button>

@@ -1,7 +1,5 @@
-@font-face {
-  font-family: Lobster;
-  src: url('./assets/fonts/Lobster-Regular.ttf');
-}
+@import url('https://fonts.googleapis.com/css2?family=Lobster&display=swap');
+
 
 @tailwind base;
 @tailwind components;
@@ -10,12 +8,14 @@
 @layer {
   input,
   textarea {
-    @apply !py-2 max-md:py-3 !border-gray-300 placeholder:!text-gray-400 placeholder:font-normal placeholder:text-sm font-sans placeholder:font-sans;
+    @apply !py-2 max-md:py-3 !border-gray-300 placeholder:!text-gray-400 placeholder:font-normal placeholder:text-sm;
   }
 }
 
+
+
 .ant-btn {
-  @apply !px-3 !py-3 !h-fit font-sans !rounded-lg font-medium;
+  @apply !px-3 !py-3 !h-fit !rounded-lg font-medium;
 }
 
 .ant-btn-primary {

@@ -14,11 +14,10 @@ import { DownloadIcon, EyeIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import FileResizer from "react-image-file-resizer";
 import backgroundHorizontial from "./assets/bg-hoz.png";
+import welcomeBottomImage from "./assets/text.png";
 import saveToSheet, { FormData } from "./services/google-sheet";
 import backgroundImage from "./storage/thong-diep-01.png";
-import welcomeBottomImage from "./assets/text.png";
 import welcomeTopImage from "./storage/welcome-top.png";
-import flyImage from "./assets/fly.png";
 import { convertDataURIToBinary, saveToDb } from "./utils";
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (
@@ -166,12 +165,9 @@ function App() {
       _errors.fullName = "Họ và tên tối đa 45 kí tự";
     if (fullName.length < 2)
       _errors.fullName = "Họ và tên cần có ít nhất 2 ký tự";
-    if (!role || role.trim() === "")
-      _errors.role = "Vui lòng nhập Đơn vị - Chức vụ";
-    if (role && role.length > 36)
-      _errors.role = "Đơn vị - Chức vụ tối đa 60 kí tự";
-    if (role.length < 3)
-      _errors.fullName = "Đơn vị - Chức vụ cần có ít nhất 3 ký tự";
+    if (!role || role.trim() === "") _errors.role = "Vui lòng nhập Đơn vị";
+    if (role && role.length > 36) _errors.role = "Đơn vị tối đa 60 kí tự";
+    if (role.length < 3) _errors.fullName = "Đơn vị cần có ít nhất 3 ký tự";
     if (!imageUrl || imageUrl.trim() === "")
       _errors.avatar = "Vui lòng thêm ảnh đại diện";
     if (!text || !imageUrl) return setErrors(_errors);
@@ -227,12 +223,9 @@ function App() {
       _errors.fullName = "Họ và tên tối đa 45 kí tự";
     if (fullName.length < 2)
       _errors.fullName = "Họ và tên cần có ít nhất 2 ký tự";
-    if (!role || role.trim() === "")
-      _errors.role = "Vui lòng nhập Đơn vị - Chức vụ";
-    if (role && role.length > 36)
-      _errors.role = "Đơn vị - Chức vụ tối đa 60 kí tự";
-    if (role.length < 3)
-      _errors.fullName = "Đơn vị - Chức vụ cần có ít nhất 3 ký tự";
+    if (!role || role.trim() === "") _errors.role = "Vui lòng nhập Đơn vị";
+    if (role && role.length > 36) _errors.role = "Đơn vị tối đa 60 kí tự";
+    if (role.length < 3) _errors.fullName = "Đơn vị cần có ít nhất 3 ký tự";
     if (!imageUrl || imageUrl.trim() === "")
       _errors.avatar = "Vui lòng thêm ảnh đại diện";
     if (!text || !imageUrl) return setErrors(_errors);
@@ -377,7 +370,7 @@ function App() {
                     }
                   )}
                 >
-                  {role || "Đơn vị - Chức vụ"}
+                  {role || "Đơn vị"}
                 </p>
               </div>
               {/* <div className='absolute bottom-[120px] left-[105.5px]'>
@@ -577,7 +570,7 @@ function App() {
                     setRole(e.target.value);
                   }}
                   name="role"
-                  placeholder="Đơn vị - Chức vụ"
+                  placeholder="Đơn vị"
                   className="mt-2 text-base"
                   size="large"
                 />

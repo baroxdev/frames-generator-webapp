@@ -9,13 +9,13 @@ import {
 } from "antd/es/upload";
 import imageCompression from "browser-image-compression";
 import clsx from "clsx";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import { DownloadIcon, EyeIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import FileResizer from "react-image-file-resizer";
 import backgroundHorizontial from "./assets/bg-hoz.jpg";
 import saveToSheet, { FormData } from "./services/google-sheet";
-import backgroundImage from "./storage/background.png";
+import backgroundImage from "./storage/thong-diep-01.png";
 import welcomeBottomImage from "./storage/welcome-bottom.png";
 import welcomeTopImage from "./storage/welcome-top.png";
 import flyImage from "./assets/fly.png";
@@ -337,8 +337,8 @@ function App() {
           <div className="absolute top-0 left-0 z-[-1]" ref={cardRef}>
             <img src={backgroundImage} width={1500} height={843} />
             <div>
-              <div className="absolute bottom-[150px] left-[134px]">
-                <div className="w-[415px] aspect-square rounded-full h-[415px] rotate-[-3.2deg] overflow-hidden">
+              <div className="absolute top-[317.8px]  left-[58px]">
+                <div className="w-[446px] aspect-square rounded-full h-[446px]  overflow-hidden">
                   <img className="object-cover w-full h-full" src={imageUrl} />
                   {/* <img
                     className="object-cover w-full h-full bg-black"
@@ -347,15 +347,10 @@ function App() {
                 </div>
               </div>
 
-              <div className="absolute bottom-[80px] left-[67px]">
-                <div className="aspect-[1276/360] w-[575px]">
-                  <img src={flyImage} className="object-contain" />
-                </div>
-              </div>
-              <div className="absolute bottom-[95px] left-[67px] rotate-[-2.3deg]">
-                <div className="aspect-[1276/360] w-[575px] flex items-center justify-center flex-col">
+              <div className="absolute top-[838px] bg-transparent left-[63px]">
+                <div className=" w-[480px] flex items-center justify-center flex-col">
                   <h3
-                    className={clsx("font-bold text-[#06572a] text-center", {
+                    className={clsx("font-bold text-[#047ed5] text-center", {
                       "!text-3xl": fullName.length >= 29,
                       "text-4xl": fullName.length > 20 && fullName.length < 28,
                       "text-5xl": fullName.length < 20,
@@ -363,21 +358,23 @@ function App() {
                   >
                     {fullName || "Họ và tên"}
                   </h3>
-                  <p
-                    className={clsx(
-                      "font-medium text-[#06572a] mt-3 text-center",
-                      {
-                        "text-base": role.length > 100,
-                        "text-xl": role.length > 70 && role.length < 100,
-                        "text-2xl": role.length > 50 && role.length < 70,
-
-                        "text-3xl": role.length <= 50,
-                      }
-                    )}
-                  >
-                    {role || "Đơn vị - Chức vụ"}
-                  </p>
                 </div>
+              </div>
+              <div className="absolute bg-transparent top-[960px] left-[65px] w-[460px]">
+                <p
+                  className={clsx(
+                    "font-medium text-[#047ed5] mt-3 text-center",
+                    {
+                      "text-base": role.length > 100,
+                      "text-xl": role.length > 70 && role.length < 100,
+                      "text-2xl": role.length > 50 && role.length < 70,
+
+                      "text-3xl": role.length <= 50,
+                    }
+                  )}
+                >
+                  {role || "Đơn vị - Chức vụ"}
+                </p>
               </div>
               {/* <div className='absolute bottom-[120px] left-[105.5px]'>
               <img className='object-cover max-w-[400px] h-[110px]' src={backgroundName} />
@@ -385,7 +382,7 @@ function App() {
             </div>
             <div
               className={clsx(
-                "absolute w-[620px] h-[350px] top-[280px] right-[140px] bg-transparent p-3",
+                "absolute w-[806px] h-[490px] top-[423px] left-[623px] bg-transparent p-3",
                 {
                   "flex items-center justify-center": text.length < 150,
                 }
@@ -397,7 +394,7 @@ function App() {
                   "text-5xl text-center": text.length < 80,
                 })}
                 style={{
-                  color: "#06572a",
+                  color: "#047ed5",
 
                   lineHeight: "1.6",
                 }}
@@ -635,7 +632,7 @@ function App() {
                   handleSubmit();
                 }}
                 loading={loading}
-                className="w-full !text-sm bg-[#006ded] !h-fit font-sans !rounded-lg flex items-center justify-center"
+                className="w-full !text-sm bg-[#047ed5] !h-fit font-sans !rounded-lg flex items-center justify-center"
               >
                 Lưu và gửi thông điệp
               </Button>

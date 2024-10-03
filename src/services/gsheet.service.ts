@@ -1,3 +1,5 @@
+import { config } from "../config";
+
 export type FormData = {
   // full_name: string;
   // role: string;
@@ -6,8 +8,7 @@ export type FormData = {
 };
 
 export default async function saveToSheet(formData: FormData) {
-  const api_url =
-    "https://sheet.best/api/sheets/d3b49fe9-2445-477f-b0c4-f1fae6203ec3";
+  const api_url = config.api.sheet;
   await fetch(api_url, {
     method: "POST",
     body: JSON.stringify({

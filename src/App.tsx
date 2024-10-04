@@ -13,13 +13,12 @@ import html2canvas from "html2canvas-pro";
 import { DownloadIcon, EyeIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import FileResizer from "react-image-file-resizer";
+import useSound from "use-sound";
 import backgroundHorizontial from "./assets/bg-hoz.png";
-import welcomeBottomImage from "./assets/text.png";
 import saveToSheet, { FormData } from "./services/google-sheet";
 import backgroundImage from "./storage/thong-diep-01.png";
 import welcomeTopImage from "./storage/welcome-top.png";
 import { convertDataURIToBinary, saveToDb } from "./utils";
-import useSound from "use-sound";
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (
   img: RcFile | File,
@@ -51,14 +50,17 @@ function App() {
     null
   );
   const cardRef = useRef<HTMLDivElement>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const [play, { stop: stopSrollingSound }] = useSound(
     "/assets/sounds/sound.mp3",
     {
       loop: true,
       interupt: true,
       volume: 0.5,
+      soundEnabled: true,
     }
   );
+
   const [errors, setErrors] = useState<Errors>({
     text: null,
     avatar: null,
@@ -66,12 +68,13 @@ function App() {
     role: null,
   });
 
-  useEffect(() => {
-    play();
-    return () => {
-      stopSrollingSound();
-    };
-  }, [play, stopSrollingSound]);
+  // useEffect(() => {
+  //   console.log("Play sound");
+  //   play();
+  //   return () => {
+  //     stopSrollingSound();
+  //   };
+  // }, [play, stopSrollingSound]);
 
   const compressImage = async (image: File) => {
     const options = {
@@ -321,6 +324,14 @@ function App() {
     setPreviewing(false);
   };
 
+  const handleSound = () => {
+    if (soundEnabled) {
+      return;
+    }
+    setSoundEnabled(true);
+    play();
+  };
+
   const showMockImage =
     // fullName.trim() !== "" &&
     // role.trim() !== "" &&
@@ -329,6 +340,8 @@ function App() {
   return (
     <div
       className="flex justify-center w-full min-h-screen py-4 bg-white bg-cover"
+      onMouseMove={handleSound}
+      onClick={handleSound}
       // style={{
       //   background: `url(${backgroundHorizontial}) no-repeat  fixed`,
       // }}
@@ -466,17 +479,13 @@ function App() {
       <div className="flex flex-col items-center z-10 w-full max-w-2xl px-2">
         <div className="max-md:max-w-full mt-6 md:mt-10">
           <img src={welcomeTopImage} alt="welcome image" />
-          <div className="max-w-[270px] mx-auto my-6 md:my-8">
-            <img
-              src={welcomeBottomImage}
-              className=" w-full object-contain"
-              alt="welcome image"
-            />
-          </div>
         </div>
         <form className="relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl">
           <div className="flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-3">
-            <div className="flex flex-col items-center justify-center">
+            <div
+              className="flex flex-col items-center justify-center"
+              onFocus={handleSound}
+            >
               <ImgCrop
                 showGrid
                 rotationSlider
@@ -493,7 +502,7 @@ function App() {
                   name="avatar"
                   multiple={false}
                   listType="picture-circle"
-                  className="avatar-uploader !w-[250px] max-md:!w-[200px] aspect-square !mx-auto md:mb-3"
+                  className="avatar-uploader !w-[250px] max-md:!w-[130px] aspect-square !mx-auto md:mb-3"
                   showUploadList={false}
                   accept=".png,.jpg,.jpeg"
                   progress={{

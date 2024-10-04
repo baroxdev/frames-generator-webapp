@@ -11,7 +11,7 @@ import imageCompression from "browser-image-compression";
 import clsx from "clsx";
 import html2canvas from "html2canvas-pro";
 import { DownloadIcon, EyeIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import FileResizer from "react-image-file-resizer";
 import backgroundHorizontial from "./assets/bg-hoz.png";
 import welcomeBottomImage from "./assets/text.png";
@@ -19,6 +19,7 @@ import saveToSheet, { FormData } from "./services/google-sheet";
 import backgroundImage from "./storage/thong-diep-01.png";
 import welcomeTopImage from "./storage/welcome-top.png";
 import { convertDataURIToBinary, saveToDb } from "./utils";
+import useSound from "use-sound";
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (
   img: RcFile | File,
@@ -50,12 +51,27 @@ function App() {
     null
   );
   const cardRef = useRef<HTMLDivElement>(null);
+  const [play, { stop: stopSrollingSound }] = useSound(
+    "/assets/sounds/sound.mp3",
+    {
+      loop: true,
+      interupt: true,
+      volume: 0.5,
+    }
+  );
   const [errors, setErrors] = useState<Errors>({
     text: null,
     avatar: null,
     fullName: null,
     role: null,
   });
+
+  useEffect(() => {
+    play();
+    return () => {
+      stopSrollingSound();
+    };
+  }, [play, stopSrollingSound]);
 
   const compressImage = async (image: File) => {
     const options = {

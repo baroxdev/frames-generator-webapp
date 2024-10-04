@@ -36,6 +36,7 @@
     "react-image-file-resizer": "^0.4.8",
     "rollbar": "^2.26.2",
     "use-debounce": "^9.0.4",
+    "use-sound": "^4.0.3",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

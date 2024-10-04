@@ -459,7 +459,9 @@ function App() {
                 {previewing && (
                   <Button
                     type="primary"
+                    loading={loading}
                     size="small"
+                    disabled={loading}
                     className="flex items-center justify-center"
                     onClick={() => {
                       handleSubmit(resultImage);
@@ -647,6 +649,7 @@ function App() {
               <Button
                 size="middle"
                 type="primary"
+                disabled={loading}
                 onClick={() => {
                   handleSubmit();
                 }}

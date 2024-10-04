@@ -11,7 +11,7 @@ import imageCompression from "browser-image-compression";
 import clsx from "clsx";
 import html2canvas from "html2canvas-pro";
 import { DownloadIcon, EyeIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import FileResizer from "react-image-file-resizer";
 import useSound from "use-sound";
 import backgroundHorizontial from "./assets/bg-hoz.png";
@@ -51,15 +51,12 @@ function App() {
   );
   const cardRef = useRef<HTMLDivElement>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const [play, { stop: stopSrollingSound }] = useSound(
-    "/assets/sounds/sound.mp3",
-    {
-      loop: true,
-      interupt: true,
-      volume: 0.5,
-      soundEnabled: true,
-    }
-  );
+  const [play] = useSound("/assets/sounds/sound.mp3", {
+    loop: true,
+    interupt: true,
+    volume: 0.5,
+    soundEnabled: true,
+  });
 
   const [errors, setErrors] = useState<Errors>({
     text: null,

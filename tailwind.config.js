@@ -4,6 +4,7 @@ export default {
   theme: {
     fontFamily: {
       sans: ["Playwrite HU", "cursive"],
+      nunito: ["Inter", "sans-serif"],
     },
     extend: {
       gridTemplateColumns: {

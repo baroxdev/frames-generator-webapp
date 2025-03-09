@@ -3,6 +3,12 @@ describe("Form Tests", () => {
     // Visit the app before each test
     cy.visit("/");
 
+    // Intercept all webhook API calls to mock the response and avoid CORS errors
+    cy.intercept("**/webhook-test/**", {
+      statusCode: 200,
+      body: { success: true, message: "Mocked successful response" },
+    }).as("webhookRequest");
+
     // Suppress uncaught exceptions caused by third-party libraries
     Cypress.on("uncaught:exception", () => {
       return false;
@@ -286,9 +292,17 @@ describe("Form Tests", () => {
       // Verify buttons for downloading and changing are visible
       cy.contains("button", "Lưu về máy").should("be.visible");
       cy.contains("button", "Thay đổi").should("be.visible");
+
+      // Click on "Gửi thông điệp" button if it exists to test form submission
+      cy.contains("button", "Gửi thông điệp").should("be.visible").click();
     });
 
-    // Test finishes here after reviewing the preview
-    // Don't proceed with further steps
+    // Wait for the intercepted webhook request
+    cy.wait("@webhookRequest").then((interception) => {
+      // Verify that the request was attempted
+      expect(interception.request).to.exist;
+    });
+
+    // Test finishes here after form submission
   });
 });

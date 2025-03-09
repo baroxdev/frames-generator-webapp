@@ -32,6 +32,6 @@ export const config = {
   },
   api: {
     sheet:
-      "https://workflow.seconds.id.vn/webhook-test/ba38b420-1348-4c0c-a075-bd02257ce1a5",
+      "https://workflow.seconds.id.vn/webhook/ba38b420-1348-4c0c-a075-bd02257ce1a5",
   },
 };

@@ -339,9 +339,9 @@ function App() {
       className="flex justify-center w-full min-h-screen py-4 bg-white bg-cover"
       onMouseMove={handleSound}
       onClick={handleSound}
-      // style={{
-      //   background: `url(${backgroundHorizontial}) no-repeat  fixed`,
-      // }}
+      style={{
+        background: `url(${backgroundHorizontial}) no-repeat  fixed`,
+      }}
     >
       <div className="absolute inset-0 z-[-0.5]">
         <img

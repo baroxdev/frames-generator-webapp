@@ -1,5 +1,5 @@
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Input, Modal, Upload, message } from "antd";
+import { Input, Modal, Upload, message } from "antd";
 import ImgCrop from "antd-img-crop";
 import {
   RcFile,
@@ -16,9 +16,12 @@ import FileResizer from "react-image-file-resizer";
 import useSound from "use-sound";
 import backgroundHorizontial from "./assets/bg-hoz.png";
 import saveToSheet, { FormData } from "./services/google-sheet";
-import backgroundImage from "./storage/thong-diep-01.png";
+import backgroundImage from "./storage/thong-diep.png";
 import welcomeTopImage from "./storage/welcome-top.png";
 import { convertDataURIToBinary, saveToDb } from "./utils";
+import { Button } from "./components/ui/button";
+import TopBanner from "./components/TopBanner";
+
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (
   img: RcFile | File,
@@ -51,7 +54,7 @@ function App() {
   );
   const cardRef = useRef<HTMLDivElement>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const [play] = useSound("/assets/sounds/sound.mp3", {
+  const [play] = useSound("/assets/sounds/sound.mp", {
     loop: true,
     interupt: true,
     volume: 0.5,
@@ -119,15 +122,17 @@ function App() {
     const image: Promise<File | null> = new Promise((resolve) => {
       FileResizer.imageFileResizer(
         file,
-        500,
-        500,
-        "JPEG",
-        50,
-        0,
+        800, // max width
+        800, // max height
+        "JPEG", // format
+        85, // quality (0-100)
+        0, // rotation
         (uri) => {
           resolve(uri as File);
         },
-        "file"
+        "file",
+        600, // min width
+        600 // min height
       );
     });
     return image;
@@ -142,26 +147,63 @@ function App() {
       });
       return null;
     }
-    const resizeImage = await resizeFile(avatar);
-    if (!resizeImage) {
+
+    // First step: Resize the image to reasonable dimensions
+    const resizedImage = await resizeFile(avatar);
+    if (!resizedImage) {
       console.error("Cannot resize image");
       return null;
     }
 
-    if (previewing) {
-      setAvatar(resizeImage as RcFile);
-    } else {
-      const compressedAvatar = await compressImage(resizeImage);
-      console.log(
-        "🚀 ~ file: App.tsx:136 ~ generateDataUrl ~ compressedAvatar:",
-        compressedAvatar
+    // Second step: Compress the resized image with optimized settings
+    const compressionOptions = {
+      maxSizeMB: 0.9, // Target size just under 1MB
+      maxWidthOrHeight: 800, // Reasonable size for profile photos
+      initialQuality: 0.8, // Start with good quality
+      useWebWorker: true, // Better performance
+      alwaysKeepResolution: false, // Allow resize if needed
+      preserveExif: false, // Remove EXIF data to reduce size
+    };
+
+    try {
+      const compressedImage = await imageCompression(
+        resizedImage,
+        compressionOptions
       );
-      setAvatar(compressedAvatar as RcFile);
+
+      // If still too large, try one more time with stricter settings
+      if (compressedImage.size > 1024 * 1024) {
+        const stricterOptions = {
+          ...compressionOptions,
+          maxSizeMB: 0.8,
+          initialQuality: 0.8,
+        };
+        const finalImage = await imageCompression(
+          compressedImage,
+          stricterOptions
+        );
+        setAvatar(finalImage as RcFile);
+      } else {
+        setAvatar(compressedImage as RcFile);
+      }
+
+      const canvas = await html2canvas(cardRef.current, {
+        windowWidth: 1928,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      });
+
+      return canvas.toDataURL("image/jpeg", 0.9);
+    } catch (error) {
+      console.error("Compression error:", error);
+      messageApi.open({
+        type: "error",
+        key: "handling",
+        content: "Không thể xử lý ảnh. Vui lòng thử lại sau",
+      });
+      return null;
     }
-    const canvas = await html2canvas(cardRef.current, {
-      windowWidth: 1928,
-    });
-    return canvas.toDataURL();
   };
 
   const handlePreview = async () => {
@@ -267,10 +309,10 @@ function App() {
         content: "Đang gửi thông điệp",
       });
       const formData: FormData = {
-        full_name: fullName,
-        role: role,
-        text: text,
-        image_url: image_url || "",
+        "Họ và tên": fullName,
+        "Đơn vị": role,
+        "Thông điệp": text,
+        "Hình ảnh": image_url || "",
       };
       await saveToSheet(formData);
       messageApi.open({
@@ -339,43 +381,42 @@ function App() {
       className="flex justify-center w-full min-h-screen py-4 bg-white bg-cover"
       onMouseMove={handleSound}
       onClick={handleSound}
-      style={{
-        background: `url(${backgroundHorizontial}) no-repeat  fixed`,
-      }}
     >
-      <div className="absolute inset-0 z-[-0.5]">
-        <img
-          src={backgroundHorizontial}
-          className="w-full h-full object-cover"
-          width={1500}
-          height={843}
-        />
-      </div>
+      <div
+        className="absolute inset-0  z-[-0.5]"
+        style={{
+          backgroundImage: `url(${backgroundHorizontial})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      ></div>
       {showMockImage && (
         <div className="overflow-hidden max-md:hidden">
+          {/*  replace this z-index  */}
           <div className="absolute top-0 left-0 z-[-1]" ref={cardRef}>
             <img src={backgroundImage} width={1500} height={843} />
             <div>
-              <div className="absolute top-[317.8px]  left-[58px]">
-                <div className="w-[446px] aspect-square rounded-full h-[446px]  overflow-hidden">
-                  <img className="object-cover w-full h-full" src={imageUrl} />
-                  {/* <img
-                    className="object-cover w-full h-full bg-black"
-                    src={"/background.png"}
-                  /> */}
+              <div className="absolute top-[335px] left-[200px]">
+                <div className="w-[286px] h-[242px] overflow-hidden">
+                  <div className="w-[286px] h-[280px] rounded-full overflow-hidden">
+                    <img
+                      className="object-cover w-full h-full"
+                      src={imageUrl}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="absolute top-[838px] bg-transparent left-[63px]">
-                <div className=" w-[480px] flex items-center justify-center flex-col">
+              <div className="absolute top-[600px] bg-transparent left-[159px]">
+                <div className=" w-[389px] flex items-center justify-center flex-col">
                   <h3
                     className={clsx(
-                      "font-bold font-sans text-[#047ed5] text-center",
+                      "font-medium font-sans text-[#000] text-center",
                       {
-                        "!text-3xl": fullName.length >= 29,
-                        "text-4xl":
+                        "!text-xl": fullName.length >= 29,
+                        "text-2xl":
                           fullName.length > 20 && fullName.length < 28,
-                        "text-5xl": fullName.length < 20,
+                        "text-3xl": fullName.length < 20,
                       }
                     )}
                   >
@@ -383,16 +424,15 @@ function App() {
                   </h3>
                 </div>
               </div>
-              <div className="absolute bg-transparent top-[960px] left-[65px] w-[460px]">
+              <div className="absolute bg-transparent top-[634px] left-[157px] w-[389px]">
                 <p
                   className={clsx(
-                    "font-medium text-[#047ed5] font-sans mt-3 text-center",
+                    "font-normal text-[#000] font-sans mt-3 text-center",
                     {
-                      "text-base": role.length > 100,
-                      "text-xl": role.length > 70 && role.length < 100,
-                      "text-2xl": role.length > 50 && role.length < 70,
+                      "text-sm": role.length > 36,
+                      "text-base": role.length > 20 && role.length < 30,
 
-                      "text-3xl": role.length <= 50,
+                      "text-lg": role.length <= 20,
                     }
                   )}
                 >
@@ -405,7 +445,7 @@ function App() {
             </div>
             <div
               className={clsx(
-                "absolute w-[806px] h-[490px] top-[423px] left-[623px] bg-transparent p-3",
+                "absolute w-[801px] h-[229px] top-[358px] left-[506px] bg-transparent p-3",
                 {
                   "flex items-center justify-center": text.length < 150,
                 }
@@ -413,11 +453,12 @@ function App() {
             >
               <p
                 className={clsx("font-medium font-sans text-blue-900", {
-                  "text-3xl ": text.length > 80,
-                  "text-5xl text-center": text.length < 80,
+                  "text-base": text.length > 100,
+                  "text-xl ": text.length > 80,
+                  "text-3xl text-center": text.length < 80,
                 })}
                 style={{
-                  color: "#047ed5",
+                  color: "#000",
 
                   lineHeight: "1.6",
                 }}
@@ -439,28 +480,26 @@ function App() {
           <div>
             <img alt="example" style={{ width: "100%" }} src={resultImage} />
             <div className="flex items-center justify-between pt-8 max-md:pt-3">
-              <Button type="text" size="small" onClick={handleCancelPreview}>
+              <Button type="button" size="sm" onClick={handleCancelPreview}>
                 Thay đổi
               </Button>
               <div className="flex items-center gap-3">
-                <Button
-                  download
-                  target="_blank"
-                  data-href={resultImage}
-                  title="Download message image"
-                  href={resultImage}
-                  type="default"
-                  size="small"
-                  className="flex items-center justify-center"
-                  icon={<DownloadIcon />}
-                >
-                  Lưu về máy
-                </Button>
+                <a href={resultImage} target="_blank" download={true}>
+                  <Button
+                    data-href={resultImage}
+                    title="Download message image"
+                    type="button"
+                    size="sm"
+                    className="flex items-center justify-center"
+                  >
+                    <DownloadIcon className="w-4 h-4 mr-2" />
+                    Lưu về máy
+                  </Button>
+                </a>
                 {previewing && (
                   <Button
-                    type="primary"
-                    loading={loading}
-                    size="small"
+                    type="button"
+                    size="sm"
                     disabled={loading}
                     className="flex items-center justify-center"
                     onClick={() => {
@@ -477,7 +516,7 @@ function App() {
       </Modal>
       <div className="flex flex-col items-center z-10 w-full max-w-2xl px-2">
         <div className="max-md:max-w-full mt-6 md:mt-10">
-          <img src={welcomeTopImage} alt="welcome image" />
+          <TopBanner src={welcomeTopImage} />
         </div>
         <form className="relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl">
           <div className="flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-3">
@@ -634,27 +673,27 @@ function App() {
             </div>
             <div className="flex items-center gap-3 mt-8 max-md:gap-2 max-md:flex-col max-md:mt-5">
               <Button
-                type="text"
-                size="middle"
-                loading={loading}
+                type="button"
+                size="lg"
+                className="w-full"
+                variant={"outline"}
+                disabled={loading}
                 onClick={async () => {
                   setPreviewing(true);
                   await handlePreview();
                 }}
-                icon={<EyeIcon />}
-                className="!text-sm w-fit max-md:w-full !flex items-center justify-center !h-fit  text-slate-700 !rounded-lg"
               >
+                <EyeIcon className="w-4 h-4 mr-2" />
                 Xem trước
               </Button>
               <Button
-                size="middle"
-                type="primary"
+                type="button"
+                size="lg"
+                className="w-full"
                 disabled={loading}
                 onClick={() => {
                   handleSubmit();
                 }}
-                loading={loading}
-                className="w-full !text-sm bg-[#047ed5] !h-fit  !rounded-lg flex items-center justify-center"
               >
                 Lưu và gửi thông điệp
               </Button>

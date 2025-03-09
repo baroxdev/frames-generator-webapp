@@ -1,10 +1,10 @@
 import { config } from "../config";
 
 export type FormData = {
-  full_name: string;
-  role: string;
-  text: string;
-  image_url: string;
+  ["Họ và tên"]: string;
+  ["Đơn vị"]: string;
+  ["Thông điệp"]: string;
+  ["Hình ảnh"]: string;
 };
 
 export default async function saveToSheet(formData: FormData) {
@@ -13,7 +13,7 @@ export default async function saveToSheet(formData: FormData) {
     method: "POST",
     body: JSON.stringify({
       ...formData,
-      created_at: new Date().toLocaleString("en-GB", {
+      ["Tạo lúc"]: new Date().toLocaleString("en-GB", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",

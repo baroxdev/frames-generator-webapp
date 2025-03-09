@@ -31,7 +31,6 @@ export const config = {
     },
   },
   api: {
-    sheet:
-      "https://api.sheetbest.com/sheets/1fabc967-dc95-48aa-b6df-20285bf24065",
+    sheet: "https://api.sheetapi.rest/api/v1/sheet/c-HkrAJ3RlVVIHVtNAMeC",
   },
 };

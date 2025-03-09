@@ -31,6 +31,7 @@ export const config = {
     },
   },
   api: {
-    sheet: "https://api.sheetapi.rest/api/v1/sheet/-igPXzDnKOPqAhkzaEVlH",
+    sheet:
+      "https://workflow.seconds.id.vn/webhook-test/ba38b420-1348-4c0c-a075-bd02257ce1a5",
   },
 };

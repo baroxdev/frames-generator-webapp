@@ -23,6 +23,7 @@ export default async function saveToSheet(formData: FormData) {
     }),
     headers: {
       "Content-Type": "application/json",
+      Accept: "application/json",
     },
   });
 }

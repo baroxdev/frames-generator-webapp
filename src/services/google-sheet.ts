@@ -1,4 +1,5 @@
 import { config } from "../config";
+import axios from "axios";
 
 export type FormData = {
   ["Họ và tên"]: string;
@@ -9,9 +10,9 @@ export type FormData = {
 
 export default async function saveToSheet(formData: FormData) {
   const api_url = config.api.sheet;
-  await fetch(api_url, {
-    method: "POST",
-    body: JSON.stringify({
+  await axios.post(
+    api_url,
+    {
       ...formData,
       ["Tạo lúc"]: new Date().toLocaleString("en-GB", {
         day: "2-digit",
@@ -20,10 +21,11 @@ export default async function saveToSheet(formData: FormData) {
         hour: "2-digit",
         minute: "2-digit",
       }),
-    }),
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
     },
-  });
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
 }

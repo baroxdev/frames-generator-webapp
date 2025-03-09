@@ -11,12 +11,14 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.1.4",
+    "@radix-ui/react-slot": "^1.1.2",
     "@rollbar/react": "^0.11.2",
     "@types/merge-images": "^1.2.1",
     "antd": "^5.6.1",
     "antd-img-crop": "^4.12.2",
     "browser-image-compression": "^2.0.2",
     "canvas": "^2.11.2",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^1.2.1",
     "dom-to-image": "^2.6.0",
     "firebase": "^9.22.2",
@@ -35,6 +37,7 @@
     "react-dom": "^18.2.0",
     "react-image-file-resizer": "^0.4.8",
     "rollbar": "^2.26.2",
+    "tailwind-merge": "^3.0.2",
     "use-debounce": "^9.0.4",
     "use-sound": "^4.0.3",
     "uuid": "^9.0.0"

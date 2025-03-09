@@ -76,23 +76,6 @@ function App() {
   //   };
   // }, [play, stopSrollingSound]);
 
-  const compressImage = async (image: File) => {
-    const options = {
-      maxSizeMB: 0.7,
-      maxWidthOrHeight: 1920,
-      useWebWorker: false,
-      alwaysKeepResolution: true,
-    };
-
-    try {
-      const compressedFile = await imageCompression(image, options);
-      return compressedFile;
-    } catch (error) {
-      console.log(error);
-      return null;
-    }
-  };
-
   const handleChange: UploadProps["onChange"] = async (
     info: UploadChangeParam<UploadFile>
   ) => {

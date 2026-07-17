@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { Button } from 'antd';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import { logOutMutationOptions } from '../../queries/auth.queries';
@@ -8,8 +8,8 @@ import { reportAuthError } from '../../utils/report-auth-error';
 
 /**
  * Minimal placeholder confirming a logged-in session and exercising logout.
- * The real owner dashboard (campaign list, etc.) is built in a later ticket
- * (#4) on top of the auth wiring this ticket introduces.
+ * Deeper account management (profile, etc.) is out of scope for now; the
+ * owner console itself lives at /campaigns.
  */
 export function AccountPage() {
   const { user, session, isLoading } = useAuthSession();
@@ -40,6 +40,11 @@ export function AccountPage() {
   return (
     <AuthLayout title="Tài khoản">
       <p className="text-center text-gray-600 mb-6">Đăng nhập với: {user.email}</p>
+      <Link to="/campaigns">
+        <Button type="primary" block className="mb-3">
+          Chiến dịch của tôi
+        </Button>
+      </Link>
       <Button block loading={logOutMutation.isPending} onClick={handleLogout}>
         Đăng xuất
       </Button>

@@ -10,6 +10,8 @@ import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage.tsx";
 import { LoginPage } from "./pages/auth/LoginPage.tsx";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage.tsx";
 import { SignUpPage } from "./pages/auth/SignUpPage.tsx";
+import { CampaignsPage } from "./pages/campaigns/CampaignsPage.tsx";
+import { NewCampaignPage } from "./pages/campaigns/NewCampaignPage.tsx";
 import "./index.css";
 
 // Single QueryClient for the whole app. Every later ticket's queries/
@@ -30,6 +32,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/auth/confirm" element={<AuthConfirmPage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/campaigns" element={<CampaignsPage />} />
+          <Route path="/campaigns/new" element={<NewCampaignPage />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

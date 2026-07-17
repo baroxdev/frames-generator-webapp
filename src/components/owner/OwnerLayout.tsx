@@ -1,6 +1,6 @@
-import { LogoutOutlined, PlusCircleOutlined, ProjectOutlined } from '@ant-design/icons';
+import { LogoutOutlined, PlusOutlined, ProjectOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { useMutation } from '@tanstack/react-query';
-import { Avatar, Layout, Menu, Typography, type MenuProps } from 'antd';
+import { Avatar, Breadcrumb, Button, Layout, Menu, Typography, type MenuProps } from 'antd';
 import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthSession } from '../../hooks/useAuthSession';
@@ -11,9 +11,22 @@ const { Sider, Header, Content } = Layout;
 const { Title, Text } = Typography;
 
 const NAV_ITEMS: MenuProps['items'] = [
-  { key: '/campaigns', icon: <ProjectOutlined />, label: 'Chiến dịch của tôi' },
-  { key: '/campaigns/new', icon: <PlusCircleOutlined />, label: 'Tạo chiến dịch mới' },
+  {
+    key: 'campaigns-group',
+    label: 'Chiến dịch',
+    type: 'group',
+    children: [
+      { key: '/campaigns', icon: <UnorderedListOutlined />, label: 'Danh sách' },
+      { key: '/campaigns/new', icon: <PlusOutlined />, label: 'Tạo mới' },
+    ],
+  },
 ];
+
+/** Route -> the leaf breadcrumb label for that route, under the "Chiến dịch" group. */
+const BREADCRUMB_LEAF: Record<string, string> = {
+  '/campaigns': 'Danh sách',
+  '/campaigns/new': 'Tạo mới',
+};
 
 /**
  * Shared dashboard chrome for the logged-in owner console pages (campaign
@@ -39,6 +52,11 @@ export function OwnerLayout({ title, children }: { title: string; children: Reac
   };
 
   const emailInitial = user?.email?.[0]?.toUpperCase() ?? '?';
+  const breadcrumbItems = [
+    { title: <ProjectOutlined /> },
+    { title: 'Chiến dịch' },
+    { title: BREADCRUMB_LEAF[location.pathname] ?? title },
+  ];
 
   return (
     <Layout className="min-h-screen">
@@ -47,31 +65,31 @@ export function OwnerLayout({ title, children }: { title: string; children: Reac
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
+          defaultOpenKeys={['campaigns-group']}
           items={NAV_ITEMS}
           onClick={handleMenuClick}
           className="!border-none"
         />
       </Sider>
       <Layout>
-        <Header className="!flex !items-center !justify-between !bg-white !px-6 shadow-sm">
-          <Title level={4} className="!mb-0">
-            {title}
-          </Title>
+        <Header className="!flex !items-center !justify-end !bg-white !px-6 shadow-sm">
           <div className="flex items-center gap-3">
             <Avatar>{emailInitial}</Avatar>
             <Text className="hidden sm:inline">{user?.email}</Text>
-            <button
-              type="button"
+            <Button
+              type="text"
               aria-label="Đăng xuất"
               title="Đăng xuất"
-              className="cursor-pointer border-none bg-transparent text-slate-500 hover:text-slate-800"
+              icon={<LogoutOutlined />}
               onClick={handleLogout}
-            >
-              <LogoutOutlined />
-            </button>
+            />
           </div>
         </Header>
         <Content className="p-8">
+          <Breadcrumb items={breadcrumbItems} className="!mb-3" />
+          <Title level={4} className="!mb-4">
+            {title}
+          </Title>
           <div className="rounded-lg bg-white p-8 shadow">{children}</div>
         </Content>
       </Layout>

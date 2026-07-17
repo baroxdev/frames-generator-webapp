@@ -2,7 +2,7 @@ import clsx from 'clsx';
 
 import { ObjectLayer } from '../types';
 
-const Message = ({ content, height, width, x, y, isDev }: ObjectLayer) => {
+const Message = ({ content, height, width, x, y, isDev, textColor }: ObjectLayer) => {
   const defaultMessage = 'Thông điệp của bạn';
   const message = content || defaultMessage;
   const limit = 150;
@@ -25,10 +25,12 @@ const Message = ({ content, height, width, x, y, isDev }: ObjectLayer) => {
       }}
     >
       <p
-        className={clsx('font-medium text-blue-900', {
+        className={clsx('font-medium', {
           'text-3xl ': gte,
           'text-5xl text-center': lte,
+          'text-blue-900': !textColor,
         })}
+        style={textColor ? { color: textColor } : undefined}
       >
         {message}
       </p>

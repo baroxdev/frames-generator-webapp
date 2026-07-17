@@ -8,7 +8,6 @@ import {
   UploadProps,
 } from "antd/es/upload";
 import imageCompression from "browser-image-compression";
-import clsx from "clsx";
 import html2canvas from "html2canvas-pro";
 import { DownloadIcon, EyeIcon } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
@@ -16,11 +15,14 @@ import FileResizer from "react-image-file-resizer";
 import useSound from "use-sound";
 import backgroundHorizontial from "./assets/bg-hoz.png";
 import saveToSheet, { FormData } from "./services/google-sheet";
-import backgroundImage from "./storage/thong-diep.png";
 import welcomeTopImage from "./storage/welcome-top.png";
 import { convertDataURIToBinary, saveToDb } from "./utils";
 import { Button } from "./components/ui/button";
+import PrintArea from "./components/PrintArea";
+import TemplateGallery from "./components/TemplateGallery";
 import TopBanner from "./components/TopBanner";
+import { getExportWindowWidth } from "./services/frameExport.service";
+import { DEFAULT_TEMPLATE_ID, getTemplateById, getTemplateGallery } from "./templates";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const getBase64 = (
@@ -76,6 +78,9 @@ function App() {
     null
   );
   const cardRef = useRef<HTMLDivElement>(null);
+  const templateGallery = getTemplateGallery();
+  const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATE_ID);
+  const selectedTemplate = getTemplateById(selectedTemplateId) ?? templateGallery[0];
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [play] = useSound("/assets/sounds/sound.mp", {
     loop: true,
@@ -200,7 +205,7 @@ function App() {
       }
 
       const canvas = await html2canvas(cardRef.current, {
-        windowWidth: 1928,
+        windowWidth: getExportWindowWidth(selectedTemplate.canvas.width),
         useCORS: true,
         allowTaint: true,
         logging: false,
@@ -396,8 +401,6 @@ function App() {
     // role.trim() !== "" &&
     text.trim() !== "" && imageUrl;
 
-  const isFullNameUppercase = fullName.toUpperCase() === fullName;
-
   return (
     // Wrap the app in the FontLoader component
     <FontLoader>
@@ -418,84 +421,17 @@ function App() {
           }}
         ></div>
         {showMockImage && (
-          <div className="overflow-hidden max-md:hidden">
-            {/*  replace this z-index  */}
-            <div className="absolute top-0 left-0 z-[-1]" ref={cardRef}>
-              <img src={backgroundImage} width={1500} height={843} />
-              <div>
-                <div className="absolute top-[335px] left-[200px]">
-                  <div className="w-[286px] h-[242px] overflow-hidden">
-                    <div className="w-[286px] h-[280px] rounded-full overflow-hidden">
-                      <img
-                        className="object-cover w-full h-full"
-                        src={imageUrl}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute top-[610px] bg-transparent left-[159px]">
-                  <div className=" w-[389px] flex items-center justify-center flex-col">
-                    <h3
-                      className={clsx(
-                        "font-semibold font-nunito text-[#000] text-center",
-                        {
-                          "!text-lg": fullName.length >= 29,
-                          "text-xl":
-                            (fullName.length > 20 && fullName.length < 28) ||
-                            isFullNameUppercase,
-                          "text-2xl": fullName.length < 20,
-                        }
-                      )}
-                    >
-                      {fullName || "Họ và tên"}
-                    </h3>
-                  </div>
-                </div>
-                <div className="absolute bg-transparent top-[630px] left-[157px] w-[389px]">
-                  <p
-                    className={clsx(
-                      "font-normal text-[#000] font-nunito mt-3 text-center",
-                      {
-                        "text-base":
-                          role.length > 36 ||
-                          (role.length > 20 && role.length < 30),
-
-                        "text-lg": role.length <= 20,
-                      }
-                    )}
-                  >
-                    {role || "Đơn vị"}
-                  </p>
-                </div>
-                {/* <div className='absolute bottom-[120px] left-[105.5px]'>
-                <img className='object-cover max-w-[400px] h-[110px]' src={backgroundName} />
-              </div> */}
-              </div>
-              <div
-                className={clsx(
-                  "absolute w-[801px] h-[229px] top-[358px] left-[506px] bg-transparent p-3",
-                  {
-                    "flex items-center justify-center": text.length < 150,
-                  }
-                )}
-              >
-                <p
-                  className={clsx("font-[400] font-sans text-blue-900", {
-                    "text-base": text.length > 100,
-                    "text-xl ": text.length > 80,
-                    "text-3xl text-center": text.length < 80,
-                  })}
-                  style={{
-                    color: "#000",
-
-                    lineHeight: "1.6",
-                  }}
-                >
-                  {text || "Thông điệp của bạn"}
-                </p>
-              </div>
-            </div>
+          <div className="max-md:hidden">
+            <PrintArea
+              ref={cardRef}
+              template={selectedTemplate}
+              content={{
+                avatar: imageUrl,
+                fullName,
+                role,
+                message: text,
+              }}
+            />
           </div>
         )}
         <Modal
@@ -546,6 +482,13 @@ function App() {
         <div className="flex flex-col items-center z-10 w-full max-w-2xl px-2">
           <div className="max-md:max-w-full mt-6 md:mt-10">
             <TopBanner src={welcomeTopImage} />
+          </div>
+          <div className="w-full mb-4 max-w-2xl">
+            <TemplateGallery
+              templates={templateGallery}
+              selectedId={selectedTemplateId}
+              onSelect={setSelectedTemplateId}
+            />
           </div>
           <form className="relative w-full overflow-hidden overflow-y-auto shadow-lg rounded-xl">
             <div className="flex flex-col justify-center px-6 py-8 mx-auto bg-white max-md:py-5 max-md:px-3">

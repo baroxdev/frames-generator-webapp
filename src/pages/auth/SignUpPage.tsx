@@ -1,14 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
-import { Button, Form, Input, message } from 'antd';
-import { useState, type ChangeEvent } from 'react';
+import { Button, Form, Input } from 'antd';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { ConfigErrorNotice } from '../../components/auth/ConfigErrorNotice';
-import { TurnstileWidget } from '../../components/auth/TurnstileWidget';
+import { TurnstileWidget, type TurnstileWidgetHandle } from '../../components/auth/TurnstileWidget';
 import { useEnv } from '../../config/useEnv';
 import { signUpMutationOptions } from '../../queries/auth.queries';
-import { AuthServiceError } from '../../services/auth.service';
 import { signUpSchema, type SignUpInput } from '../../schemas/auth.schema';
+import { reportAuthError } from '../../utils/report-auth-error';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
 
 type FormValues = { email: string; password: string; confirmPassword: string };
@@ -21,6 +21,7 @@ export function SignUpPage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitted, setSubmitted] = useState(false);
   const signUpMutation = useMutation(signUpMutationOptions());
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   if (envError || !env) {
     return (
@@ -51,8 +52,12 @@ export function SignUpPage() {
       });
       setSubmitted(true);
     } catch (error) {
-      const friendlyMessage = error instanceof AuthServiceError ? error.message : 'Không thể tạo tài khoản. Vui lòng thử lại.';
-      message.error(friendlyMessage);
+      // Turnstile tokens are single-use: without resetting the widget, a
+      // retry would silently resend the already-consumed token and fail
+      // CAPTCHA verification server-side with no visible error.
+      turnstileRef.current?.reset();
+      setCaptchaToken(null);
+      reportAuthError(error, 'Không thể tạo tài khoản. Vui lòng thử lại.');
     }
   };
 
@@ -69,7 +74,7 @@ export function SignUpPage() {
 
   return (
     <AuthLayout title="Đăng ký tài khoản">
-      <Form layout="vertical" onFinish={handleSubmit}>
+      <Form layout="vertical" onFinish={handleSubmit} noValidate>
         <Form.Item label="Email" validateStatus={errors.email ? 'error' : ''} help={errors.email}>
           <Input
             type="email"
@@ -77,10 +82,16 @@ export function SignUpPage() {
             onChange={handleChange('email')}
             autoComplete="email"
             placeholder="ban@vidu.com"
+            aria-label="Email"
           />
         </Form.Item>
         <Form.Item label="Mật khẩu" validateStatus={errors.password ? 'error' : ''} help={errors.password}>
-          <Input.Password value={values.password} onChange={handleChange('password')} autoComplete="new-password" />
+          <Input.Password
+            value={values.password}
+            onChange={handleChange('password')}
+            autoComplete="new-password"
+            aria-label="Mật khẩu"
+          />
         </Form.Item>
         <Form.Item
           label="Nhập lại mật khẩu"
@@ -91,10 +102,12 @@ export function SignUpPage() {
             value={values.confirmPassword}
             onChange={handleChange('confirmPassword')}
             autoComplete="new-password"
+            aria-label="Nhập lại mật khẩu"
           />
         </Form.Item>
         <Form.Item validateStatus={errors.captchaToken ? 'error' : ''} help={errors.captchaToken}>
           <TurnstileWidget
+            ref={turnstileRef}
             siteKey={env.VITE_TURNSTILE_SITE_KEY}
             onVerify={setCaptchaToken}
             onExpire={() => setCaptchaToken(null)}

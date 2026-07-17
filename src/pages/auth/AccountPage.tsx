@@ -1,10 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
-import { Button, message } from 'antd';
+import { Button } from 'antd';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import { logOutMutationOptions } from '../../queries/auth.queries';
-import { AuthServiceError } from '../../services/auth.service';
+import { reportAuthError } from '../../utils/report-auth-error';
 
 /**
  * Minimal placeholder confirming a logged-in session and exercising logout.
@@ -33,8 +33,7 @@ export function AccountPage() {
       await logOutMutation.mutateAsync();
       navigate('/login');
     } catch (error) {
-      const friendlyMessage = error instanceof AuthServiceError ? error.message : 'Không thể đăng xuất.';
-      message.error(friendlyMessage);
+      reportAuthError(error, 'Không thể đăng xuất.');
     }
   };
 

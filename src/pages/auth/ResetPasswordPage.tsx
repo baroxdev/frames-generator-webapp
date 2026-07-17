@@ -5,8 +5,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import { updatePasswordMutationOptions } from '../../queries/auth.queries';
-import { AuthServiceError } from '../../services/auth.service';
 import { updatePasswordSchema, type UpdatePasswordInput } from '../../schemas/auth.schema';
+import { reportAuthError } from '../../utils/report-auth-error';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
 
 type FieldErrors = Partial<Record<keyof UpdatePasswordInput, string>>;
@@ -44,8 +44,7 @@ export function ResetPasswordPage() {
       message.success('Đặt lại mật khẩu thành công.');
       navigate('/account');
     } catch (error) {
-      const friendlyMessage = error instanceof AuthServiceError ? error.message : 'Không thể cập nhật mật khẩu.';
-      message.error(friendlyMessage);
+      reportAuthError(error, 'Không thể cập nhật mật khẩu.');
     }
   };
 
@@ -74,9 +73,14 @@ export function ResetPasswordPage() {
 
   return (
     <AuthLayout title="Đặt lại mật khẩu">
-      <Form layout="vertical" onFinish={handleSubmit}>
+      <Form layout="vertical" onFinish={handleSubmit} noValidate>
         <Form.Item label="Mật khẩu mới" validateStatus={errors.password ? 'error' : ''} help={errors.password}>
-          <Input.Password value={values.password} onChange={handleChange('password')} autoComplete="new-password" />
+          <Input.Password
+            value={values.password}
+            onChange={handleChange('password')}
+            autoComplete="new-password"
+            aria-label="Mật khẩu mới"
+          />
         </Form.Item>
         <Form.Item
           label="Nhập lại mật khẩu mới"
@@ -87,6 +91,7 @@ export function ResetPasswordPage() {
             value={values.confirmPassword}
             onChange={handleChange('confirmPassword')}
             autoComplete="new-password"
+            aria-label="Nhập lại mật khẩu mới"
           />
         </Form.Item>
         <Button type="primary" htmlType="submit" block loading={updatePasswordMutation.isPending}>

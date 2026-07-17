@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { forwardRef, useEffect, useId, useImperativeHandle, useRef } from 'react';
 
 type TurnstileRenderOptions = {
   sitekey: string;
@@ -44,16 +44,36 @@ type TurnstileWidgetProps = {
   onError?: () => void;
 };
 
+/** Imperative handle so callers can force a fresh challenge (Turnstile tokens are single-use — a failed submit must reset the widget before retrying). */
+export type TurnstileWidgetHandle = {
+  reset: () => void;
+};
+
 /**
  * Renders a Cloudflare Turnstile CAPTCHA challenge. Supabase Auth verifies
  * the resulting token server-side when it's passed as `captchaToken` to
  * `signUp`, so this component only needs to collect the token — there is no
  * custom backend for it to call.
  */
-export function TurnstileWidget({ siteKey, onVerify, onExpire, onError }: TurnstileWidgetProps) {
+export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(function TurnstileWidget(
+  { siteKey, onVerify, onExpire, onError },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const elementId = useId();
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      reset: () => {
+        if (widgetIdRef.current && window.turnstile) {
+          window.turnstile.reset(widgetIdRef.current);
+        }
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -82,4 +102,4 @@ export function TurnstileWidget({ siteKey, onVerify, onExpire, onError }: Turnst
   }, [siteKey]);
 
   return <div ref={containerRef} id={`turnstile-widget-${elementId}`} />;
-}
+});

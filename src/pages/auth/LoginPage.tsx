@@ -1,11 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
-import { Button, Form, Input, message } from 'antd';
+import { Button, Form, Input } from 'antd';
 import { useState, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { logInMutationOptions } from '../../queries/auth.queries';
-import { AuthServiceError } from '../../services/auth.service';
 import { logInSchema, type LogInInput } from '../../schemas/auth.schema';
+import { reportAuthError } from '../../utils/report-auth-error';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
 
 type FieldErrors = Partial<Record<keyof LogInInput, string>>;
@@ -32,22 +32,28 @@ export function LoginPage() {
       await logInMutation.mutateAsync(parsed.data);
       navigate('/account');
     } catch (error) {
-      const friendlyMessage = error instanceof AuthServiceError ? error.message : 'Không thể đăng nhập. Vui lòng thử lại.';
-      message.error(friendlyMessage);
+      reportAuthError(error, 'Không thể đăng nhập. Vui lòng thử lại.');
     }
   };
 
   return (
     <AuthLayout title="Đăng nhập">
-      <Form layout="vertical" onFinish={handleSubmit}>
+      <Form layout="vertical" onFinish={handleSubmit} noValidate>
         <Form.Item label="Email" validateStatus={errors.email ? 'error' : ''} help={errors.email}>
-          <Input type="email" value={values.email} onChange={handleChange('email')} autoComplete="email" />
+          <Input
+            type="email"
+            value={values.email}
+            onChange={handleChange('email')}
+            autoComplete="email"
+            aria-label="Email"
+          />
         </Form.Item>
         <Form.Item label="Mật khẩu" validateStatus={errors.password ? 'error' : ''} help={errors.password}>
           <Input.Password
             value={values.password}
             onChange={handleChange('password')}
             autoComplete="current-password"
+            aria-label="Mật khẩu"
           />
         </Form.Item>
         <Button type="primary" htmlType="submit" block loading={logInMutation.isPending}>

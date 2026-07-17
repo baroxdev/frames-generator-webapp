@@ -1,11 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
-import { Button, Form, Input, message } from 'antd';
+import { Button, Form, Input } from 'antd';
 import { useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { requestPasswordResetMutationOptions } from '../../queries/auth.queries';
-import { AuthServiceError } from '../../services/auth.service';
 import { requestPasswordResetSchema, type RequestPasswordResetInput } from '../../schemas/auth.schema';
+import { reportAuthError } from '../../utils/report-auth-error';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
 
 type FieldErrors = Partial<Record<keyof RequestPasswordResetInput, string>>;
@@ -33,9 +33,7 @@ export function ForgotPasswordPage() {
       });
       setSubmitted(true);
     } catch (error) {
-      const friendlyMessage =
-        error instanceof AuthServiceError ? error.message : 'Không thể gửi email đặt lại mật khẩu.';
-      message.error(friendlyMessage);
+      reportAuthError(error, 'Không thể gửi email đặt lại mật khẩu.');
     }
   };
 
@@ -51,9 +49,9 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthLayout title="Quên mật khẩu">
-      <Form layout="vertical" onFinish={handleSubmit}>
+      <Form layout="vertical" onFinish={handleSubmit} noValidate>
         <Form.Item label="Email" validateStatus={errors.email ? 'error' : ''} help={errors.email}>
-          <Input type="email" value={email} onChange={handleChange} autoComplete="email" />
+          <Input type="email" value={email} onChange={handleChange} autoComplete="email" aria-label="Email" />
         </Form.Item>
         <Button type="primary" htmlType="submit" block loading={requestPasswordResetMutation.isPending}>
           Gửi liên kết đặt lại mật khẩu

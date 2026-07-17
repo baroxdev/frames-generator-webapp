@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query';
 import { Button, Form, Input, message } from 'antd';
 import { useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
@@ -5,8 +6,8 @@ import { AuthLayout } from '../../components/auth/AuthLayout';
 import { ConfigErrorNotice } from '../../components/auth/ConfigErrorNotice';
 import { TurnstileWidget } from '../../components/auth/TurnstileWidget';
 import { useEnv } from '../../config/useEnv';
+import { signUpMutationOptions } from '../../queries/auth.queries';
 import { AuthServiceError } from '../../services/auth.service';
-import { getAuthService } from '../../services/auth.service.instance';
 import { signUpSchema, type SignUpInput } from '../../schemas/auth.schema';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
 
@@ -18,8 +19,8 @@ export function SignUpPage() {
   const [values, setValues] = useState<FormValues>({ email: '', password: '', confirmPassword: '' });
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const signUpMutation = useMutation(signUpMutationOptions());
 
   if (envError || !env) {
     return (
@@ -40,10 +41,9 @@ export function SignUpPage() {
       return;
     }
     setErrors({});
-    setSubmitting(true);
 
     try {
-      await getAuthService().signUp({
+      await signUpMutation.mutateAsync({
         email: parsed.data.email,
         password: parsed.data.password,
         captchaToken: parsed.data.captchaToken,
@@ -53,8 +53,6 @@ export function SignUpPage() {
     } catch (error) {
       const friendlyMessage = error instanceof AuthServiceError ? error.message : 'Không thể tạo tài khoản. Vui lòng thử lại.';
       message.error(friendlyMessage);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -103,7 +101,7 @@ export function SignUpPage() {
             onError={() => setCaptchaToken(null)}
           />
         </Form.Item>
-        <Button type="primary" htmlType="submit" block loading={submitting}>
+        <Button type="primary" htmlType="submit" block loading={signUpMutation.isPending}>
           Đăng ký
         </Button>
       </Form>

@@ -1,8 +1,9 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import App from "./App.tsx";
-import { AuthProvider } from "./context/AuthContext.tsx";
+import { AuthSessionSync } from "./components/auth/AuthSessionSync.tsx";
 import { AccountPage } from "./pages/auth/AccountPage.tsx";
 import { AuthConfirmPage } from "./pages/auth/AuthConfirmPage.tsx";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage.tsx";
@@ -11,10 +12,16 @@ import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage.tsx";
 import { SignUpPage } from "./pages/auth/SignUpPage.tsx";
 import "./index.css";
 
+// Single QueryClient for the whole app. Every later ticket's queries/
+// mutations reuse this instance via QueryClientProvider rather than
+// creating their own.
+const queryClient = new QueryClient();
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthSessionSync />
         <Routes>
           <Route path="/" element={<App />} />
           <Route path="/signup" element={<SignUpPage />} />
@@ -24,7 +31,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           <Route path="/auth/confirm" element={<AuthConfirmPage />} />
           <Route path="/account" element={<AccountPage />} />
         </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+      </BrowserRouter>
+    </QueryClientProvider>
   </React.StrictMode>
 );

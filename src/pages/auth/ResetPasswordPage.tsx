@@ -1,10 +1,11 @@
+import { useMutation } from '@tanstack/react-query';
 import { Button, Form, Input, message } from 'antd';
 import { useState, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthSession } from '../../hooks/useAuthSession';
+import { updatePasswordMutationOptions } from '../../queries/auth.queries';
 import { AuthServiceError } from '../../services/auth.service';
-import { getAuthService } from '../../services/auth.service.instance';
 import { updatePasswordSchema, type UpdatePasswordInput } from '../../schemas/auth.schema';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
 
@@ -18,13 +19,13 @@ type FieldErrors = Partial<Record<keyof UpdatePasswordInput, string>>;
  */
 export function ResetPasswordPage() {
   const navigate = useNavigate();
-  const { session, isLoading } = useAuth();
+  const { session, isLoading } = useAuthSession();
   const [values, setValues] = useState<{ password: string; confirmPassword: string }>({
     password: '',
     confirmPassword: '',
   });
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [submitting, setSubmitting] = useState(false);
+  const updatePasswordMutation = useMutation(updatePasswordMutationOptions());
 
   const handleChange = (field: 'password' | 'confirmPassword') => (event: ChangeEvent<HTMLInputElement>) => {
     setValues((previous) => ({ ...previous, [field]: event.target.value }));
@@ -37,17 +38,14 @@ export function ResetPasswordPage() {
       return;
     }
     setErrors({});
-    setSubmitting(true);
 
     try {
-      await getAuthService().updatePassword({ newPassword: parsed.data.password });
+      await updatePasswordMutation.mutateAsync({ newPassword: parsed.data.password });
       message.success('Đặt lại mật khẩu thành công.');
       navigate('/account');
     } catch (error) {
       const friendlyMessage = error instanceof AuthServiceError ? error.message : 'Không thể cập nhật mật khẩu.';
       message.error(friendlyMessage);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -91,7 +89,7 @@ export function ResetPasswordPage() {
             autoComplete="new-password"
           />
         </Form.Item>
-        <Button type="primary" htmlType="submit" block loading={submitting}>
+        <Button type="primary" htmlType="submit" block loading={updatePasswordMutation.isPending}>
           Cập nhật mật khẩu
         </Button>
       </Form>

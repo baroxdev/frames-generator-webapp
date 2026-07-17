@@ -1,10 +1,10 @@
+import { useMutation } from '@tanstack/react-query';
 import { Button, message } from 'antd';
-import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthSession } from '../../hooks/useAuthSession';
+import { logOutMutationOptions } from '../../queries/auth.queries';
 import { AuthServiceError } from '../../services/auth.service';
-import { getAuthService } from '../../services/auth.service.instance';
 
 /**
  * Minimal placeholder confirming a logged-in session and exercising logout.
@@ -12,9 +12,9 @@ import { getAuthService } from '../../services/auth.service.instance';
  * (#4) on top of the auth wiring this ticket introduces.
  */
 export function AccountPage() {
-  const { user, session, isLoading } = useAuth();
+  const { user, session, isLoading } = useAuthSession();
   const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
+  const logOutMutation = useMutation(logOutMutationOptions());
 
   if (isLoading) {
     return (
@@ -29,22 +29,19 @@ export function AccountPage() {
   }
 
   const handleLogout = async () => {
-    setLoggingOut(true);
     try {
-      await getAuthService().logOut();
+      await logOutMutation.mutateAsync();
       navigate('/login');
     } catch (error) {
       const friendlyMessage = error instanceof AuthServiceError ? error.message : 'Không thể đăng xuất.';
       message.error(friendlyMessage);
-    } finally {
-      setLoggingOut(false);
     }
   };
 
   return (
     <AuthLayout title="Tài khoản">
       <p className="text-center text-gray-600 mb-6">Đăng nhập với: {user.email}</p>
-      <Button block loading={loggingOut} onClick={handleLogout}>
+      <Button block loading={logOutMutation.isPending} onClick={handleLogout}>
         Đăng xuất
       </Button>
     </AuthLayout>

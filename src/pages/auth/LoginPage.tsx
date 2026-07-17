@@ -1,9 +1,10 @@
+import { useMutation } from '@tanstack/react-query';
 import { Button, Form, Input, message } from 'antd';
 import { useState, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
+import { logInMutationOptions } from '../../queries/auth.queries';
 import { AuthServiceError } from '../../services/auth.service';
-import { getAuthService } from '../../services/auth.service.instance';
 import { logInSchema, type LogInInput } from '../../schemas/auth.schema';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
 
@@ -13,7 +14,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [values, setValues] = useState<LogInInput>({ email: '', password: '' });
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [submitting, setSubmitting] = useState(false);
+  const logInMutation = useMutation(logInMutationOptions());
 
   const handleChange = (field: keyof LogInInput) => (event: ChangeEvent<HTMLInputElement>) => {
     setValues((previous) => ({ ...previous, [field]: event.target.value }));
@@ -26,16 +27,13 @@ export function LoginPage() {
       return;
     }
     setErrors({});
-    setSubmitting(true);
 
     try {
-      await getAuthService().logIn(parsed.data);
+      await logInMutation.mutateAsync(parsed.data);
       navigate('/account');
     } catch (error) {
       const friendlyMessage = error instanceof AuthServiceError ? error.message : 'Không thể đăng nhập. Vui lòng thử lại.';
       message.error(friendlyMessage);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -52,7 +50,7 @@ export function LoginPage() {
             autoComplete="current-password"
           />
         </Form.Item>
-        <Button type="primary" htmlType="submit" block loading={submitting}>
+        <Button type="primary" htmlType="submit" block loading={logInMutation.isPending}>
           Đăng nhập
         </Button>
       </Form>

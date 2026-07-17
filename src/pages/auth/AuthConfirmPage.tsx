@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthSession } from '../../hooks/useAuthSession';
 
 /**
  * Landing page for the "verify email" link from the sign-up confirmation
@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
  * from the token in the URL — this page just reports the outcome.
  */
 export function AuthConfirmPage() {
-  const { session, isLoading } = useAuth();
+  const { session, isLoading } = useAuthSession();
 
   if (isLoading) {
     return (

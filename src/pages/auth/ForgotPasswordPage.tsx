@@ -1,9 +1,10 @@
+import { useMutation } from '@tanstack/react-query';
 import { Button, Form, Input, message } from 'antd';
 import { useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthLayout } from '../../components/auth/AuthLayout';
+import { requestPasswordResetMutationOptions } from '../../queries/auth.queries';
 import { AuthServiceError } from '../../services/auth.service';
-import { getAuthService } from '../../services/auth.service.instance';
 import { requestPasswordResetSchema, type RequestPasswordResetInput } from '../../schemas/auth.schema';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
 
@@ -12,8 +13,8 @@ type FieldErrors = Partial<Record<keyof RequestPasswordResetInput, string>>;
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const requestPasswordResetMutation = useMutation(requestPasswordResetMutationOptions());
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => setEmail(event.target.value);
 
@@ -24,10 +25,9 @@ export function ForgotPasswordPage() {
       return;
     }
     setErrors({});
-    setSubmitting(true);
 
     try {
-      await getAuthService().requestPasswordReset({
+      await requestPasswordResetMutation.mutateAsync({
         email: parsed.data.email,
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -36,8 +36,6 @@ export function ForgotPasswordPage() {
       const friendlyMessage =
         error instanceof AuthServiceError ? error.message : 'Không thể gửi email đặt lại mật khẩu.';
       message.error(friendlyMessage);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -57,7 +55,7 @@ export function ForgotPasswordPage() {
         <Form.Item label="Email" validateStatus={errors.email ? 'error' : ''} help={errors.email}>
           <Input type="email" value={email} onChange={handleChange} autoComplete="email" />
         </Form.Item>
-        <Button type="primary" htmlType="submit" block loading={submitting}>
+        <Button type="primary" htmlType="submit" block loading={requestPasswordResetMutation.isPending}>
           Gửi liên kết đặt lại mật khẩu
         </Button>
       </Form>

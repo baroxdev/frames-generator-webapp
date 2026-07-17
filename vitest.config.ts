@@ -5,8 +5,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     // jsdom is required for the component tests under src/**/*.test.tsx
-    // (React Testing Library); plain service/query tests run fine under it
-    // too, so there's no need to split environments per file.
+    // (React Testing Library); plain service/query/template tests run fine
+    // under it too, so there's no need to split environments per file.
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],

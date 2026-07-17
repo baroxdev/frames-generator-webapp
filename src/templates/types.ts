@@ -1,0 +1,68 @@
+/**
+ * A Template describes one visually distinct frame layout: a background image
+ * plus the coordinate/config schema for the four boxes that get filled in
+ * with a submission's data (avatar, name, role, message).
+ *
+ * This is the seam that used to be hardcoded pixel values inside
+ * `PrintArea.tsx` (and, separately, inline JSX in `App.tsx`). Every layout
+ * concern lives here now; the rendering components stay generic and simply
+ * draw whatever box they're given.
+ */
+
+/** Avatar crop shape a template can request from the Avatar component. */
+export type AvatarShape = 'circle' | 'diamond' | 'square';
+
+/**
+ * A single box on the canvas.
+ *
+ * `top`/`left`/`width`/`height` are plain pixel offsets against the
+ * template's `canvas` size, in the same units PrintArea has always rendered
+ * at (the canvas is captured 1:1 by html2canvas, unscaled).
+ */
+export interface Box {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+export interface CanvasSize {
+  width: number;
+  height: number;
+}
+
+/** Box config for the avatar photo. */
+export interface AvatarBoxConfig extends Box {
+  shape: AvatarShape;
+}
+
+/** Box config for a text field (name, role, message). */
+export interface TextBoxConfig extends Box {
+  /** Character count above which the component should shrink its font size. */
+  shrinkAt?: number;
+  /** CSS color for the text. Defaults are preserved per-component when omitted. */
+  textColor?: string;
+}
+
+export interface Template {
+  id: string;
+  /** Human-readable name shown in the template gallery. */
+  name: string;
+  /** Short description of the visual style, shown in the template gallery. */
+  description: string;
+  /** Background image for the canvas (also doubles as the gallery thumbnail). */
+  background: string;
+  canvas: CanvasSize;
+  avatarBox: AvatarBoxConfig;
+  nameBox: TextBoxConfig;
+  roleBox: TextBoxConfig;
+  messageBox: TextBoxConfig;
+}
+
+/** The submission data a template gets rendered with. */
+export interface FrameContent {
+  avatar?: string;
+  fullName?: string;
+  role?: string;
+  message?: string;
+}

@@ -9,4 +9,6 @@ export interface ObjectLayer {
   y: number;
   isDev?: boolean;
   style?: React.CSSProperties;
+  /** CSS color for the box's text. Omit to keep the component's current default. */
+  textColor?: string;
 }

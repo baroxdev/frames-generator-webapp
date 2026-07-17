@@ -2,7 +2,7 @@ import clsx from 'clsx';
 
 import { ObjectLayer } from '../types';
 
-const Role = ({ content, height, width, x, y, isDev, limit }: ObjectLayer) => {
+const Role = ({ content, height, width, x, y, isDev, limit, textColor }: ObjectLayer) => {
   const _limit = limit || 25;
   const defaultRole = 'Chức vụ của bạn';
   const role = content || defaultRole;
@@ -20,10 +20,12 @@ const Role = ({ content, height, width, x, y, isDev, limit }: ObjectLayer) => {
       }}
     >
       <p
-        className={clsx('font-sans font-bold text-center text-white', {
+        className={clsx('font-sans font-bold text-center', {
           'text-xl': gt,
           'text-3xl': lte,
+          'text-white': !textColor,
         })}
+        style={textColor ? { color: textColor } : undefined}
       >
         {role}
       </p>

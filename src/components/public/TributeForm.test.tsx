@@ -18,6 +18,13 @@ vi.mock('../auth/TurnstileWidget', () => ({
   }),
 }));
 
+// ImgCrop's own crop-modal interaction isn't TributeForm's concern to test —
+// this passthrough lets the wrapped Upload's beforeUpload/onChange fire
+// directly on file selection, same as if no cropping step were in the way.
+vi.mock('antd-img-crop', () => ({
+  default: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 import { TributeForm } from './TributeForm';
 
 function fillValidForm() {

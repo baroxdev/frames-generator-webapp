@@ -7,11 +7,11 @@ interface AvatarProps extends ObjectLayer {
    * layout).
    *
    * Only `border-radius` and `transform: rotate()` are used to draw these
-   * shapes — html2canvas-pro (the export pipeline in `generateDataUrl`,
-   * App.tsx) does not rasterize `clip-path`, so a shape built from
-   * clip-path renders correctly on-screen but silently loses its crop in
-   * the exported/downloaded image. `border-radius` and `transform` are
-   * both well-supported by the export pipeline.
+   * shapes, not `clip-path` — kept consistent with how this has always been
+   * drawn rather than re-verified against the current compositor
+   * (`modern-screenshot`, see `frameCompositor.service.ts`), which — unlike
+   * the previous html2canvas-based pipeline — delegates to the real browser
+   * rendering engine and may well support `clip-path` correctly.
    */
   shape?: AvatarShape;
 }

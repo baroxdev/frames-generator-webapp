@@ -8,18 +8,18 @@ vi.mock('../services/submission.service.instance', () => ({ getSubmissionService
 
 import { getStorageService } from '../services/storage.service.instance';
 import { getSubmissionService } from '../services/submission.service.instance';
-import { submitTributeMutationOptions, uploadSubmissionAvatarMutationOptions } from './submission.queries';
+import { submitTributeMutationOptions, uploadSubmissionImageMutationOptions } from './submission.queries';
 
 describe('submission.queries', () => {
-  it('uploadSubmissionAvatarMutationOptions wraps storage.service.uploadSubmissionAvatar without adding its own logic', async () => {
-    const uploadSubmissionAvatar = vi.fn().mockResolvedValue('https://cdn.example.com/submissions/campaign-1/a.jpg');
-    vi.mocked(getStorageService).mockReturnValue({ uploadSubmissionAvatar } as unknown as StorageService);
+  it('uploadSubmissionImageMutationOptions wraps storage.service.uploadSubmissionImage without adding its own logic', async () => {
+    const uploadSubmissionImage = vi.fn().mockResolvedValue('https://cdn.example.com/submissions/campaign-1/a.jpg');
+    vi.mocked(getStorageService).mockReturnValue({ uploadSubmissionImage } as unknown as StorageService);
 
-    const file = new File(['x'], 'avatar.jpg', { type: 'image/jpeg' });
-    const mutationFn = uploadSubmissionAvatarMutationOptions().mutationFn;
-    await mutationFn?.({ campaignId: 'campaign-1', file }, { client: new QueryClient(), meta: undefined });
+    const image = new Blob(['x'], { type: 'image/jpeg' });
+    const mutationFn = uploadSubmissionImageMutationOptions().mutationFn;
+    await mutationFn?.({ campaignId: 'campaign-1', image }, { client: new QueryClient(), meta: undefined });
 
-    expect(uploadSubmissionAvatar).toHaveBeenCalledWith('campaign-1', file);
+    expect(uploadSubmissionImage).toHaveBeenCalledWith('campaign-1', image);
   });
 
   it('submitTributeMutationOptions wraps submission.service.submitTribute without adding its own logic', async () => {
@@ -32,7 +32,7 @@ describe('submission.queries', () => {
       fullName: 'Nguyễn Văn A',
       role: 'Cựu học sinh',
       message: 'Chúc mừng đại hội!',
-      avatarUrl: 'https://cdn.example.com/submissions/campaign-1/a.jpg',
+      imageUrl: 'https://cdn.example.com/submissions/campaign-1/a.jpg',
     };
     const mutationFn = submitTributeMutationOptions().mutationFn;
     await mutationFn?.(params, { client: new QueryClient(), meta: undefined });

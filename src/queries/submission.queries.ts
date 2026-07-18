@@ -10,13 +10,13 @@ import type { SubmitTributeParams } from '../services/submission.service';
  * the corresponding `*.service.ts`.
  */
 
-export function uploadSubmissionAvatarMutationOptions(): UseMutationOptions<
+export function uploadSubmissionImageMutationOptions(): UseMutationOptions<
   string,
   Error,
-  { campaignId: string; file: File }
+  { campaignId: string; image: Blob }
 > {
   return {
-    mutationFn: ({ campaignId, file }) => getStorageService().uploadSubmissionAvatar(campaignId, file),
+    mutationFn: ({ campaignId, image }) => getStorageService().uploadSubmissionImage(campaignId, image),
   };
 }
 

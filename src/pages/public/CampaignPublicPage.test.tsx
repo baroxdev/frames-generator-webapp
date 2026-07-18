@@ -1,23 +1,17 @@
-import { screen, waitFor } from '@testing-library/react';
-import { fireEvent } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test/render';
 import { CampaignPublicPage } from './CampaignPublicPage';
 
-const {
-  mockGetCampaignBySlug,
-  mockUploadSubmissionAvatar,
-  mockSubmitTribute,
-  mockReportSubmissionError,
-  mockCompositeFrameToDataUrl,
-} = vi.hoisted(() => ({
-  mockGetCampaignBySlug: vi.fn(),
-  mockUploadSubmissionAvatar: vi.fn(),
-  mockSubmitTribute: vi.fn(),
-  mockReportSubmissionError: vi.fn(),
-  mockCompositeFrameToDataUrl: vi.fn(),
-}));
+const { mockGetCampaignBySlug, mockUploadSubmissionImage, mockSubmitTribute, mockReportSubmissionError, mockCompositeFrameToBlob } =
+  vi.hoisted(() => ({
+    mockGetCampaignBySlug: vi.fn(),
+    mockUploadSubmissionImage: vi.fn(),
+    mockSubmitTribute: vi.fn(),
+    mockReportSubmissionError: vi.fn(),
+    mockCompositeFrameToBlob: vi.fn(),
+  }));
 
 vi.mock('../../queries/campaign.queries', () => ({
   campaignBySlugQueryOptions: (slug: string) => ({
@@ -27,7 +21,7 @@ vi.mock('../../queries/campaign.queries', () => ({
 }));
 
 vi.mock('../../queries/submission.queries', () => ({
-  uploadSubmissionAvatarMutationOptions: () => ({ mutationFn: mockUploadSubmissionAvatar }),
+  uploadSubmissionImageMutationOptions: () => ({ mutationFn: mockUploadSubmissionImage }),
   submitTributeMutationOptions: () => ({ mutationFn: mockSubmitTribute }),
 }));
 
@@ -36,13 +30,13 @@ vi.mock('../../utils/report-submission-error', () => ({
 }));
 
 vi.mock('../../services/frameCompositor.service', () => ({
-  compositeFrameToDataUrl: mockCompositeFrameToDataUrl,
+  compositeFrameToBlob: mockCompositeFrameToBlob,
 }));
 
 // TributeForm has its own dedicated tests (field validation, Turnstile
 // reset-on-failure) — this page's tests only need to exercise the
-// upload -> submit -> composite orchestration around it, so a minimal stand-in
-// that calls `onSubmit` with a fixed payload is enough here.
+// composite -> upload -> submit orchestration around it, so a minimal
+// stand-in that calls `onSubmit` with a fixed payload is enough here.
 vi.mock('../../components/public/TributeForm', () => ({
   TributeForm: ({ onSubmit }: { onSubmit: (values: unknown) => Promise<void> }) => (
     <button
@@ -75,6 +69,8 @@ const APPROVED_CAMPAIGN = {
   createdAt: '2026-07-18T00:00:00.000Z',
 };
 
+const COMPOSITED_BLOB = new Blob(['composited'], { type: 'image/jpeg' });
+
 function renderAtSlug(slug: string) {
   return renderWithProviders(
     <Routes>
@@ -87,11 +83,11 @@ function renderAtSlug(slug: string) {
 describe('CampaignPublicPage', () => {
   beforeEach(() => {
     mockGetCampaignBySlug.mockReset();
-    mockUploadSubmissionAvatar.mockReset();
+    mockUploadSubmissionImage.mockReset();
     mockSubmitTribute.mockReset();
     mockReportSubmissionError.mockClear();
-    mockCompositeFrameToDataUrl.mockReset();
-    mockCompositeFrameToDataUrl.mockResolvedValue('data:image/jpeg;base64,composited');
+    mockCompositeFrameToBlob.mockReset();
+    mockCompositeFrameToBlob.mockResolvedValue(COMPOSITED_BLOB);
   });
 
   it('shows a loading state while the campaign is being resolved', () => {
@@ -127,18 +123,19 @@ describe('CampaignPublicPage', () => {
     expect(screen.queryByText('submit-tribute-form')).toBeNull();
   });
 
-  it('uploads the avatar, submits the tribute, composites the result, and shows the download view', async () => {
+  it('composites the frame first, uploads only the composited image (never the raw avatar), submits the tribute, and shows the download view', async () => {
     mockGetCampaignBySlug.mockResolvedValue(APPROVED_CAMPAIGN);
-    mockUploadSubmissionAvatar.mockResolvedValue('https://cdn.example.com/submissions/campaign-1/abc.jpg');
+    mockUploadSubmissionImage.mockResolvedValue('https://cdn.example.com/submissions/campaign-1/abc.jpg');
     mockSubmitTribute.mockResolvedValue({ id: 'submission-1' });
     renderAtSlug('dai-hoi-ben-tre');
 
     await screen.findByText('submit-tribute-form');
     fireEvent.click(screen.getByText('submit-tribute-form'));
 
+    await waitFor(() => expect(mockCompositeFrameToBlob).toHaveBeenCalled());
     await waitFor(() =>
-      expect(mockUploadSubmissionAvatar).toHaveBeenCalledWith(
-        { campaignId: 'campaign-1', file: expect.any(File) },
+      expect(mockUploadSubmissionImage).toHaveBeenCalledWith(
+        { campaignId: 'campaign-1', image: COMPOSITED_BLOB },
         expect.anything(),
       ),
     );
@@ -150,40 +147,37 @@ describe('CampaignPublicPage', () => {
           fullName: 'Nguyễn Văn A',
           role: 'Cựu học sinh',
           message: 'Chúc mừng đại hội!',
-          avatarUrl: 'https://cdn.example.com/submissions/campaign-1/abc.jpg',
+          imageUrl: 'https://cdn.example.com/submissions/campaign-1/abc.jpg',
         },
         expect.anything(),
       ),
     );
-    await waitFor(() => expect(mockCompositeFrameToDataUrl).toHaveBeenCalled());
 
     const downloadLink = await screen.findByText('Tải ảnh về máy');
-    expect(downloadLink.closest('a')?.getAttribute('href')).toBe('data:image/jpeg;base64,composited');
+    expect(downloadLink.closest('a')?.getAttribute('href')).toMatch(/^blob:/);
   });
 
-  it('shows a recoverable notice (not a silent dead end) when compositing the result fails, and lets the visitor retry', async () => {
+  it('reports a friendly error and never calls upload/submit when compositing itself fails', async () => {
+    const failure = new Error('rasterization failed');
     mockGetCampaignBySlug.mockResolvedValue(APPROVED_CAMPAIGN);
-    mockUploadSubmissionAvatar.mockResolvedValue('https://cdn.example.com/submissions/campaign-1/abc.jpg');
-    mockSubmitTribute.mockResolvedValue({ id: 'submission-1' });
-    mockCompositeFrameToDataUrl.mockRejectedValueOnce(new Error('canvas rasterization failed'));
+    mockCompositeFrameToBlob.mockRejectedValue(failure);
     renderAtSlug('dai-hoi-ben-tre');
 
     await screen.findByText('submit-tribute-form');
     fireEvent.click(screen.getByText('submit-tribute-form'));
 
-    await screen.findByText('Đã gửi thành công');
-    expect(screen.queryByText('Tải ảnh về máy')).toBeNull();
-
-    fireEvent.click(screen.getByText('Thử lại'));
-
-    const downloadLink = await screen.findByText('Tải ảnh về máy');
-    expect(downloadLink.closest('a')?.getAttribute('href')).toBe('data:image/jpeg;base64,composited');
+    await waitFor(() =>
+      expect(mockReportSubmissionError).toHaveBeenCalledWith(failure, 'Không thể gửi thông điệp. Vui lòng thử lại.'),
+    );
+    expect(mockUploadSubmissionImage).not.toHaveBeenCalled();
+    expect(mockSubmitTribute).not.toHaveBeenCalled();
+    expect(screen.getByText('submit-tribute-form')).toBeTruthy();
   });
 
-  it('shows the "campaign full" notice when submit-tribute rejects with CAMPAIGN_FULL, without ever compositing', async () => {
+  it('shows the "campaign full" notice when submit-tribute rejects with CAMPAIGN_FULL', async () => {
     const { SubmissionServiceError } = await import('../../services/submission.service');
     mockGetCampaignBySlug.mockResolvedValue(APPROVED_CAMPAIGN);
-    mockUploadSubmissionAvatar.mockResolvedValue('https://cdn.example.com/submissions/campaign-1/abc.jpg');
+    mockUploadSubmissionImage.mockResolvedValue('https://cdn.example.com/submissions/campaign-1/abc.jpg');
     mockSubmitTribute.mockRejectedValue(
       new SubmissionServiceError('Chiến dịch đã đủ số lượng gửi. Vui lòng thử lại sau.', { code: 'CAMPAIGN_FULL' }),
     );
@@ -193,14 +187,13 @@ describe('CampaignPublicPage', () => {
     fireEvent.click(screen.getByText('submit-tribute-form'));
 
     await screen.findByText('Chiến dịch đã đủ số lượng gửi');
-    expect(mockCompositeFrameToDataUrl).not.toHaveBeenCalled();
     expect(mockReportSubmissionError).not.toHaveBeenCalled();
   });
 
   it('reports a friendly error for any other submission failure and stays on the form', async () => {
     const failure = new Error('network error');
     mockGetCampaignBySlug.mockResolvedValue(APPROVED_CAMPAIGN);
-    mockUploadSubmissionAvatar.mockRejectedValue(failure);
+    mockUploadSubmissionImage.mockRejectedValue(failure);
     renderAtSlug('dai-hoi-ben-tre');
 
     await screen.findByText('submit-tribute-form');

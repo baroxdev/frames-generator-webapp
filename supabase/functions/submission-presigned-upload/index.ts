@@ -1,5 +1,10 @@
 // Supabase Edge Function: issues a short-lived, presigned PUT URL for a
-// visitor to upload their tribute avatar directly to Cloudflare R2.
+// visitor to upload their final composited tribute image directly to
+// Cloudflare R2. Never the visitor's raw avatar photo — that never leaves
+// the browser; only the composited frame (background + avatar + text,
+// produced by `frameCompositor.service.ts`) gets uploaded, and it's always a
+// JPEG (`frameCompositor.service.ts`'s fixed compositor output format), so
+// there's no client-supplied content-type to validate here at all.
 //
 // Unlike r2-presigned-upload (owner background uploads), the caller here is
 // never signed in — a visitor submitting a tribute has no Supabase session —
@@ -12,9 +17,7 @@
 // re-validates this upload's object actually exists before trusting it.
 //
 // Abuse mitigation for this endpoint specifically: a short presigned URL
-// TTL, a strict content-type allow-list (no SVG — never allow a
-// browser-executable content-type into an object visitors' browsers may
-// later load directly), and an R2 lifecycle rule (configured out-of-band via
+// TTL and an R2 lifecycle rule (configured out-of-band via
 // `wrangler r2 bucket lifecycle`) that deletes anything under
 // `submissions/` older than a day with no matching submission row.
 //
@@ -30,7 +33,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 
-const ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const IMAGE_CONTENT_TYPE = 'image/jpeg';
 const PRESIGNED_URL_TTL_SECONDS = 60 * 5;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,19 +48,6 @@ function jsonResponse(body: unknown, status: number): Response {
     status,
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });
-}
-
-function extensionFor(contentType: string): string {
-  switch (contentType) {
-    case 'image/jpeg':
-      return 'jpg';
-    case 'image/png':
-      return 'png';
-    case 'image/webp':
-      return 'webp';
-    default:
-      return 'bin';
-  }
 }
 
 Deno.serve(async (req) => {
@@ -83,7 +73,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Server misconfigured: missing required secrets' }, 500);
   }
 
-  let body: { campaignId?: unknown; contentType?: unknown };
+  let body: { campaignId?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -93,11 +83,6 @@ Deno.serve(async (req) => {
   const campaignId = body.campaignId;
   if (typeof campaignId !== 'string' || !UUID_PATTERN.test(campaignId)) {
     return jsonResponse({ error: 'campaignId must be a valid UUID' }, 400);
-  }
-
-  const contentType = body.contentType;
-  if (typeof contentType !== 'string' || !ALLOWED_CONTENT_TYPES.has(contentType)) {
-    return jsonResponse({ error: 'contentType must be one of image/jpeg, image/png, image/webp' }, 400);
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -114,7 +99,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Chiến dịch không khả dụng.' }, 404);
   }
 
-  const objectKey = `submissions/${campaignId}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
+  const objectKey = `submissions/${campaignId}/${crypto.randomUUID()}.jpg`;
 
   const r2 = new AwsClient({
     accessKeyId,
@@ -129,7 +114,7 @@ Deno.serve(async (req) => {
 
   const signedRequest = await r2.sign(url.toString(), {
     method: 'PUT',
-    headers: { 'Content-Type': contentType },
+    headers: { 'Content-Type': IMAGE_CONTENT_TYPE },
     aws: { signQuery: true },
   });
 

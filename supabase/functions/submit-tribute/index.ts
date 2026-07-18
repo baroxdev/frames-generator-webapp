@@ -7,9 +7,14 @@
 // submission-presigned-upload only mints a storage URL, unauthenticated and
 // ungated. Everything privileged happens here: Turnstile verification (the
 // secret key never leaves this server context), re-validating the uploaded
-// avatar actually exists in R2 (a client could otherwise pass an arbitrary
-// avatarUrl — e.g. another campaign's asset — straight into the DB row), and
+// image actually exists in R2 (a client could otherwise pass an arbitrary
+// imageUrl — e.g. another campaign's asset — straight into the DB row), and
 // the atomic cap-check-and-insert RPC.
+//
+// `imageUrl` is always the visitor's *final composited tribute frame*
+// (background + avatar + text, produced client-side by
+// frameCompositor.service.ts) — never their raw avatar photo, which is
+// never uploaded anywhere.
 //
 // Deploy: supabase functions deploy submit-tribute
 // Secrets (supabase secrets set):
@@ -22,7 +27,7 @@
 //   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME,
 //   R2_PUBLIC_BASE_URL          Same R2 secrets as the other two upload
 //                              functions, needed here to HEAD-verify the
-//                              avatar object.
+//                              image object.
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are provided automatically.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -38,12 +43,11 @@ const ROLE_MAX = 36;
 const MESSAGE_MIN = 10;
 const MESSAGE_MAX = 400;
 
-const CONTENT_TYPE_EXTENSIONS: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-};
-const MAX_AVATAR_BYTES = 8 * 1024 * 1024;
+// Only ever a JPEG — the fixed output format of frameCompositor.service.ts
+// (modern-screenshot's domToBlob with `type: 'image/jpeg'`), not something a
+// client chooses.
+const IMAGE_CONTENT_TYPE = 'image/jpeg';
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const UUID_PATTERN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const EXPECTED_TURNSTILE_ACTION = 'submit-tribute';
@@ -72,7 +76,7 @@ type SubmitTributeBody = {
   fullName?: unknown;
   role?: unknown;
   message?: unknown;
-  avatarUrl?: unknown;
+  imageUrl?: unknown;
 };
 
 Deno.serve(async (req) => {
@@ -115,7 +119,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Invalid JSON body' }, 400);
   }
 
-  const { campaignId, turnstileToken, fullName, role, message, avatarUrl } = body;
+  const { campaignId, turnstileToken, fullName, role, message, imageUrl } = body;
 
   if (typeof campaignId !== 'string' || !new RegExp(`^${UUID_PATTERN}$`, 'i').test(campaignId)) {
     return jsonResponse({ error: 'campaignId must be a valid UUID' }, 400);
@@ -132,21 +136,20 @@ Deno.serve(async (req) => {
   if (!isNonEmptyString(message) || message.trim().length < MESSAGE_MIN || message.trim().length > MESSAGE_MAX) {
     return jsonResponse({ error: `Thông điệp phải từ ${MESSAGE_MIN} đến ${MESSAGE_MAX} ký tự.` }, 400);
   }
-  if (!isNonEmptyString(avatarUrl)) {
-    return jsonResponse({ error: 'Thiếu ảnh đại diện.' }, 400);
+  if (!isNonEmptyString(imageUrl)) {
+    return jsonResponse({ error: 'Thiếu ảnh.' }, 400);
   }
 
   // The uploaded object's key is entirely server-generated (see
   // submission-presigned-upload) — this must match exactly, so a client
   // can never point a submission at an unrelated object (another
   // campaign's asset, or something outside `submissions/` entirely).
-  const extensionAlternation = Object.values(CONTENT_TYPE_EXTENSIONS).join('|');
-  const avatarUrlPattern = new RegExp(
-    `^${publicBaseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/submissions/${campaignId}/${UUID_PATTERN}\\.(${extensionAlternation})$`,
+  const imageUrlPattern = new RegExp(
+    `^${publicBaseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/submissions/${campaignId}/${UUID_PATTERN}\\.jpg$`,
     'i',
   );
-  if (!avatarUrlPattern.test(avatarUrl)) {
-    return jsonResponse({ error: 'Ảnh đại diện không hợp lệ.' }, 400);
+  if (!imageUrlPattern.test(imageUrl)) {
+    return jsonResponse({ error: 'Ảnh không hợp lệ.' }, 400);
   }
 
   // Verify the Turnstile token server-side. Checking `hostname`/`action`
@@ -184,7 +187,7 @@ Deno.serve(async (req) => {
   // support S3 POST-policy content-length-range conditions), so this HEAD
   // check is where that enforcement actually happens.
   const r2 = new AwsClient({ accessKeyId, secretAccessKey, service: 's3', region: 'auto' });
-  const objectKey = avatarUrl.slice(`${publicBaseUrl}/`.length);
+  const objectKey = imageUrl.slice(`${publicBaseUrl}/`.length);
   const headEndpoint = `https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${objectKey}`;
   let headResponse: Response;
   try {
@@ -192,15 +195,15 @@ Deno.serve(async (req) => {
     headResponse = await fetch(signedHead);
   } catch (error) {
     console.error('R2 HEAD check failed', error);
-    return jsonResponse({ error: 'Không thể xác minh ảnh đại diện. Vui lòng thử lại.' }, 502);
+    return jsonResponse({ error: 'Không thể xác minh ảnh. Vui lòng thử lại.' }, 502);
   }
   if (!headResponse.ok) {
-    return jsonResponse({ error: 'Ảnh đại diện không tồn tại. Vui lòng tải ảnh lên lại.' }, 400);
+    return jsonResponse({ error: 'Ảnh không tồn tại. Vui lòng thử gửi lại.' }, 400);
   }
   const uploadedContentType = headResponse.headers.get('content-type') ?? '';
   const uploadedContentLength = Number(headResponse.headers.get('content-length') ?? '0');
-  if (!(uploadedContentType in CONTENT_TYPE_EXTENSIONS) || uploadedContentLength > MAX_AVATAR_BYTES) {
-    return jsonResponse({ error: 'Ảnh đại diện không hợp lệ.' }, 400);
+  if (uploadedContentType !== IMAGE_CONTENT_TYPE || uploadedContentLength > MAX_IMAGE_BYTES) {
+    return jsonResponse({ error: 'Ảnh không hợp lệ.' }, 400);
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -210,7 +213,7 @@ Deno.serve(async (req) => {
       full_name_input: fullName.trim(),
       role_input: role.trim(),
       message_input: message.trim(),
-      avatar_url_input: avatarUrl,
+      image_url_input: imageUrl,
     })
     .single();
 

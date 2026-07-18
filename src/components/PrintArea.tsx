@@ -21,10 +21,10 @@ interface PrintAreaProps {
  * its four boxes (avatar, name, role, message), all positioned per the
  * template's config rather than hardcoded coordinates.
  *
- * The forwarded ref points at the exact node `html2canvas` rasterizes for
- * export (see `generateDataUrl` in App.tsx), so this markup must stay
- * something html2canvas can actually capture — kept off-screen via
- * `z-[-1]`, never `display:none`, which html2canvas cannot rasterize.
+ * The forwarded ref points at the exact node the compositor
+ * (`frameCompositor.service.ts`) rasterizes for export, so this markup must
+ * stay something it can actually capture — kept off-screen via `z-[-1]`,
+ * never `display:none`, which leaves a node with no layout box to capture.
  */
 const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
   ({ isDevMod, template, content }, ref) => {

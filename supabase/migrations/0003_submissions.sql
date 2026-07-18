@@ -15,7 +15,10 @@ create table if not exists public.submissions (
   full_name text not null check (char_length(full_name) between 2 and 25),
   role text not null check (char_length(role) between 3 and 36),
   message text not null check (char_length(message) between 10 and 400),
-  avatar_url text not null check (avatar_url ~ '^https://'),
+  -- The final composited tribute frame (background + avatar + text),
+  -- produced client-side and uploaded as one image — never the visitor's
+  -- raw avatar photo, which is never uploaded or stored anywhere.
+  image_url text not null check (image_url ~ '^https://'),
   consented_at timestamptz not null,
   created_at timestamptz not null default now()
 );
@@ -47,7 +50,7 @@ create or replace function public.create_submission(
   full_name_input text,
   role_input text,
   message_input text,
-  avatar_url_input text
+  image_url_input text
 )
 returns public.submissions
 language plpgsql
@@ -69,8 +72,8 @@ begin
     raise exception 'campaign_full' using errcode = 'P0001';
   end if;
 
-  insert into public.submissions (campaign_id, full_name, role, message, avatar_url, consented_at)
-  values (campaign_id_input, full_name_input, role_input, message_input, avatar_url_input, now())
+  insert into public.submissions (campaign_id, full_name, role, message, image_url, consented_at)
+  values (campaign_id_input, full_name_input, role_input, message_input, image_url_input, now())
   returning * into new_submission;
 
   return new_submission;

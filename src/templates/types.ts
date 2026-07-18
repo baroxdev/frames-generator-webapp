@@ -17,7 +17,7 @@ export type AvatarShape = 'circle' | 'diamond' | 'square';
  *
  * `top`/`left`/`width`/`height` are plain pixel offsets against the
  * template's `canvas` size, in the same units PrintArea has always rendered
- * at (the canvas is captured 1:1 by html2canvas, unscaled).
+ * at (the canvas is captured 1:1 by the compositor, unscaled).
  */
 export interface Box {
   top: number;

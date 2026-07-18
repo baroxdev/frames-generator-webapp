@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Alert, Button } from 'antd';
+import { Alert } from 'antd';
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import { ConfigErrorNotice } from '../../components/auth/ConfigErrorNotice';
 import PrintArea from '../../components/PrintArea';
@@ -8,8 +9,8 @@ import { TributeForm, type TributeSubmitValues } from '../../components/public/T
 import { TributeResult } from '../../components/public/TributeResult';
 import { useEnv } from '../../config/useEnv';
 import { campaignBySlugQueryOptions } from '../../queries/campaign.queries';
-import { submitTributeMutationOptions, uploadSubmissionAvatarMutationOptions } from '../../queries/submission.queries';
-import { compositeFrameToDataUrl } from '../../services/frameCompositor.service';
+import { submitTributeMutationOptions, uploadSubmissionImageMutationOptions } from '../../queries/submission.queries';
+import { compositeFrameToBlob } from '../../services/frameCompositor.service';
 import { SubmissionServiceError } from '../../services/submission.service';
 import { getTemplateById } from '../../templates';
 import type { FrameContent } from '../../templates/types';
@@ -26,8 +27,10 @@ const SUBMISSION_CAP = 5000;
  * The public landing page for an approved campaign, at /:slug. Renders the
  * campaign's chosen template + uploaded background using the same template
  * engine as the owner's live preview (#3/#4), plus (#6) the visitor tribute
- * form: on a successful submission, the blank template preview is replaced
- * by the visitor's actual composited frame with a download action.
+ * form: on submit, the visitor's content is composited into the final frame
+ * *before* anything is uploaded — only that final image ever reaches R2,
+ * never the visitor's raw avatar photo — and the same image is then shown
+ * with an active download link.
  *
  * A pending/rejected/suspended campaign and a slug that was never
  * registered are indistinguishable here on purpose — both resolve to
@@ -43,16 +46,19 @@ export function CampaignPublicPage() {
 
   const [submittedContent, setSubmittedContent] = useState<FrameContent | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
-  const [compositeError, setCompositeError] = useState(false);
-  const [compositeAttempt, setCompositeAttempt] = useState(0);
   const [campaignFull, setCampaignFull] = useState(false);
-  // Compositing needs a real, unscaled PrintArea instance to rasterize —
-  // separate from the scaled on-screen preview below, mirroring how
-  // App.tsx's off-screen `cardRef` node was always distinct from any
-  // display-only preview.
+  // Covers the gap between clicking submit and the upload mutation actually
+  // starting — compositing itself has no TanStack Query `isPending` of its
+  // own to reflect, but the submit button still needs to show busy/disabled
+  // for that whole window, not just once the network calls begin.
+  const [isCompositing, setIsCompositing] = useState(false);
+  // The off-screen PrintArea instance compositing rasterizes — separate
+  // from the scaled on-screen preview below, mirroring how App.tsx's
+  // off-screen `cardRef` node was always distinct from any display-only
+  // preview.
   const compositeRef = useRef<HTMLDivElement>(null);
 
-  const uploadAvatarMutation = useMutation(uploadSubmissionAvatarMutationOptions());
+  const uploadImageMutation = useMutation(uploadSubmissionImageMutationOptions());
   const submitTributeMutation = useMutation(submitTributeMutationOptions());
 
   const campaign = query.data;
@@ -65,24 +71,9 @@ export function CampaignPublicPage() {
   }, [submittedContent]);
 
   useEffect(() => {
-    if (!submittedContent || !template || !compositeRef.current) return;
-    let cancelled = false;
-    setCompositeError(false);
-    compositeFrameToDataUrl(compositeRef.current, template.canvas.width)
-      .then((dataUrl) => {
-        if (!cancelled) setResultImage(dataUrl);
-      })
-      .catch(() => {
-        // The submission itself already succeeded server-side by this point
-        // — only local preview rasterization failed (e.g. a font/canvas
-        // issue) — so this must surface as a recoverable state, not leave
-        // the visitor stuck with no feedback at all.
-        if (!cancelled) setCompositeError(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [submittedContent, template, compositeAttempt]);
+    if (!resultImage) return;
+    return () => URL.revokeObjectURL(resultImage);
+  }, [resultImage]);
 
   if (query.isLoading) {
     return (
@@ -99,29 +90,48 @@ export function CampaignPublicPage() {
   const isFull = campaignFull || campaign.submissionCount >= SUBMISSION_CAP;
 
   const handleSubmit = async (values: TributeSubmitValues) => {
+    const avatarObjectUrl = URL.createObjectURL(values.avatarFile);
+    // Render the off-screen PrintArea with the submitted content and force
+    // React to commit it synchronously — compositing right after needs the
+    // DOM node to already reflect these values, and a plain `setState`
+    // wouldn't be flushed yet at this point in an event handler.
+    flushSync(() => {
+      setSubmittedContent({ avatar: avatarObjectUrl, fullName: values.fullName, role: values.role, message: values.message });
+    });
+    setIsCompositing(true);
+
     try {
-      const avatarUrl = await uploadAvatarMutation.mutateAsync({ campaignId: campaign.id, file: values.avatarFile });
+      if (!compositeRef.current) {
+        throw new Error('Compositor node did not mount');
+      }
+      // Composite first, before any network call: it's local and free, so a
+      // failure here (e.g. a font/rendering issue) is caught before
+      // spending the single-use Turnstile token or any R2/DB round-trip.
+      const imageBlob = await compositeFrameToBlob(compositeRef.current);
+      const imageUrl = await uploadImageMutation.mutateAsync({ campaignId: campaign.id, image: imageBlob });
       await submitTributeMutation.mutateAsync({
         campaignId: campaign.id,
         turnstileToken: values.turnstileToken,
         fullName: values.fullName,
         role: values.role,
         message: values.message,
-        avatarUrl,
+        imageUrl,
       });
-      setSubmittedContent({
-        avatar: URL.createObjectURL(values.avatarFile),
-        fullName: values.fullName,
-        role: values.role,
-        message: values.message,
-      });
+      // Already have the exact uploaded bytes locally — no need to composite
+      // a second time or round-trip to R2 just to display the result.
+      setResultImage(URL.createObjectURL(imageBlob));
     } catch (error) {
+      // The avatar object URL is revoked by the cleanup effect above once
+      // `submittedContent` changes — no need to revoke it again here.
+      setSubmittedContent(null);
       if (error instanceof SubmissionServiceError && error.code === 'CAMPAIGN_FULL') {
         setCampaignFull(true);
       } else {
         reportSubmissionError(error, 'Không thể gửi thông điệp. Vui lòng thử lại.');
       }
       throw error;
+    } finally {
+      setIsCompositing(false);
     }
   };
 
@@ -158,19 +168,7 @@ export function CampaignPublicPage() {
 
       <div className="mx-auto mt-8 w-full max-w-md">
         {resultImage ? (
-          <TributeResult imageDataUrl={resultImage} />
-        ) : compositeError ? (
-          <Alert
-            type="warning"
-            showIcon
-            title="Đã gửi thành công"
-            description="Thông điệp của bạn đã được ghi nhận, nhưng không thể tạo ảnh xem trước lúc này."
-            action={
-              <Button size="small" onClick={() => setCompositeAttempt((attempt) => attempt + 1)}>
-                Thử lại
-              </Button>
-            }
-          />
+          <TributeResult imageUrl={resultImage} />
         ) : isFull ? (
           <Alert
             type="warning"
@@ -183,7 +181,7 @@ export function CampaignPublicPage() {
         ) : (
           <TributeForm
             turnstileSiteKey={env.VITE_TURNSTILE_SITE_KEY}
-            isSubmitting={uploadAvatarMutation.isPending || submitTributeMutation.isPending}
+            isSubmitting={isCompositing || uploadImageMutation.isPending || submitTributeMutation.isPending}
             onSubmit={handleSubmit}
           />
         )}

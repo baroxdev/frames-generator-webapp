@@ -17,7 +17,7 @@ const PARAMS = {
   fullName: 'Nguyễn Văn A',
   role: 'Cựu học sinh',
   message: 'Chúc mừng đại hội!',
-  avatarUrl: 'https://cdn.example.com/submissions/campaign-1/abc.jpg',
+  imageUrl: 'https://cdn.example.com/submissions/campaign-1/abc.jpg',
 };
 
 describe('submission.service', () => {

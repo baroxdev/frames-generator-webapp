@@ -6,7 +6,8 @@ export type SubmitTributeParams = {
   fullName: string;
   role: string;
   message: string;
-  avatarUrl: string;
+  /** URL of the final composited tribute frame (background + avatar + text) in R2 — never the visitor's raw avatar photo, which is never uploaded. */
+  imageUrl: string;
 };
 
 export interface SubmissionService {

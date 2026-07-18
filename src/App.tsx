@@ -15,12 +15,12 @@ import useSound from "use-sound";
 import backgroundHorizontial from "./assets/bg-hoz.png";
 import saveToSheet, { FormData } from "./services/google-sheet";
 import welcomeTopImage from "./storage/welcome-top.png";
-import { convertDataURIToBinary, saveToDb } from "./utils";
+import { saveToDb } from "./utils";
 import { Button } from "./components/ui/button";
 import PrintArea from "./components/PrintArea";
 import TemplateGallery from "./components/TemplateGallery";
 import TopBanner from "./components/TopBanner";
-import { compositeFrameToDataUrl } from "./services/frameCompositor.service";
+import { compositeFrameToBlob } from "./services/frameCompositor.service";
 import { DEFAULT_TEMPLATE_ID, getTemplateById, getTemplateGallery } from "./templates";
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -76,6 +76,7 @@ function App() {
   const [resultImage, setResultImage] = useState<string | null | undefined>(
     null
   );
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const templateGallery = getTemplateGallery();
   const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATE_ID);
@@ -148,7 +149,7 @@ function App() {
     return image;
   };
 
-  const generateDataUrl = async (avatar: File) => {
+  const generateFrameBlob = async (avatar: File) => {
     if (!cardRef.current) {
       messageApi.open({
         key: "handling",
@@ -203,7 +204,7 @@ function App() {
         setAvatar(compressedImage as RcFile);
       }
 
-      return await compositeFrameToDataUrl(cardRef.current, selectedTemplate.canvas.width);
+      return await compositeFrameToBlob(cardRef.current);
     } catch (error) {
       console.error("Compression error:", error);
       messageApi.open({
@@ -258,8 +259,9 @@ function App() {
         content: "Không thể tạo thông điệp. Vui lòng thử lại sau",
       });
     try {
-      const dataUrl = await generateDataUrl(avatar);
-      setResultImage(dataUrl);
+      const blob = await generateFrameBlob(avatar);
+      setResultBlob(blob);
+      setResultImage(blob ? URL.createObjectURL(blob) : null);
       setPreview(true);
     } catch (error) {
       console.error({ error: error });
@@ -273,7 +275,7 @@ function App() {
     }
   };
 
-  const handleSubmit = async (existedDataUrl?: string) => {
+  const handleSubmit = async (existedBlob?: Blob) => {
     const _errors: Errors = {
       text: null,
       avatar: null,
@@ -299,20 +301,19 @@ function App() {
     if (!text || !imageUrl) return setErrors(_errors);
     try {
       if (!avatar) return messageApi.warning("Vui lòng chọn ảnh đại diện.");
-      const dataUrl = existedDataUrl
-        ? existedDataUrl
-        : await generateDataUrl(avatar);
-      if (!dataUrl) return console.error("Không thể tạo thông điệp.");
+      const blob = existedBlob ? existedBlob : await generateFrameBlob(avatar);
+      if (!blob) return console.error("Không thể tạo thông điệp.");
       setLoading(true);
       messageApi.open({
         key: "handling",
         type: "loading",
         content: "Đang tạo thông điệp",
       });
-      const blob = convertDataURIToBinary(dataUrl);
-      const image_url = await saveToDb(blob);
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const image_url = await saveToDb(bytes);
       message.destroy("handling");
-      setResultImage(dataUrl);
+      setResultBlob(blob);
+      setResultImage(URL.createObjectURL(blob));
       messageApi.open({
         key: "sending",
         type: "loading",
@@ -355,6 +356,7 @@ function App() {
     // setRole("");
     setImageUrl(undefined);
     setResultImage(null);
+    setResultBlob(null);
     setAvatar(undefined);
   };
 
@@ -368,6 +370,7 @@ function App() {
 
   const handleCancelPreview = () => {
     setResultImage(null);
+    setResultBlob(null);
     setPreview(false);
     if (!previewing) resetState();
     setPreviewing(false);
@@ -453,7 +456,7 @@ function App() {
                       disabled={loading}
                       className="flex items-center justify-center"
                       onClick={() => {
-                        handleSubmit(resultImage);
+                        handleSubmit(resultBlob ?? undefined);
                       }}
                     >
                       Gửi thông điệp

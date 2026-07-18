@@ -1,6 +1,7 @@
-import { InboxOutlined } from '@ant-design/icons';
-import { Button, Form, Input, Upload, type UploadFile, type UploadProps } from 'antd';
-import { useRef, useState } from 'react';
+import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
+import { Button, Form, Input, Upload, type UploadProps } from 'antd';
+import ImgCrop from 'antd-img-crop';
+import { useEffect, useRef, useState } from 'react';
 import { TurnstileWidget, type TurnstileWidgetHandle } from '../auth/TurnstileWidget';
 import { submissionSchema, type SubmissionInput } from '../../schemas/submission.schema';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
@@ -20,45 +21,42 @@ type TributeFormProps = {
 };
 
 /**
- * The visitor-facing tribute submission form: avatar (drag-and-drop, with
- * thumbnail preview), full name, role/unit, message, a Turnstile challenge,
- * and a one-line consent notice next to the submit action — the ticket #6
- * acceptance criteria in form order. Owns all of its own field state so
- * `CampaignPublicPage` only needs to know about the final submitted values.
+ * The visitor-facing tribute submission form: avatar (crop to a square,
+ * matching legacy App.tsx's `antd-img-crop` + `Upload` pattern), full name,
+ * role/unit, message, a Turnstile challenge, and a one-line consent notice
+ * next to the submit action — the ticket #6 acceptance criteria in form
+ * order. Owns all of its own field state so `CampaignPublicPage` only needs
+ * to know about the final submitted values.
+ *
+ * `avatarFile` is only ever used to render into the visitor's live template
+ * preview for compositing — it is never uploaded on its own. Only the final
+ * composited frame (background + this avatar + the text fields below,
+ * produced by `frameCompositor.service.ts`) gets uploaded to R2.
  */
 export function TributeForm({ turnstileSiteKey, isSubmitting, onSubmit }: TributeFormProps) {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('');
   const [message, setMessage] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarFileList, setAvatarFileList] = useState<UploadFile[]>([]);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
+  useEffect(() => {
+    if (!avatarFile) {
+      setAvatarPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(avatarFile);
+    setAvatarPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [avatarFile]);
+
   const handleAvatarChange: UploadProps['onChange'] = (info) => {
     const latest = info.fileList.slice(-1);
     const file = latest[0]?.originFileObj as File | undefined;
-
-    if (!file) {
-      setAvatarFileList([]);
-      setAvatarFile(null);
-      return;
-    }
-    if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
-      setErrors((previous) => ({ ...previous, avatar: 'Chỉ chấp nhận ảnh JPEG, PNG hoặc WEBP' }));
-      setAvatarFileList([]);
-      setAvatarFile(null);
-      return;
-    }
-    setErrors((previous) => ({ ...previous, avatar: undefined }));
-    setAvatarFileList(latest);
-    setAvatarFile(file);
-  };
-
-  const handleAvatarRemove = () => {
-    setAvatarFileList([]);
-    setAvatarFile(null);
+    setAvatarFile(file ?? null);
   };
 
   const handleSubmit = async () => {
@@ -90,21 +88,39 @@ export function TributeForm({ turnstileSiteKey, isSubmitting, onSubmit }: Tribut
   return (
     <Form layout="vertical" onFinish={handleSubmit} noValidate>
       <Form.Item label="Ảnh đại diện" validateStatus={errors.avatar ? 'error' : ''} help={errors.avatar}>
-        <Upload.Dragger
-          accept={ALLOWED_AVATAR_TYPES.join(',')}
-          listType="picture"
-          maxCount={1}
-          fileList={avatarFileList}
-          beforeUpload={() => false}
-          onChange={handleAvatarChange}
-          onRemove={handleAvatarRemove}
+        <ImgCrop
+          aspect={1}
+          cropShape="round"
+          showGrid
+          rotationSlider
+          showReset
+          resetText="Đặt lại"
+          modalCancel="Hủy"
+          modalOk="Xác nhận"
+          modalTitle="Chỉnh sửa ảnh đại diện"
         >
-          <p className="ant-upload-drag-icon">
-            <InboxOutlined />
-          </p>
-          <p className="ant-upload-text">Kéo thả ảnh vào đây, hoặc bấm để chọn ảnh</p>
-          <p className="ant-upload-hint">Chấp nhận JPEG, PNG hoặc WEBP</p>
-        </Upload.Dragger>
+          <Upload
+            listType="picture-circle"
+            maxCount={1}
+            showUploadList={false}
+            accept={ALLOWED_AVATAR_TYPES.join(',')}
+            beforeUpload={(file) => {
+              if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+                setErrors((previous) => ({ ...previous, avatar: 'Chỉ chấp nhận ảnh JPEG, PNG hoặc WEBP' }));
+                return Upload.LIST_IGNORE;
+              }
+              setErrors((previous) => ({ ...previous, avatar: undefined }));
+              return false;
+            }}
+            onChange={handleAvatarChange}
+          >
+            {avatarPreviewUrl ? (
+              <img src={avatarPreviewUrl} alt="Ảnh đại diện" className="h-full w-full rounded-full object-cover" />
+            ) : (
+              <div>{isSubmitting ? <LoadingOutlined /> : <PlusOutlined />}</div>
+            )}
+          </Upload>
+        </ImgCrop>
       </Form.Item>
 
       <Form.Item label="Họ và tên" validateStatus={errors.fullName ? 'error' : ''} help={errors.fullName}>

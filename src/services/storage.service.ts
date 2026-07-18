@@ -9,12 +9,17 @@ export interface StorageService {
    */
   uploadCampaignBackground(file: File): Promise<string>;
   /**
-   * Compresses and uploads a visitor's tribute avatar to Cloudflare R2,
-   * scoped to the given campaign. Unlike `uploadCampaignBackground`, this
-   * goes through the anonymous `submission-presigned-upload` Edge
+   * Uploads a visitor's final composited tribute image to Cloudflare R2,
+   * scoped to the given campaign, and returns its public URL. `image` is
+   * always the JPEG blob produced by `frameCompositor.service.ts` — never
+   * the visitor's raw avatar photo, which is never uploaded or stored
+   * anywhere. No client-side compression here: the compositor's own JPEG
+   * quality setting is the only compression this image gets (re-compressing
+   * an already-lossy JPEG a second time loses quality for little size
+   * benefit). Goes through the anonymous `submission-presigned-upload` Edge
    * Function — a visitor submitting a tribute never has a Supabase session.
    */
-  uploadSubmissionAvatar(campaignId: string, file: File): Promise<string>;
+  uploadSubmissionImage(campaignId: string, image: Blob): Promise<string>;
 }
 
 /** Thrown by every storage.service method; `message` is always safe to show a user. */
@@ -33,21 +38,22 @@ type PresignedUploadResponse = { uploadUrl: string; publicUrl: string };
 const FALLBACK_MESSAGE = 'Không thể tải ảnh lên. Vui lòng thử lại.';
 
 /**
- * Compresses `file` and PUTs it to R2 using a presigned URL obtained from
- * the named Edge Function, shared by both `uploadCampaignBackground` and
- * `uploadSubmissionAvatar` — they differ only in which function they call
- * and what extra fields that function's presign request needs.
+ * PUTs `body` to R2 using a presigned URL obtained from the named Edge
+ * Function, shared by both `uploadCampaignBackground` and
+ * `uploadSubmissionImage` — they differ only in which function they call,
+ * what extra fields that function's presign request needs, and whether the
+ * upload needs compressing first (background: yes, client-picked photo;
+ * submission image: no, already-compressed compositor output).
  */
 async function uploadViaPresignedUrl(
   client: SupabaseClient,
   functionName: string,
-  file: File,
+  body: Blob,
+  contentType: string,
   extraBody: Record<string, unknown>,
 ): Promise<string> {
-  const compressed = (await imageService.compressImage(file)) ?? file;
-
   const { data, error } = await client.functions.invoke<PresignedUploadResponse>(functionName, {
-    body: { contentType: compressed.type, ...extraBody },
+    body: extraBody,
   });
   if (error || !data) {
     throw new StorageServiceError(FALLBACK_MESSAGE, { cause: error });
@@ -55,8 +61,8 @@ async function uploadViaPresignedUrl(
 
   const uploadResponse = await fetch(data.uploadUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': compressed.type },
-    body: compressed,
+    headers: { 'Content-Type': contentType },
+    body,
   });
   if (!uploadResponse.ok) {
     throw new StorageServiceError(FALLBACK_MESSAGE, {
@@ -77,11 +83,14 @@ async function uploadViaPresignedUrl(
  */
 export function createStorageService(client: SupabaseClient): StorageService {
   return {
-    uploadCampaignBackground(file) {
-      return uploadViaPresignedUrl(client, 'r2-presigned-upload', file, {});
+    async uploadCampaignBackground(file) {
+      const compressed = (await imageService.compressImage(file)) ?? file;
+      return uploadViaPresignedUrl(client, 'r2-presigned-upload', compressed, compressed.type, {
+        contentType: compressed.type,
+      });
     },
-    uploadSubmissionAvatar(campaignId, file) {
-      return uploadViaPresignedUrl(client, 'submission-presigned-upload', file, { campaignId });
+    uploadSubmissionImage(campaignId, image) {
+      return uploadViaPresignedUrl(client, 'submission-presigned-upload', image, 'image/jpeg', { campaignId });
     },
   };
 }

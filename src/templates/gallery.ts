@@ -10,9 +10,7 @@ import { Template } from './types';
  * role/message boxes over it — not the same layout re-skinned.
  *
  * Three of the four share a 1500x843 canvas — the size the original,
- * pre-template App.tsx always hardcoded — at 1500 width because that's what
- * `getExportWindowWidth` (frameExport.service.ts) and the export pipeline's
- * `windowWidth` are tuned for. `canvas` is still declared per-template:
+ * pre-template App.tsx always hardcoded. `canvas` is still declared per-template:
  * PrintArea forces the background image to exactly `canvas` size (see
  * PrintArea.tsx), so a template is free to use a different width or height
  * to match its own background's native aspect ratio — see

@@ -9,7 +9,8 @@ import { LayoutEditor } from './LayoutEditor';
 // primitives are mocked at their boundary: each `Rect` becomes a plain
 // button carrying its box `name` and exposing just enough of Konva's event
 // shape (`event.target.x()`/`y()`) for the component's own onDragMove/
-// onTransform handlers to run unmodified.
+// onTransform handlers to run unmodified. `Image` and `Text` become plain
+// DOM stand-ins exposing enough props to assert on.
 vi.mock('react-konva', () => ({
   Stage: ({ children, onMouseDown }: { children: React.ReactNode; onMouseDown?: (e: unknown) => void }) => (
     <div
@@ -30,6 +31,9 @@ vi.mock('react-konva', () => ({
     </div>
   ),
   Layer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Image: ({ image }: { image?: HTMLImageElement }) =>
+    image ? <img data-testid="konva-background" src={image.src} alt="" /> : null,
+  Text: ({ text }: { text: string }) => <span data-testid="konva-text">{text}</span>,
   Rect: ({
     name,
     x,
@@ -59,6 +63,13 @@ vi.mock('react-konva', () => ({
   Transformer: () => null,
 }));
 
+// The real hook loads an image asynchronously via `new window.Image()`,
+// which jsdom never actually decodes — mocked here so the background
+// renders deterministically in tests instead of staying forever unloaded.
+vi.mock('../../hooks/useHtmlImage', () => ({
+  useHtmlImage: (src: string | undefined) => (src ? ({ src } as HTMLImageElement) : undefined),
+}));
+
 const LAYOUT = {
   canvas: { width: 1000, height: 500 },
   avatarBox: { top: 50, left: 50, width: 100, height: 100, shape: 'circle' as const },
@@ -68,27 +79,30 @@ const LAYOUT = {
 };
 
 describe('LayoutEditor', () => {
-  it('renders PrintArea with the background and placeholder content at the given layout', () => {
-    const { container } = render(
-      <LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />,
-    );
-
-    expect(container.querySelector('img[src="https://cdn.example.com/bg.jpg"]')).toBeTruthy();
-  });
-
-  it('shows no shape/color control until a box is selected', () => {
+  it('renders the background image and a placeholder label per box', () => {
     render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />);
 
-    expect(screen.queryByText('Hình dạng ảnh đại diện')).toBeNull();
+    expect(screen.getByTestId('konva-background').getAttribute('src')).toBe('https://cdn.example.com/bg.jpg');
+    expect(screen.getByText('Ảnh đại diện')).toBeTruthy();
+    expect(screen.getByText('Nguyễn Văn A')).toBeTruthy();
+    expect(screen.getByText('Đơn vị / Chức vụ')).toBeTruthy();
+    expect(screen.getByText('Thông điệp gửi đến đại hội')).toBeTruthy();
+  });
+
+  it('shows a placeholder hint in the properties sidebar until a box is selected', () => {
+    render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />);
+
+    expect(screen.getByText('Chọn một ô trên ảnh để chỉnh sửa.')).toBeTruthy();
+    expect(screen.queryByText('Hình dạng')).toBeNull();
     expect(screen.queryByText('Màu chữ')).toBeNull();
   });
 
-  it('selecting the avatar box shows the circle/square shape picker', () => {
+  it('selecting the avatar box shows the circle/square shape picker in the sidebar', () => {
     render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />);
 
     fireEvent.click(screen.getByTestId('konva-rect-avatarBox'));
 
-    expect(screen.getByText('Hình dạng ảnh đại diện')).toBeTruthy();
+    expect(screen.getByText('Hình dạng')).toBeTruthy();
     expect(screen.queryByText('Màu chữ')).toBeNull();
   });
 
@@ -98,17 +112,18 @@ describe('LayoutEditor', () => {
     fireEvent.click(screen.getByTestId('konva-rect-messageBox'));
 
     expect(screen.getByText('Màu chữ')).toBeTruthy();
-    expect(screen.queryByText('Hình dạng ảnh đại diện')).toBeNull();
+    expect(screen.queryByText('Hình dạng')).toBeNull();
   });
 
   it('clicking the stage background deselects the current box', () => {
     render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />);
 
     fireEvent.click(screen.getByTestId('konva-rect-avatarBox'));
-    expect(screen.getByText('Hình dạng ảnh đại diện')).toBeTruthy();
+    expect(screen.getByText('Hình dạng')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('konva-stage'));
-    expect(screen.queryByText('Hình dạng ảnh đại diện')).toBeNull();
+    expect(screen.queryByText('Hình dạng')).toBeNull();
+    expect(screen.getByText('Chọn một ô trên ảnh để chỉnh sửa.')).toBeTruthy();
   });
 
   it('dragging a box emits an onChange with the new (clamped) position, merged into the full layout', () => {

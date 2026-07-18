@@ -80,9 +80,7 @@ export function EditCampaignLayoutPage() {
           Kéo và thay đổi kích thước các ô để tùy chỉnh vị trí ảnh đại diện, tên, chức vụ và thông điệp.
         </p>
         {layout && (
-          <div className="overflow-auto">
-            <LayoutEditor layout={layout} backgroundImageUrl={campaign.backgroundImageUrl} onChange={setLayout} />
-          </div>
+          <LayoutEditor layout={layout} backgroundImageUrl={campaign.backgroundImageUrl} onChange={setLayout} />
         )}
       </Card>
       <Button type="primary" onClick={handleSave} loading={updateLayoutMutation.isPending} disabled={!layout}>

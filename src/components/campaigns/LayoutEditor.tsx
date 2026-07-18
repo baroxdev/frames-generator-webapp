@@ -1,9 +1,8 @@
 import { ColorPicker, Segmented } from 'antd';
 import Konva from 'konva';
 import { useEffect, useRef, useState } from 'react';
-import { Layer, Rect, Stage, Transformer } from 'react-konva';
-import PrintArea from '../PrintArea';
-import { campaignLayoutToTemplate } from '../../templates';
+import { Image as KonvaImage, Layer, Rect, Stage, Text, Transformer } from 'react-konva';
+import { useHtmlImage } from '../../hooks/useHtmlImage';
 import type { AvatarShape, Box, CampaignLayout } from '../../templates/types';
 import { clampBoxToCanvas } from './layoutBoxMath';
 
@@ -11,11 +10,19 @@ type BoxKey = 'avatarBox' | 'nameBox' | 'roleBox' | 'messageBox';
 
 const BOX_KEYS: BoxKey[] = ['avatarBox', 'nameBox', 'roleBox', 'messageBox'];
 
-const PLACEHOLDER_CONTENT = {
-  avatar: 'https://placehold.co/300x300?text=Avatar',
-  fullName: 'Nguyễn Văn A',
-  role: 'Đơn vị / Chức vụ',
-  message: 'Thông điệp gửi đến đại hội',
+const PLACEHOLDER_LABEL: Record<BoxKey, string> = {
+  avatarBox: 'Ảnh đại diện',
+  nameBox: 'Nguyễn Văn A',
+  roleBox: 'Đơn vị / Chức vụ',
+  messageBox: 'Thông điệp gửi đến đại hội',
+};
+
+/** Property-panel heading per box — distinct from `PLACEHOLDER_LABEL`, which is the on-canvas sample content. */
+const BOX_TITLE: Record<BoxKey, string> = {
+  avatarBox: 'Ảnh đại diện',
+  nameBox: 'Họ và tên',
+  roleBox: 'Đơn vị / Chức vụ',
+  messageBox: 'Thông điệp',
 };
 
 type LayoutEditorProps = {
@@ -25,19 +32,45 @@ type LayoutEditorProps = {
 };
 
 /**
- * The free-form drag-and-drop layout editor (docs/specs/free-form-layout-editor.md).
+ * The free-form drag-and-drop layout editor
+ * (docs/specs/free-form-layout-editor.md).
  *
- * `PrintArea` (unchanged) stays the single visual source of truth — the
- * same component used for the real preview and final export. A transparent
- * `react-konva` `Stage` sits on top of it at the exact same size, rendering
- * only the four draggable/resizable box outlines (no background/content of
- * their own) — so what's visible under the drag handles, at every frame, is
- * `PrintArea`'s real render, not a separate canvas-drawn copy of it.
+ * Rendered entirely in Konva (background image + a placeholder box per
+ * field) rather than the DOM/CSS `PrintArea` component — an earlier
+ * PrintArea-underneath + transparent-Konva-overlay hybrid didn't hold up in
+ * practice (see PR discussion), and `PrintArea` stays reserved for the
+ * actual visitor-facing campaign page and export pipeline. This trades away
+ * exact font/style fidelity in the editor's preview (its placeholders are
+ * plain Konva text, not the real `Name`/`Role`/`Message` components) in
+ * exchange for a single, consistently-behaved rendering/interaction layer;
+ * closing that visual gap is a follow-up, not solved here.
+ *
+ * Fits the canvas to the available container width by scaling the `Stage`
+ * itself (`scaleX`/`scaleY`) rather than transforming a wrapper div — Konva
+ * accounts for its own scale when mapping pointer coordinates, so drag/
+ * resize math below stays in plain, unscaled canvas-pixel space regardless
+ * of how small the stage is drawn on screen.
  */
 export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEditorProps) {
   const [selected, setSelected] = useState<BoxKey | null>(null);
   const shapeRefs = useRef<Partial<Record<BoxKey, Konva.Rect>>>({});
   const transformerRef = useRef<Konva.Transformer>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  const backgroundImage = useHtmlImage(backgroundImageUrl);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) setScale(width / layout.canvas.width);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [layout.canvas.width]);
 
   useEffect(() => {
     const transformer = transformerRef.current;
@@ -60,24 +93,36 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="relative" style={{ width: layout.canvas.width, height: layout.canvas.height }}>
-        <PrintArea
-          isDevMod
-          template={campaignLayoutToTemplate('campaign-layout', backgroundImageUrl, layout)}
-          content={PLACEHOLDER_CONTENT}
-        />
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <div ref={containerRef} className="min-w-0 flex-1">
         <Stage
-          width={layout.canvas.width}
-          height={layout.canvas.height}
-          className="absolute left-0 top-0"
+          width={layout.canvas.width * scale}
+          height={layout.canvas.height * scale}
+          scaleX={scale}
+          scaleY={scale}
           onMouseDown={(event) => {
             if (event.target === event.target.getStage()) setSelected(null);
           }}
         >
           <Layer>
+            {backgroundImage && (
+              <KonvaImage
+                image={backgroundImage}
+                x={0}
+                y={0}
+                width={layout.canvas.width}
+                height={layout.canvas.height}
+                listening={false}
+              />
+            )}
+
             {BOX_KEYS.map((key) => {
               const box = layout[key];
+              const isAvatar = key === 'avatarBox';
+              const cornerRadius = isAvatar && layout.avatarBox.shape === 'circle'
+                ? Math.min(box.width, box.height) / 2
+                : 0;
+
               return (
                 <Rect
                   key={key}
@@ -89,7 +134,8 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
                   y={box.top}
                   width={box.width}
                   height={box.height}
-                  fill="rgba(22, 119, 255, 0.08)"
+                  cornerRadius={cornerRadius}
+                  fill={isAvatar ? 'rgba(100, 116, 139, 0.25)' : 'rgba(22, 119, 255, 0.12)'}
                   stroke={selected === key ? '#1677ff' : 'rgba(22, 119, 255, 0.6)'}
                   strokeWidth={2}
                   draggable
@@ -99,12 +145,8 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
                     const clamped = clampBoxToCanvas({ ...box, left: pos.x, top: pos.y }, layout.canvas);
                     return { x: clamped.left, y: clamped.top };
                   }}
-                  // Fires on every drag/resize frame, not just on release —
-                  // `PrintArea` (the actual render, underneath) reads its
-                  // box positions from `layout` state, so it only stays the
-                  // real-time visual truth (see this component's own
-                  // doc comment) if that state updates live, not just once
-                  // the gesture ends.
+                  // Fires on every drag/resize frame, not just on release,
+                  // so the box (and its label) tracks the pointer live.
                   onDragMove={(event) => {
                     updateBox(key, { ...box, left: event.target.x(), top: event.target.y() });
                   }}
@@ -131,6 +173,29 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
                 />
               );
             })}
+
+            {BOX_KEYS.map((key) => {
+              const box = layout[key];
+              const isAvatar = key === 'avatarBox';
+              return (
+                <Text
+                  key={`${key}-label`}
+                  x={box.left}
+                  y={box.top}
+                  width={box.width}
+                  height={box.height}
+                  text={PLACEHOLDER_LABEL[key]}
+                  fontSize={Math.max(12, Math.min(box.height * 0.3, 32))}
+                  fill={isAvatar ? '#334155' : (layout[key] as { textColor?: string }).textColor ?? '#334155'}
+                  align="center"
+                  verticalAlign="middle"
+                  padding={4}
+                  wrap="word"
+                  listening={false}
+                />
+              );
+            })}
+
             <Transformer
               ref={transformerRef}
               rotateEnabled={false}
@@ -146,29 +211,45 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
         </Stage>
       </div>
 
-      {selected === 'avatarBox' && (
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-600">Hình dạng ảnh đại diện</span>
-          <Segmented
-            value={layout.avatarBox.shape}
-            onChange={(value) => setAvatarShape(value as AvatarShape)}
-            options={[
-              { label: 'Tròn', value: 'circle' },
-              { label: 'Vuông', value: 'square' },
-            ]}
-          />
-        </div>
-      )}
+      {/* Properties sidebar, mirroring how design tools (Figma, etc.) show
+          contextual controls for whatever's currently selected, rather than
+          inline controls that shift the canvas around as selection changes. */}
+      <div className="w-full shrink-0 rounded-md border border-slate-200 p-4 lg:w-56">
+        <h4 className="mb-3 text-sm font-semibold text-slate-700">Thuộc tính</h4>
 
-      {selected && selected !== 'avatarBox' && (
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-600">Màu chữ</span>
-          <ColorPicker
-            value={layout[selected].textColor}
-            onChangeComplete={(color) => setTextColor(selected, color.toHexString())}
-          />
-        </div>
-      )}
+        {!selected && <p className="text-sm text-slate-400">Chọn một ô trên ảnh để chỉnh sửa.</p>}
+
+        {selected && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium text-slate-600">{BOX_TITLE[selected]}</p>
+
+            {selected === 'avatarBox' && (
+              <div className="flex flex-col gap-2">
+                <span className="text-xs text-slate-500">Hình dạng</span>
+                <Segmented
+                  block
+                  value={layout.avatarBox.shape}
+                  onChange={(value) => setAvatarShape(value as AvatarShape)}
+                  options={[
+                    { label: 'Tròn', value: 'circle' },
+                    { label: 'Vuông', value: 'square' },
+                  ]}
+                />
+              </div>
+            )}
+
+            {selected !== 'avatarBox' && (
+              <div className="flex flex-col gap-2">
+                <span className="text-xs text-slate-500">Màu chữ</span>
+                <ColorPicker
+                  value={layout[selected].textColor}
+                  onChangeComplete={(color) => setTextColor(selected, color.toHexString())}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

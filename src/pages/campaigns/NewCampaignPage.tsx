@@ -192,9 +192,7 @@ export function NewCampaignPage() {
             <p className="mb-4 text-xs text-slate-500">
               Kéo và thay đổi kích thước các ô để tùy chỉnh vị trí ảnh đại diện, tên, chức vụ và thông điệp.
             </p>
-            <div className="overflow-auto">
-              <LayoutEditor layout={layout} backgroundImageUrl={backgroundPreviewUrl} onChange={setLayout} />
-            </div>
+            <LayoutEditor layout={layout} backgroundImageUrl={backgroundPreviewUrl} onChange={setLayout} />
           </Card>
         )}
 

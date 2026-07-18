@@ -61,7 +61,12 @@ const COLUMNS: ColumnsType<Campaign> = [
   {
     title: '',
     key: 'actions',
-    render: (_: unknown, campaign: Campaign) => <Link to={`/campaigns/${campaign.id}/edit`}>Chỉnh sửa bố cục</Link>,
+    render: (_: unknown, campaign: Campaign) => (
+      <span className="flex gap-3">
+        <Link to={`/campaigns/${campaign.id}/edit`}>Chỉnh sửa bố cục</Link>
+        <Link to={`/campaigns/${campaign.id}/submissions`}>Lượt gửi</Link>
+      </span>
+    ),
   },
 ];
 

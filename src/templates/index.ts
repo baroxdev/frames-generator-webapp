@@ -12,3 +12,4 @@ export type {
   TextBoxConfig,
 } from './types';
 export { getDefaultCampaignLayout } from './defaultLayout';
+export { campaignLayoutToTemplate } from './campaignLayoutToTemplate';

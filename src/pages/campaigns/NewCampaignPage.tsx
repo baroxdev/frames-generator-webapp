@@ -63,15 +63,16 @@ export function NewCampaignPage() {
     // edits (held in `layout` state) are the new source of truth, not this
     // effect.
     let cancelled = false;
-    getImageDimensions(backgroundFile)
-      .then((canvas) => {
+    (async () => {
+      try {
+        const canvas = await getImageDimensions(backgroundFile);
         if (!cancelled) setLayout(getDefaultCampaignLayout(canvas));
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setErrors((previous) => ({ ...previous, backgroundImage: 'Không thể đọc kích thước ảnh nền.' }));
         }
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;

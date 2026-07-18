@@ -18,6 +18,7 @@ import {
 } from "../../queries/submission.queries";
 import { compositeFrameToBlob } from "../../services/frameCompositor.service";
 import { SubmissionServiceError } from "../../services/submission.service";
+import { campaignLayoutToTemplate } from "../../templates";
 import type { CampaignLayout, FrameContent } from "../../templates/types";
 import { reportSubmissionError } from "../../utils/report-submission-error";
 import { NotFoundPage } from "./NotFoundPage";
@@ -223,13 +224,7 @@ export function CampaignPublicPage() {
         >
           <PrintArea
             ref={compositeRef}
-            template={{
-              id: campaign.id,
-              name: "",
-              description: "",
-              background: campaign.backgroundImageUrl,
-              ...campaign.layout,
-            }}
+            template={campaignLayoutToTemplate(campaign.id, campaign.backgroundImageUrl, campaign.layout)}
             content={submittedContent}
           />
         </div>
@@ -312,13 +307,7 @@ function Previewer({
           ref={innerRef}
         >
           <PrintArea
-            template={{
-              id: campaign.id,
-              name: "",
-              description: "",
-              background: campaign.backgroundImageUrl,
-              ...layout,
-            }}
+            template={campaignLayoutToTemplate(campaign.id, campaign.backgroundImageUrl, layout)}
             content={{
               avatar:
                 submittedContent?.avatar ??

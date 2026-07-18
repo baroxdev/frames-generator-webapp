@@ -3,6 +3,7 @@ import Konva from 'konva';
 import { useEffect, useRef, useState } from 'react';
 import { Layer, Rect, Stage, Transformer } from 'react-konva';
 import PrintArea from '../PrintArea';
+import { campaignLayoutToTemplate } from '../../templates';
 import type { AvatarShape, Box, CampaignLayout } from '../../templates/types';
 import { clampBoxToCanvas } from './layoutBoxMath';
 
@@ -63,13 +64,7 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
       <div className="relative" style={{ width: layout.canvas.width, height: layout.canvas.height }}>
         <PrintArea
           isDevMod
-          template={{
-            id: 'campaign-layout',
-            name: 'Bố cục chiến dịch',
-            description: '',
-            background: backgroundImageUrl,
-            ...layout,
-          }}
+          template={campaignLayoutToTemplate('campaign-layout', backgroundImageUrl, layout)}
           content={PLACEHOLDER_CONTENT}
         />
         <Stage
@@ -104,18 +99,26 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
                     const clamped = clampBoxToCanvas({ ...box, left: pos.x, top: pos.y }, layout.canvas);
                     return { x: clamped.left, y: clamped.top };
                   }}
-                  onDragEnd={(event) => {
+                  // Fires on every drag/resize frame, not just on release —
+                  // `PrintArea` (the actual render, underneath) reads its
+                  // box positions from `layout` state, so it only stays the
+                  // real-time visual truth (see this component's own
+                  // doc comment) if that state updates live, not just once
+                  // the gesture ends.
+                  onDragMove={(event) => {
                     updateBox(key, { ...box, left: event.target.x(), top: event.target.y() });
                   }}
-                  onTransformEnd={(event) => {
+                  onTransform={(event) => {
                     const node = event.target;
                     const scaleX = node.scaleX();
                     const scaleY = node.scaleY();
                     // Konva expresses a resize as a scale factor on the node
                     // rather than new width/height — reset the scale back to
-                    // 1 and fold it into width/height instead, so the stored
-                    // box config stays plain pixels, consistent with every
-                    // other box in this codebase.
+                    // 1 on every frame and fold it into width/height instead,
+                    // so the stored box config stays plain pixels (consistent
+                    // with every other box in this codebase) and the node
+                    // never double-applies the same resize as both a scale
+                    // and a width/height change on the next render.
                     node.scaleX(1);
                     node.scaleY(1);
                     updateBox(key, {

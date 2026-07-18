@@ -8,8 +8,8 @@ import { LayoutEditor } from './LayoutEditor';
 // as CampaignPublicPage.test.tsx stubbing out TributeForm, the Konva
 // primitives are mocked at their boundary: each `Rect` becomes a plain
 // button carrying its box `name` and exposing just enough of Konva's event
-// shape (`event.target.x()`/`y()`) for the component's own onDragEnd/
-// onTransformEnd handlers to run unmodified.
+// shape (`event.target.x()`/`y()`) for the component's own onDragMove/
+// onTransform handlers to run unmodified.
 vi.mock('react-konva', () => ({
   Stage: ({ children, onMouseDown }: { children: React.ReactNode; onMouseDown?: (e: unknown) => void }) => (
     <div
@@ -35,13 +35,13 @@ vi.mock('react-konva', () => ({
     x,
     y,
     onClick,
-    onDragEnd,
+    onDragMove,
   }: {
     name: string;
     x: number;
     y: number;
     onClick?: () => void;
-    onDragEnd?: (e: { target: { x: () => number; y: () => number } }) => void;
+    onDragMove?: (e: { target: { x: () => number; y: () => number } }) => void;
   }) => (
     <div>
       <button type="button" data-testid={`konva-rect-${name}`} onClick={onClick}>
@@ -50,7 +50,7 @@ vi.mock('react-konva', () => ({
       <button
         type="button"
         data-testid={`konva-rect-${name}-drag`}
-        onClick={() => onDragEnd?.({ target: { x: () => x + 500, y: () => y + 500 } })}
+        onClick={() => onDragMove?.({ target: { x: () => x + 500, y: () => y + 500 } })}
       >
         drag {name}
       </button>

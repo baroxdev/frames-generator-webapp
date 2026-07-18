@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { campaignLayoutRowSchema } from '../schemas/campaign.schema';
 import type { CampaignLayout } from '../templates';
 
 export type CampaignVisibility = 'private' | 'public';
@@ -76,7 +77,11 @@ type CampaignRow = {
   owner_id: string;
   slug: string;
   template_id: string | null;
-  layout: CampaignLayout;
+  // Untyped here on purpose — it's jsonb straight from Postgres, an
+  // external-data boundary; `toCampaign` below is what actually validates
+  // its shape into a trustworthy `CampaignLayout` (never trust external
+  // data, including our own database's own jsonb column).
+  layout: unknown;
   background_image_url: string;
   music_url: string | null;
   visibility: CampaignVisibility;
@@ -86,12 +91,17 @@ type CampaignRow = {
 };
 
 function toCampaign(row: CampaignRow): Campaign {
+  const parsedLayout = campaignLayoutRowSchema.safeParse(row.layout);
+  if (!parsedLayout.success) {
+    throw new CampaignServiceError(FALLBACK_MESSAGE, { cause: parsedLayout.error });
+  }
+
   return {
     id: row.id,
     ownerId: row.owner_id,
     slug: row.slug,
     templateId: row.template_id,
-    layout: row.layout,
+    layout: parsedLayout.data as CampaignLayout,
     backgroundImageUrl: row.background_image_url,
     musicUrl: row.music_url,
     visibility: row.visibility,

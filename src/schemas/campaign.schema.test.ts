@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { campaignLayoutSchema, createCampaignSchema, slugField } from './campaign.schema';
+import { campaignLayoutRowSchema, campaignLayoutSchema, createCampaignSchema, slugField } from './campaign.schema';
 
 const VALID_LAYOUT = {
   canvas: { width: 1500, height: 843 },
@@ -74,5 +74,27 @@ describe('campaignLayoutSchema', () => {
     delete roleBoxWithoutColor.textColor;
     const result = campaignLayoutSchema.safeParse({ ...VALID_LAYOUT, roleBox: roleBoxWithoutColor });
     expect(result.success).toBe(false);
+  });
+
+  it('rejects a box that extends past the right/bottom edge of its own canvas', () => {
+    const result = campaignLayoutSchema.safeParse({
+      ...VALID_LAYOUT,
+      messageBox: { ...VALID_LAYOUT.messageBox, left: 1400, width: 800 }, // 1400+800 > canvas width 1500
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('campaignLayoutRowSchema', () => {
+  it('accepts everything campaignLayoutSchema accepts', () => {
+    expect(campaignLayoutRowSchema.safeParse(VALID_LAYOUT).success).toBe(true);
+  });
+
+  it('accepts an avatar shape of diamond, for campaigns created before the free-form editor existed', () => {
+    const result = campaignLayoutRowSchema.safeParse({
+      ...VALID_LAYOUT,
+      avatarBox: { ...VALID_LAYOUT.avatarBox, shape: 'diamond' },
+    });
+    expect(result.success).toBe(true);
   });
 });

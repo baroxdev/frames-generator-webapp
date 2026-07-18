@@ -220,6 +220,15 @@ describe('campaign.service', () => {
       await expect(service.getCampaignBySlug('not-approved-or-missing')).resolves.toBeNull();
     });
 
+    it('throws a CampaignServiceError instead of returning malformed data when the row layout fails validation (never trust external data, even our own jsonb column)', async () => {
+      const { client } = createMockSupabaseClient({
+        queryResult: { data: { ...CAMPAIGN_ROW, layout: { canvas: LAYOUT.canvas } }, error: null },
+      });
+      const service = createCampaignService(client);
+
+      await expect(service.getCampaignBySlug('dai-hoi-ben-tre')).rejects.toBeInstanceOf(CampaignServiceError);
+    });
+
     it('throws a friendly CampaignServiceError on an actual query failure', async () => {
       const { client } = createMockSupabaseClient({ queryResult: { data: null, error: { message: 'network error' } } });
       const service = createCampaignService(client);

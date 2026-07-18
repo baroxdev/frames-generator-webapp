@@ -15,11 +15,11 @@ export const slugField = z
   .regex(SLUG_PATTERN, 'Đường dẫn chỉ được chứa chữ thường, số và dấu gạch ngang');
 
 // Mirrors `Box`/`AvatarBoxConfig`/`TextBoxConfig` in `src/templates/types.ts`.
-// `shape` is restricted to 'circle' | 'square' here (narrower than that
-// type's full `AvatarShape` union) because this schema only validates what
-// the free-form layout editor can produce for a *new* campaign — 'diamond'
-// still exists on old, pre-editor rows, but isn't offered as a new choice
-// (see docs/specs/free-form-layout-editor.md).
+const canvasSchema = z.object({
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
+
 const boxSchema = z.object({
   top: z.number().min(0, 'Vị trí không được nằm ngoài khung ảnh'),
   left: z.number().min(0, 'Vị trí không được nằm ngoài khung ảnh'),
@@ -27,21 +27,55 @@ const boxSchema = z.object({
   height: z.number().positive('Kích thước phải lớn hơn 0'),
 });
 
-const avatarBoxSchema = boxSchema.extend({
-  shape: z.enum(['circle', 'square']),
-});
-
 const textBoxSchema = boxSchema.extend({
   shrinkAt: z.number().positive().optional(),
   textColor: z.string().min(1, 'Vui lòng chọn màu chữ'),
 });
 
-export const campaignLayoutSchema = z.object({
-  canvas: z.object({
-    width: z.number().positive(),
-    height: z.number().positive(),
-  }),
-  avatarBox: avatarBoxSchema,
+/** Every box must stay fully inside the campaign's own canvas (decided: clamp to canvas, see docs/specs/free-form-layout-editor.md). */
+function checkBoxWithinCanvas(
+  ctx: z.RefinementCtx,
+  path: string,
+  box: { top: number; left: number; width: number; height: number },
+  canvas: { width: number; height: number },
+) {
+  if (box.top + box.height > canvas.height || box.left + box.width > canvas.width) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message: 'Vị trí không được nằm ngoài khung ảnh' });
+  }
+}
+
+/**
+ * `shape` is restricted to 'circle' | 'square' here (narrower than
+ * `AvatarShape`'s full union) because this validates what the free-form
+ * layout editor can produce for a *new or edited* campaign — 'diamond'
+ * isn't offered as a choice in this flow (see
+ * docs/specs/free-form-layout-editor.md), even though it still exists on
+ * old, pre-editor rows (see `campaignLayoutRowSchema` below, used for those).
+ */
+export const campaignLayoutSchema = z
+  .object({
+    canvas: canvasSchema,
+    avatarBox: boxSchema.extend({ shape: z.enum(['circle', 'square']) }),
+    nameBox: textBoxSchema,
+    roleBox: textBoxSchema,
+    messageBox: textBoxSchema,
+  })
+  .superRefine((layout, ctx) => {
+    checkBoxWithinCanvas(ctx, 'avatarBox', layout.avatarBox, layout.canvas);
+    checkBoxWithinCanvas(ctx, 'nameBox', layout.nameBox, layout.canvas);
+    checkBoxWithinCanvas(ctx, 'roleBox', layout.roleBox, layout.canvas);
+    checkBoxWithinCanvas(ctx, 'messageBox', layout.messageBox, layout.canvas);
+  });
+
+/**
+ * Validates a `layout` read back from the `campaigns` table (any row,
+ * including ones created before this editor existed) — permissive on
+ * avatar shape (`diamond` included) where `campaignLayoutSchema` above is
+ * deliberately narrower for what a *new* submission can contain.
+ */
+export const campaignLayoutRowSchema = z.object({
+  canvas: canvasSchema,
+  avatarBox: boxSchema.extend({ shape: z.enum(['circle', 'square', 'diamond']) }),
   nameBox: textBoxSchema,
   roleBox: textBoxSchema,
   messageBox: textBoxSchema,

@@ -2,6 +2,7 @@ import { queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 import { getCampaignService } from '../services/campaign.service.instance';
 import { getStorageService } from '../services/storage.service.instance';
 import type { Campaign, CreateCampaignParams } from '../services/campaign.service';
+import type { CampaignLayout } from '../templates';
 
 /**
  * Centralized, typed query keys for the campaign domain, mirroring
@@ -58,5 +59,16 @@ export function createCampaignMutationOptions(): UseMutationOptions<Campaign, Er
 export function uploadCampaignBackgroundMutationOptions(): UseMutationOptions<string, Error, File> {
   return {
     mutationFn: (file) => getStorageService().uploadCampaignBackground(file),
+  };
+}
+
+/** Powers both the creation-time editor's save step and the standalone re-edit flow. */
+export function updateCampaignLayoutMutationOptions(): UseMutationOptions<
+  Campaign,
+  Error,
+  { campaignId: string; layout: CampaignLayout }
+> {
+  return {
+    mutationFn: ({ campaignId, layout }) => getCampaignService().updateCampaignLayout(campaignId, layout),
   };
 }

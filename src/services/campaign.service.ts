@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { campaignLayoutRowSchema } from '../schemas/campaign.schema';
+import type { CampaignLayout } from '../templates';
 
 export type CampaignVisibility = 'private' | 'public';
 export type CampaignStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
@@ -7,7 +9,14 @@ export interface Campaign {
   id: string;
   ownerId: string;
   slug: string;
-  templateId: string;
+  /**
+   * No longer written by new campaigns (superseded by `layout`, the
+   * free-form layout editor's per-campaign box config) — kept nullable so
+   * old rows and any future reuse of `src/templates/gallery.ts` still have
+   * somewhere to live.
+   */
+  templateId: string | null;
+  layout: CampaignLayout;
   backgroundImageUrl: string;
   musicUrl: string | null;
   visibility: CampaignVisibility;
@@ -18,7 +27,7 @@ export interface Campaign {
 
 export type CreateCampaignParams = {
   slug: string;
-  templateId: string;
+  layout: CampaignLayout;
   backgroundImageUrl: string;
 };
 
@@ -34,6 +43,15 @@ export interface CampaignService {
    * registered both resolve to `null` here, indistinguishably.
    */
   getCampaignBySlug(slug: string): Promise<Campaign | null>;
+  /**
+   * Persists the owner's edits from the free-form layout editor (position/
+   * size/shape/color of the four boxes), for a campaign created before or
+   * after this ticket. Goes through the `set_campaign_layout` RPC rather
+   * than a plain table update — see 0004_campaign_layout.sql for why a
+   * generic owner-scoped UPDATE policy isn't used here (it would also let
+   * an owner rewrite their own `status`, bypassing admin approval).
+   */
+  updateCampaignLayout(campaignId: string, layout: CampaignLayout): Promise<Campaign>;
 }
 
 /** Thrown by every campaign.service method; `message` is always safe to show a user. */
@@ -58,7 +76,12 @@ type CampaignRow = {
   id: string;
   owner_id: string;
   slug: string;
-  template_id: string;
+  template_id: string | null;
+  // Untyped here on purpose — it's jsonb straight from Postgres, an
+  // external-data boundary; `toCampaign` below is what actually validates
+  // its shape into a trustworthy `CampaignLayout` (never trust external
+  // data, including our own database's own jsonb column).
+  layout: unknown;
   background_image_url: string;
   music_url: string | null;
   visibility: CampaignVisibility;
@@ -68,11 +91,17 @@ type CampaignRow = {
 };
 
 function toCampaign(row: CampaignRow): Campaign {
+  const parsedLayout = campaignLayoutRowSchema.safeParse(row.layout);
+  if (!parsedLayout.success) {
+    throw new CampaignServiceError(FALLBACK_MESSAGE, { cause: parsedLayout.error });
+  }
+
   return {
     id: row.id,
     ownerId: row.owner_id,
     slug: row.slug,
     templateId: row.template_id,
+    layout: parsedLayout.data as CampaignLayout,
     backgroundImageUrl: row.background_image_url,
     musicUrl: row.music_url,
     visibility: row.visibility,
@@ -110,7 +139,7 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
       return Boolean(data);
     },
 
-    async createCampaign({ slug, templateId, backgroundImageUrl }) {
+    async createCampaign({ slug, layout, backgroundImageUrl }) {
       const user = await requireUser(client);
 
       const { data, error } = await client
@@ -118,7 +147,7 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
         .insert({
           owner_id: user.id,
           slug,
-          template_id: templateId,
+          layout,
           background_image_url: backgroundImageUrl,
           visibility: 'private',
           status: 'pending',
@@ -162,6 +191,19 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
       }
 
       return data ? toCampaign(data as CampaignRow) : null;
+    },
+
+    async updateCampaignLayout(campaignId, layout) {
+      const { data, error } = await client.rpc('set_campaign_layout', {
+        campaign_id_input: campaignId,
+        layout_input: layout,
+      });
+
+      if (error) {
+        throw new CampaignServiceError('Không thể lưu bố cục. Vui lòng thử lại.', { cause: error });
+      }
+
+      return toCampaign(data as CampaignRow);
     },
   };
 }

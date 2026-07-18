@@ -5,8 +5,11 @@ export type {
   AvatarBoxConfig,
   AvatarShape,
   Box,
+  CampaignLayout,
   CanvasSize,
   FrameContent,
   Template,
   TextBoxConfig,
 } from './types';
+export { getDefaultCampaignLayout } from './defaultLayout';
+export { campaignLayoutToTemplate } from './campaignLayoutToTemplate';

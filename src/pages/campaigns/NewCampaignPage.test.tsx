@@ -10,6 +10,7 @@ const {
   mockCreate,
   mockIsSlugAvailable,
   mockReportCampaignError,
+  mockGetImageDimensions,
 } = vi.hoisted(() => ({
   mockUseAuthSession: vi.fn(),
   mockNavigate: vi.fn(),
@@ -17,6 +18,7 @@ const {
   mockCreate: vi.fn(),
   mockIsSlugAvailable: vi.fn(),
   mockReportCampaignError: vi.fn(),
+  mockGetImageDimensions: vi.fn(),
 }));
 
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -49,6 +51,18 @@ vi.mock('../../utils/report-campaign-error', () => ({
   reportCampaignError: mockReportCampaignError,
 }));
 
+vi.mock('../../utils/get-image-dimensions', () => ({
+  getImageDimensions: mockGetImageDimensions,
+}));
+
+// LayoutEditor's own interaction (drag/resize/shape/color) is covered by its
+// own dedicated tests — this page's tests only need to exercise the
+// upload -> default-layout -> submit orchestration around it, same
+// rationale as CampaignPublicPage.test.tsx's TributeForm stand-in.
+vi.mock('../../components/campaigns/LayoutEditor', () => ({
+  LayoutEditor: () => <div>layout-editor-placeholder</div>,
+}));
+
 function fillValidForm() {
   fireEvent.change(screen.getByLabelText('Đường dẫn'), { target: { value: 'dai-hoi-ben-tre' } });
   const file = new File(['background'], 'bg.jpg', { type: 'image/jpeg' });
@@ -67,6 +81,8 @@ describe('NewCampaignPage', () => {
     mockIsSlugAvailable.mockReset();
     mockIsSlugAvailable.mockResolvedValue(true);
     mockReportCampaignError.mockClear();
+    mockGetImageDimensions.mockReset();
+    mockGetImageDimensions.mockResolvedValue({ width: 1500, height: 843 });
     mockUseAuthSession.mockReturnValue({ session: {}, user: { id: 'user-1' }, isLoading: false, error: null });
   });
 
@@ -112,12 +128,13 @@ describe('NewCampaignPage', () => {
     await screen.findByText('Đường dẫn này đã được sử dụng');
   });
 
-  it('uploads the background, creates the campaign, invalidates the list, and navigates to /campaigns', async () => {
+  it('uploads the background, creates the campaign with the computed default layout, invalidates the list, and navigates to /campaigns', async () => {
     mockUpload.mockResolvedValue('https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg');
     mockCreate.mockResolvedValue({ id: 'campaign-1', slug: 'dai-hoi-ben-tre' });
     renderWithProviders(<NewCampaignPage />);
 
     fillValidForm();
+    await screen.findByText('layout-editor-placeholder');
     fireEvent.click(screen.getByRole('button', { name: 'Tạo chiến dịch' }));
 
     await waitFor(() => expect(mockUpload).toHaveBeenCalledWith(expect.any(File), expect.anything()));
@@ -125,7 +142,19 @@ describe('NewCampaignPage', () => {
       expect(mockCreate).toHaveBeenCalledWith(
         {
           slug: 'dai-hoi-ben-tre',
-          templateId: 'modern-portrait',
+          // The mocked upload resolves a 1500x843 image — modernPortrait's
+          // own canvas size — so the default layout's scale factor is 1:1
+          // and comes back identical to its source box coordinates (see
+          // src/templates/gallery.ts), just with an explicit textColor
+          // filled in wherever modernPortrait relied on a component's
+          // implicit default.
+          layout: {
+            canvas: { width: 1500, height: 843 },
+            avatarBox: { top: 335, left: 200, width: 286, height: 260, shape: 'circle' },
+            nameBox: { top: 605, left: 159, width: 389, height: 40, shrinkAt: 29, textColor: '#ffffff' },
+            roleBox: { top: 650, left: 157, width: 389, height: 45, shrinkAt: 20, textColor: '#ffffff' },
+            messageBox: { top: 358, left: 506, width: 801, height: 229, textColor: '#000' },
+          },
           backgroundImageUrl: 'https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg',
         },
         expect.anything(),
@@ -140,6 +169,7 @@ describe('NewCampaignPage', () => {
     renderWithProviders(<NewCampaignPage />);
 
     fillValidForm();
+    await screen.findByText('layout-editor-placeholder');
     fireEvent.click(screen.getByRole('button', { name: 'Tạo chiến dịch' }));
 
     await waitFor(() =>

@@ -9,7 +9,6 @@ import {
   TributeForm,
   type TributeSubmitValues,
 } from "../../components/public/TributeForm";
-import { TributeResult } from "../../components/public/TributeResult";
 import { useEnv } from "../../config/useEnv";
 import { campaignBySlugQueryOptions } from "../../queries/campaign.queries";
 import {

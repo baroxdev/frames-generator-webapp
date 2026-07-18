@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Alert } from "antd";
+import { Alert, Button } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useParams } from "react-router-dom";
@@ -24,6 +24,7 @@ import { reportSubmissionError } from "../../utils/report-submission-error";
 import { NotFoundPage } from "./NotFoundPage";
 import { useForm, UseFormReturn, useWatch } from "react-hook-form";
 import { Campaign } from "../../services/campaign.service";
+import { DownloadOutlined } from "@ant-design/icons";
 
 // Mirrors the `5000` in `create_submission`'s guard
 // (supabase/migrations/0003_submissions.sql) — this copy only drives a
@@ -156,9 +157,7 @@ export function CampaignPublicPage() {
         message: values.message,
         imageUrl,
       });
-      // Already have the exact uploaded bytes locally — no need to composite
-      // a second time or round-trip to R2 just to display the result.
-      setResultImage(URL.createObjectURL(imageBlob));
+      setResultImage(imageUrl);
     } catch (error) {
       // The avatar object URL is revoked by the cleanup effect above once
       // `submittedContent` changes — no need to revoke it again here.
@@ -182,19 +181,38 @@ export function CampaignPublicPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10">
-      <Previewer
-        campaign={campaign}
-        submittedContent={submittedContent}
-        form={form}
-      />
+      <div className="relative mx-auto w-full max-w-4xl">
+        <Previewer
+          campaign={campaign}
+          submittedContent={submittedContent}
+          form={form}
+        />
+        {/* {resultImage && ( */}
+        <a
+          href={"https://placehold.co/150x150?text=Avatar"}
+          download="anh.jpg"
+          onClick={(e) => {
+            e.preventDefault();
+            if (resultImage) {
+              const link = document.createElement("a");
+              link.href = resultImage;
+              link.download = "khung-anh-tri-an.jpg";
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }
+          }}
+          className="absolute bottom-3 right-1/2 transform translate-x-1/2"
+        >
+          <Button type="primary" icon={<DownloadOutlined />} className="mt-6">
+            Tải ảnh về máy
+          </Button>
+        </a>
+        {/* )} */}
+      </div>
+
       <div className="mx-auto mt-8 w-full max-w-md">
-        {resultImage ? (
-          <TributeResult
-            imageUrl={resultImage}
-            canvasWidth={campaign.layout.canvas.width}
-            canvasHeight={campaign.layout.canvas.height}
-          />
-        ) : isFull ? (
+        {isFull ? (
           <Alert
             type="warning"
             showIcon
@@ -224,7 +242,11 @@ export function CampaignPublicPage() {
         >
           <PrintArea
             ref={compositeRef}
-            template={campaignLayoutToTemplate(campaign.id, campaign.backgroundImageUrl, campaign.layout)}
+            template={campaignLayoutToTemplate(
+              campaign.id,
+              campaign.backgroundImageUrl,
+              campaign.layout,
+            )}
             content={submittedContent}
           />
         </div>
@@ -239,11 +261,7 @@ type PreviewerProps = {
   form: UseFormReturn<TributeSubmitValues>;
 };
 
-function Previewer({
-  campaign,
-  submittedContent,
-  form,
-}: PreviewerProps) {
+function Previewer({ campaign, submittedContent, form }: PreviewerProps) {
   const layout: CampaignLayout = campaign.layout;
   const formValues = useWatch(form);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -303,10 +321,7 @@ function Previewer({
   }
 
   return (
-    <div
-      className="mx-auto w-full max-w-4xl"
-      style={{ containerType: "inline-size" }}
-    >
+    <div style={{ containerType: "inline-size" }}>
       <div
         className="relative overflow-hidden rounded-lg shadow"
         style={{
@@ -324,7 +339,11 @@ function Previewer({
           ref={innerRef}
         >
           <PrintArea
-            template={campaignLayoutToTemplate(campaign.id, campaign.backgroundImageUrl, layout)}
+            template={campaignLayoutToTemplate(
+              campaign.id,
+              campaign.backgroundImageUrl,
+              layout,
+            )}
             content={{
               avatar:
                 submittedContent?.avatar ??

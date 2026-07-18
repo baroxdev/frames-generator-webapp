@@ -7,6 +7,10 @@ const envSchema = z.object({
   VITE_SUPABASE_URL: z.string().url({ message: 'VITE_SUPABASE_URL must be a valid URL' }),
   VITE_SUPABASE_ANON_KEY: z.string().min(1, 'VITE_SUPABASE_ANON_KEY is required'),
   VITE_TURNSTILE_SITE_KEY: z.string().min(1, 'VITE_TURNSTILE_SITE_KEY is required'),
+  // Public by design — Facebook's Feed Dialog (developers.facebook.com/documentation/sharing/reference/feed-dialog)
+  // takes the App ID as a plain query param in the share link itself, unlike
+  // the App Secret, which never appears client-side.
+  VITE_FACEBOOK_APP_ID: z.string().min(1, 'VITE_FACEBOOK_APP_ID is required'),
 });
 
 export type Env = z.infer<typeof envSchema>;

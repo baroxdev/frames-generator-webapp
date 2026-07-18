@@ -27,10 +27,19 @@
 // not the follow-up PUT to r2.cloudflarestorage.com. Configure it once via:
 //   npx wrangler r2 bucket cors put <bucket-name> --rules '[{
 //     "AllowedOrigins": ["https://your-app-domain.example", "http://localhost:5173"],
-//     "AllowedMethods": ["PUT"],
+//     "AllowedMethods": ["PUT", "GET"],
 //     "AllowedHeaders": ["content-type"]
 //   }]'
 // (or the same policy via the Cloudflare dashboard: R2 > bucket > Settings > CORS Policy).
+//
+// GET is in that rule for a second reason beyond serving uploaded images
+// via <img> tags (which isn't CORS-gated at all): the owner submissions
+// dashboard's per-submission download button (downloadImage.ts) calls
+// `fetch()` on a submission's R2_PUBLIC_BASE_URL image to read its bytes
+// and re-offer them as a same-origin blob: URL (needed for a real "Save
+// As" — a plain `<a download>` is silently ignored for cross-origin
+// targets). `fetch()` — unlike <img src> — IS subject to CORS, so without
+// GET allowed here that call throws a "Failed to fetch" TypeError.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';

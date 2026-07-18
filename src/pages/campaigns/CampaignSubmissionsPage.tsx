@@ -1,15 +1,14 @@
 import { DeleteOutlined, DownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Avatar, Button, Modal, Popconfirm, Progress, Table, Tag, Tooltip, message } from 'antd';
+import { Alert, Button, Image, Popconfirm, Table, Tag, Tooltip, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { OwnerLayout } from '../../components/owner/OwnerLayout';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import { campaignKeys, campaignsQueryOptions } from '../../queries/campaign.queries';
 import { deleteSubmissionMutationOptions, submissionKeys, submissionsByCampaignQueryOptions } from '../../queries/submission.queries';
 import type { Submission } from '../../services/submission.service';
-import { downloadSubmissionsAsZip, IMAGES_PER_ZIP_PART, type DownloadProgress } from '../../utils/downloadSubmissionsAsZip';
+import { downloadImage } from '../../utils/downloadImage';
 import { exportSubmissionsToExcel } from '../../utils/exportSubmissionsToExcel';
 import { reportSubmissionError } from '../../utils/report-submission-error';
 
@@ -18,13 +17,24 @@ import { reportSubmissionError } from '../../utils/report-submission-error';
 // why this can only ever be a display value, never enforcement.
 const SUBMISSION_CAP = 5000;
 
-function submissionColumns(onDelete: (submission: Submission) => void, isDeleting: boolean): ColumnsType<Submission> {
+function fileNameFor(submission: Submission): string {
+  return `${submission.fullName.replace(/[\\/:*?"<>|]/g, '_').trim() || 'submission'}-${submission.id.slice(0, 8)}.jpg`;
+}
+
+function submissionColumns(
+  onDelete: (submission: Submission) => void,
+  isDeleting: boolean,
+  onDownload: (submission: Submission) => void,
+  downloadingId: string | null,
+): ColumnsType<Submission> {
   return [
     {
       title: 'Ảnh',
       dataIndex: 'imageUrl',
       key: 'imageUrl',
-      render: (imageUrl: string) => <Avatar shape="square" size={48} src={imageUrl} />,
+      // antd's Image has a built-in click-to-zoom preview lightbox — no
+      // custom modal needed for "view the full image".
+      render: (imageUrl: string) => <Image src={imageUrl} width={48} height={48} className="!object-cover" />,
     },
     { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName' },
     { title: 'Đơn vị', dataIndex: 'role', key: 'role' },
@@ -48,16 +58,25 @@ function submissionColumns(onDelete: (submission: Submission) => void, isDeletin
       title: '',
       key: 'actions',
       render: (_: unknown, submission: Submission) => (
-        <Popconfirm
-          title="Xoá thông điệp này?"
-          description="Ảnh đại diện đính kèm cũng sẽ bị xoá. Hành động này không thể hoàn tác."
-          okText="Xoá"
-          cancelText="Huỷ"
-          okButtonProps={{ danger: true, loading: isDeleting }}
-          onConfirm={() => onDelete(submission)}
-        >
-          <Button danger type="text" icon={<DeleteOutlined />} aria-label="Xoá thông điệp" />
-        </Popconfirm>
+        <div className="flex gap-1">
+          <Button
+            type="text"
+            icon={<DownloadOutlined />}
+            aria-label="Tải ảnh"
+            loading={downloadingId === submission.id}
+            onClick={() => onDownload(submission)}
+          />
+          <Popconfirm
+            title="Xoá thông điệp này?"
+            description="Ảnh đại diện đính kèm cũng sẽ bị xoá. Hành động này không thể hoàn tác."
+            okText="Xoá"
+            cancelText="Huỷ"
+            okButtonProps={{ danger: true, loading: isDeleting }}
+            onConfirm={() => onDelete(submission)}
+          >
+            <Button danger type="text" icon={<DeleteOutlined />} aria-label="Xoá thông điệp" />
+          </Popconfirm>
+        </div>
       ),
     },
   ];
@@ -66,8 +85,17 @@ function submissionColumns(onDelete: (submission: Submission) => void, isDeletin
 /**
  * Owner's private submissions dashboard for one campaign (ticket #7): full
  * submission list, the count against the 5,000 cap, per-submission delete,
- * plus the export-to-Excel and download-all-as-zip actions the ticket's
- * addendum asked for.
+ * export-to-Excel, viewing a submission's full image (antd's built-in
+ * preview lightbox), and downloading one submission's image at a time.
+ *
+ * There's deliberately no "download all as zip" bulk action here — an
+ * earlier attempt at one (client-side, fetching every image at once) hit
+ * Cloudflare R2's public `*.r2.dev` domain rate limit under concurrent
+ * bursts, and the server-side alternative (a Cloudflare Worker with an R2
+ * binding, streaming a zip) turned out to need the Workers Paid plan to
+ * fit a 5,000-image campaign under the subrequest limit. Per-submission
+ * download sidesteps all of that: each click is one, user-gestured fetch,
+ * never a burst, so it never has to contend with r2.dev's throttling.
  *
  * Reuses `campaignsQueryOptions()` to resolve `:id` -> campaign, same as
  * `EditCampaignLayoutPage` — see that page's comment for why this doesn't
@@ -78,9 +106,6 @@ export function CampaignSubmissionsPage() {
   const { user, isLoading: isSessionLoading } = useAuthSession();
   const queryClient = useQueryClient();
 
-  const [zipProgress, setZipProgress] = useState<DownloadProgress | null>(null);
-  const [isZipping, setIsZipping] = useState(false);
-
   const campaignsQuery = useQuery({ ...campaignsQueryOptions(), enabled: Boolean(user) });
   const campaign = campaignsQuery.data?.find((candidate) => candidate.id === id);
 
@@ -90,6 +115,9 @@ export function CampaignSubmissionsPage() {
   });
 
   const deleteMutation = useMutation(deleteSubmissionMutationOptions());
+  const downloadMutation = useMutation({
+    mutationFn: (submission: Submission) => downloadImage(submission.imageUrl, fileNameFor(submission)),
+  });
 
   if (isSessionLoading || campaignsQuery.isLoading) {
     return (
@@ -129,31 +157,11 @@ export function CampaignSubmissionsPage() {
     exportSubmissionsToExcel(submissions, `submissions-${campaign.slug}.xlsx`);
   };
 
-  const handleDownloadZip = async () => {
-    if (submissions.length === 0) return;
-    // Warned up front, not just once mid-download: a multi-part zip fires
-    // several automatic saveAs() calls in a row, which browsers can start
-    // silently blocking after the first couple — see
-    // downloadSubmissionsAsZip.ts's SAVE_GAP_MS comment. There's no
-    // client-side fix for that, only this heads-up so the owner knows to
-    // allow the browser's "multiple downloads" prompt if it appears.
-    if (submissions.length > IMAGES_PER_ZIP_PART) {
-      message.info('Sẽ tải nhiều tệp .zip liên tiếp — vui lòng cho phép trình duyệt tải nhiều tệp nếu được hỏi.', 6);
-    }
-    setIsZipping(true);
-    setZipProgress({ completed: 0, total: submissions.length, failed: 0, part: 1, totalParts: 1 });
+  const handleDownload = async (submission: Submission) => {
     try {
-      const { failed } = await downloadSubmissionsAsZip(submissions, campaign.slug, setZipProgress);
-      if (failed > 0) {
-        message.warning(`Đã tải xong, nhưng ${failed} ảnh không tải được.`);
-      } else {
-        message.success('Đã tải xong toàn bộ ảnh.');
-      }
+      await downloadMutation.mutateAsync(submission);
     } catch (error) {
       reportSubmissionError(error, 'Không thể tải ảnh. Vui lòng thử lại.');
-    } finally {
-      setIsZipping(false);
-      setZipProgress(null);
     }
   };
 
@@ -171,14 +179,6 @@ export function CampaignSubmissionsPage() {
             <Button icon={<FileExcelOutlined />} onClick={handleExportExcel} disabled={submissions.length === 0}>
               Xuất Excel
             </Button>
-            <Button
-              icon={<DownloadOutlined />}
-              onClick={handleDownloadZip}
-              loading={isZipping}
-              disabled={submissions.length === 0}
-            >
-              Tải tất cả ảnh (.zip)
-            </Button>
           </div>
         </div>
 
@@ -188,31 +188,17 @@ export function CampaignSubmissionsPage() {
 
         <Table<Submission>
           rowKey="id"
-          columns={submissionColumns(handleDelete, deleteMutation.isPending)}
+          columns={submissionColumns(
+            handleDelete,
+            deleteMutation.isPending,
+            handleDownload,
+            downloadMutation.isPending ? (downloadMutation.variables?.id ?? null) : null,
+          )}
           dataSource={submissions}
           loading={submissionsQuery.isLoading}
           locale={{ emptyText: 'Chưa có thông điệp nào.' }}
         />
       </div>
-
-      <Modal
-        open={isZipping}
-        title="Đang tải ảnh..."
-        footer={null}
-        closable={false}
-        mask={{ closable: false }}
-      >
-        <Progress
-          percent={zipProgress ? Math.round((zipProgress.completed / Math.max(zipProgress.total, 1)) * 100) : 0}
-        />
-        {zipProgress && (
-          <p className="mt-2 text-sm text-slate-500">
-            {zipProgress.completed} / {zipProgress.total}
-            {zipProgress.totalParts > 1 ? ` — tệp ${zipProgress.part}/${zipProgress.totalParts}` : ''}
-            {zipProgress.failed > 0 ? ` (${zipProgress.failed} lỗi)` : ''}
-          </p>
-        )}
-      </Modal>
     </OwnerLayout>
   );
 }

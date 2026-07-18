@@ -11,7 +11,7 @@ const {
   mockDeleteSubmission,
   mockReportSubmissionError,
   mockExportSubmissionsToExcel,
-  mockDownloadSubmissionsAsZip,
+  mockDownloadImage,
 } = vi.hoisted(() => ({
   mockUseAuthSession: vi.fn(),
   mockListCampaignsForOwner: vi.fn(),
@@ -19,7 +19,7 @@ const {
   mockDeleteSubmission: vi.fn(),
   mockReportSubmissionError: vi.fn(),
   mockExportSubmissionsToExcel: vi.fn(),
-  mockDownloadSubmissionsAsZip: vi.fn(),
+  mockDownloadImage: vi.fn(),
 }));
 
 vi.mock('../../hooks/useAuthSession', () => ({
@@ -48,9 +48,8 @@ vi.mock('../../utils/exportSubmissionsToExcel', () => ({
   exportSubmissionsToExcel: mockExportSubmissionsToExcel,
 }));
 
-vi.mock('../../utils/downloadSubmissionsAsZip', () => ({
-  downloadSubmissionsAsZip: mockDownloadSubmissionsAsZip,
-  IMAGES_PER_ZIP_PART: 500,
+vi.mock('../../utils/downloadImage', () => ({
+  downloadImage: mockDownloadImage,
 }));
 
 const CAMPAIGN = {
@@ -106,7 +105,7 @@ describe('CampaignSubmissionsPage', () => {
     mockDeleteSubmission.mockReset();
     mockReportSubmissionError.mockClear();
     mockExportSubmissionsToExcel.mockClear();
-    mockDownloadSubmissionsAsZip.mockReset();
+    mockDownloadImage.mockReset();
     mockUseAuthSession.mockReturnValue({ session: {}, user: { id: 'user-1' }, isLoading: false, error: null });
     mockListCampaignsForOwner.mockResolvedValue([CAMPAIGN]);
     mockListSubmissionsForCampaign.mockResolvedValue(SUBMISSIONS);
@@ -168,19 +167,31 @@ describe('CampaignSubmissionsPage', () => {
     expect(mockExportSubmissionsToExcel).toHaveBeenCalledWith(SUBMISSIONS, 'submissions-dai-hoi-ben-tre.xlsx');
   });
 
-  it('downloads all images as a zip', async () => {
-    mockDownloadSubmissionsAsZip.mockResolvedValue({ failed: 0 });
+  it('downloads a single submission image when its row download button is clicked', async () => {
+    mockDownloadImage.mockResolvedValue(undefined);
     renderAtId('campaign-1');
     await screen.findByText('Nguyễn Văn A');
 
-    fireEvent.click(screen.getByRole('button', { name: /Tải tất cả ảnh/ }));
+    fireEvent.click(screen.getAllByLabelText('Tải ảnh')[0]);
 
     await waitFor(() =>
-      expect(mockDownloadSubmissionsAsZip).toHaveBeenCalledWith(
-        SUBMISSIONS,
-        'dai-hoi-ben-tre',
-        expect.any(Function),
+      expect(mockDownloadImage).toHaveBeenCalledWith(
+        'https://cdn.example.com/submissions/campaign-1/a.jpg',
+        expect.stringContaining('submission-1'.slice(0, 8)),
       ),
+    );
+  });
+
+  it('reports a friendly error when a single-image download fails', async () => {
+    const failure = new Error('network error');
+    mockDownloadImage.mockRejectedValue(failure);
+    renderAtId('campaign-1');
+    await screen.findByText('Nguyễn Văn A');
+
+    fireEvent.click(screen.getAllByLabelText('Tải ảnh')[0]);
+
+    await waitFor(() =>
+      expect(mockReportSubmissionError).toHaveBeenCalledWith(failure, 'Không thể tải ảnh. Vui lòng thử lại.'),
     );
   });
 });

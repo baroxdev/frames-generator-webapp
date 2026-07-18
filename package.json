@@ -26,7 +26,6 @@
     "antd-img-crop": "^4.12.2",
     "axios": "^1.8.2",
     "browser-image-compression": "^2.0.2",
-    "canvas": "^2.11.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^1.2.1",
     "dom-to-image": "^2.6.0",
@@ -83,5 +82,8 @@
     "typescript": "^5.9.3",
     "vite": "^4.3.9",
     "vitest": "^0.34.6"
+  },
+  "optionalDependencies": {
+    "canvas": "^2.11.2"
   }
 }

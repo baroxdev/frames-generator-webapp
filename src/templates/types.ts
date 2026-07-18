@@ -66,3 +66,12 @@ export interface FrameContent {
   role?: string;
   message?: string;
 }
+
+/**
+ * A campaign's own free-form box layout (ticket: free-form layout editor)
+ * — structurally identical to `Template` minus the fields that only make
+ * sense for a shared, named gallery entry (`id`, `name`, `description`,
+ * `background`). A campaign's background lives on the campaign row itself
+ * (`background_image_url`), not inside its layout.
+ */
+export type CampaignLayout = Pick<Template, 'canvas' | 'avatarBox' | 'nameBox' | 'roleBox' | 'messageBox'>;

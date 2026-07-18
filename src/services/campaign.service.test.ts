@@ -2,11 +2,20 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { CampaignServiceError, createCampaignService } from './campaign.service';
 
+const LAYOUT = {
+  canvas: { width: 1500, height: 843 },
+  avatarBox: { top: 100, left: 100, width: 200, height: 200, shape: 'circle' as const },
+  nameBox: { top: 500, left: 100, width: 300, height: 40, textColor: '#ffffff' },
+  roleBox: { top: 550, left: 100, width: 300, height: 40, textColor: '#ffffff' },
+  messageBox: { top: 100, left: 500, width: 800, height: 400, textColor: '#000000' },
+};
+
 const CAMPAIGN_ROW = {
   id: 'campaign-1',
   owner_id: 'user-1',
   slug: 'dai-hoi-ben-tre',
-  template_id: 'modern-portrait',
+  template_id: null,
+  layout: LAYOUT,
   background_image_url: 'https://cdn.example.com/campaign-backgrounds/user-1/abc.jpg',
   music_url: null,
   visibility: 'private',
@@ -91,7 +100,7 @@ describe('campaign.service', () => {
 
       const result = await service.createCampaign({
         slug: 'dai-hoi-ben-tre',
-        templateId: 'modern-portrait',
+        layout: LAYOUT,
         backgroundImageUrl: CAMPAIGN_ROW.background_image_url,
       });
 
@@ -99,7 +108,8 @@ describe('campaign.service', () => {
         id: 'campaign-1',
         ownerId: 'user-1',
         slug: 'dai-hoi-ben-tre',
-        templateId: 'modern-portrait',
+        templateId: null,
+        layout: LAYOUT,
         backgroundImageUrl: CAMPAIGN_ROW.background_image_url,
         musicUrl: null,
         visibility: 'private',
@@ -116,12 +126,12 @@ describe('campaign.service', () => {
 
       await service.createCampaign({
         slug: 'dai-hoi-ben-tre',
-        templateId: 'modern-portrait',
+        layout: LAYOUT,
         backgroundImageUrl: CAMPAIGN_ROW.background_image_url,
       });
 
       expect(builder.insert).toHaveBeenCalledWith(
-        expect.objectContaining({ visibility: 'private', status: 'pending', owner_id: 'user-1' }),
+        expect.objectContaining({ visibility: 'private', status: 'pending', owner_id: 'user-1', layout: LAYOUT }),
       );
     });
 
@@ -132,7 +142,7 @@ describe('campaign.service', () => {
       const service = createCampaignService(client);
 
       await expect(
-        service.createCampaign({ slug: 'dai-hoi-ben-tre', templateId: 'modern-portrait', backgroundImageUrl: 'x' }),
+        service.createCampaign({ slug: 'dai-hoi-ben-tre', layout: LAYOUT, backgroundImageUrl: 'x' }),
       ).rejects.toThrow(/đã được sử dụng/);
     });
 
@@ -141,8 +151,30 @@ describe('campaign.service', () => {
       const service = createCampaignService(client);
 
       await expect(
-        service.createCampaign({ slug: 'dai-hoi-ben-tre', templateId: 'modern-portrait', backgroundImageUrl: 'x' }),
+        service.createCampaign({ slug: 'dai-hoi-ben-tre', layout: LAYOUT, backgroundImageUrl: 'x' }),
       ).rejects.toBeInstanceOf(CampaignServiceError);
+    });
+  });
+
+  describe('updateCampaignLayout', () => {
+    it('calls the set_campaign_layout RPC and returns the updated campaign mapped to camelCase', async () => {
+      const { client } = createMockSupabaseClient({ rpc: { data: CAMPAIGN_ROW, error: null } });
+      const service = createCampaignService(client);
+
+      const result = await service.updateCampaignLayout('campaign-1', LAYOUT);
+
+      expect(client.rpc).toHaveBeenCalledWith('set_campaign_layout', {
+        campaign_id_input: 'campaign-1',
+        layout_input: LAYOUT,
+      });
+      expect(result.layout).toEqual(LAYOUT);
+    });
+
+    it('throws a friendly CampaignServiceError when the RPC fails', async () => {
+      const { client } = createMockSupabaseClient({ rpc: { data: null, error: { message: 'not found' } } });
+      const service = createCampaignService(client);
+
+      await expect(service.updateCampaignLayout('campaign-1', LAYOUT)).rejects.toBeInstanceOf(CampaignServiceError);
     });
   });
 

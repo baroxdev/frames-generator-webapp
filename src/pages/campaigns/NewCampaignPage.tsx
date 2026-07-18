@@ -4,9 +4,8 @@ import { Button, Card, Form, Input, Upload, message, type UploadFile, type Uploa
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
+import { LayoutEditor } from '../../components/campaigns/LayoutEditor';
 import { OwnerLayout } from '../../components/owner/OwnerLayout';
-import PrintArea from '../../components/PrintArea';
-import TemplateGallery from '../../components/TemplateGallery';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import {
   campaignKeys,
@@ -15,15 +14,13 @@ import {
   uploadCampaignBackgroundMutationOptions,
 } from '../../queries/campaign.queries';
 import { createCampaignSchema, slugField, type CreateCampaignInput } from '../../schemas/campaign.schema';
-import { DEFAULT_TEMPLATE_ID, getTemplateById, getTemplateGallery } from '../../templates';
+import { getDefaultCampaignLayout, type CampaignLayout } from '../../templates';
+import { getImageDimensions } from '../../utils/get-image-dimensions';
 import { reportCampaignError } from '../../utils/report-campaign-error';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
 
 const ALLOWED_BACKGROUND_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const SLUG_DEBOUNCE_MS = 400;
-// Fixed on-screen width for the live preview; the template's own canvas can
-// be far wider than a form column, so it's scaled down uniformly to fit.
-const PREVIEW_DISPLAY_WIDTH = 480;
 
 type FieldErrors = Partial<Record<keyof CreateCampaignInput, string>> & { backgroundImage?: string };
 
@@ -33,10 +30,10 @@ export function NewCampaignPage() {
   const queryClient = useQueryClient();
 
   const [slug, setSlug] = useState('');
-  const [templateId, setTemplateId] = useState(DEFAULT_TEMPLATE_ID);
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
   const [backgroundFileList, setBackgroundFileList] = useState<UploadFile[]>([]);
   const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState<string | null>(null);
+  const [layout, setLayout] = useState<CampaignLayout | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [debouncedSlug] = useDebounce(slug.trim(), SLUG_DEBOUNCE_MS);
 
@@ -52,11 +49,34 @@ export function NewCampaignPage() {
   useEffect(() => {
     if (!backgroundFile) {
       setBackgroundPreviewUrl(null);
+      setLayout(null);
       return;
     }
     const url = URL.createObjectURL(backgroundFile);
     setBackgroundPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
+
+    // The editor's default box layout is a one-time computation derived
+    // from this specific upload's own pixel dimensions (see
+    // docs/specs/free-form-layout-editor.md) — picking a different
+    // background before submit recomputes it from scratch, same as
+    // choosing one the first time. Once the owner starts dragging, their
+    // edits (held in `layout` state) are the new source of truth, not this
+    // effect.
+    let cancelled = false;
+    getImageDimensions(backgroundFile)
+      .then((canvas) => {
+        if (!cancelled) setLayout(getDefaultCampaignLayout(canvas));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setErrors((previous) => ({ ...previous, backgroundImage: 'Không thể đọc kích thước ảnh nền.' }));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      URL.revokeObjectURL(url);
+    };
   }, [backgroundFile]);
 
   if (isLoading) {
@@ -70,10 +90,6 @@ export function NewCampaignPage() {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-
-  const templateGallery = getTemplateGallery();
-  const selectedTemplate = getTemplateById(templateId) ?? templateGallery[0];
-  const previewScale = PREVIEW_DISPLAY_WIDTH / selectedTemplate.canvas.width;
 
   const handleBackgroundChange: UploadProps['onChange'] = (info) => {
     // maxCount={1} already keeps antd's own list to one entry, but guard
@@ -105,7 +121,7 @@ export function NewCampaignPage() {
   const isSubmitting = uploadMutation.isPending || createMutation.isPending;
 
   const handleSubmit = async () => {
-    const parsed = createCampaignSchema.safeParse({ slug: slug.trim(), templateId });
+    const parsed = createCampaignSchema.safeParse({ slug: slug.trim(), layout });
     const fieldErrors: FieldErrors = parsed.success ? {} : fieldErrorsFromZod<keyof CreateCampaignInput>(parsed.error);
     if (!backgroundFile) {
       fieldErrors.backgroundImage = 'Vui lòng tải ảnh nền lên';
@@ -123,7 +139,7 @@ export function NewCampaignPage() {
       const backgroundImageUrl = await uploadMutation.mutateAsync(backgroundFile);
       await createMutation.mutateAsync({
         slug: parsed.data.slug,
-        templateId: parsed.data.templateId,
+        layout: parsed.data.layout,
         backgroundImageUrl,
       });
       await queryClient.invalidateQueries({ queryKey: campaignKeys.list() });
@@ -152,10 +168,6 @@ export function NewCampaignPage() {
           <p className="-mt-4 mb-4 text-xs text-red-600">Đường dẫn này đã được sử dụng</p>
         )}
 
-        <Form.Item label="Mẫu khung">
-          <TemplateGallery templates={templateGallery} selectedId={templateId} onSelect={setTemplateId} />
-        </Form.Item>
-
         <Form.Item label="Ảnh nền" validateStatus={errors.backgroundImage ? 'error' : ''} help={errors.backgroundImage}>
           <Upload.Dragger
             accept={ALLOWED_BACKGROUND_TYPES.join(',')}
@@ -174,24 +186,13 @@ export function NewCampaignPage() {
           </Upload.Dragger>
         </Form.Item>
 
-        {backgroundPreviewUrl && (
-          <Card title="Xem trước" size="small" className="mb-6">
-            <div
-              className="relative overflow-hidden rounded border border-slate-200"
-              style={{ width: PREVIEW_DISPLAY_WIDTH, height: selectedTemplate.canvas.height * previewScale }}
-            >
-              <div style={{ transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
-                <div
-                  className="relative"
-                  style={{ width: selectedTemplate.canvas.width, height: selectedTemplate.canvas.height }}
-                >
-                  <PrintArea
-                    isDevMod
-                    template={{ ...selectedTemplate, background: backgroundPreviewUrl }}
-                    content={{}}
-                  />
-                </div>
-              </div>
+        {backgroundPreviewUrl && layout && (
+          <Card title="Bố trí khung ảnh" size="small" className="mb-6">
+            <p className="mb-4 text-xs text-slate-500">
+              Kéo và thay đổi kích thước các ô để tùy chỉnh vị trí ảnh đại diện, tên, chức vụ và thông điệp.
+            </p>
+            <div className="overflow-auto">
+              <LayoutEditor layout={layout} backgroundImageUrl={backgroundPreviewUrl} onChange={setLayout} />
             </div>
           </Card>
         )}

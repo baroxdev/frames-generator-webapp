@@ -18,8 +18,7 @@ import {
 } from "../../queries/submission.queries";
 import { compositeFrameToBlob } from "../../services/frameCompositor.service";
 import { SubmissionServiceError } from "../../services/submission.service";
-import { getTemplateById } from "../../templates";
-import type { FrameContent } from "../../templates/types";
+import type { CampaignLayout, FrameContent } from "../../templates/types";
 import { reportSubmissionError } from "../../utils/report-submission-error";
 import { NotFoundPage } from "./NotFoundPage";
 import { useForm, UseFormReturn, useWatch } from "react-hook-form";
@@ -89,7 +88,6 @@ export function CampaignPublicPage() {
   const submitTributeMutation = useMutation(submitTributeMutationOptions());
 
   const campaign = query.data;
-  const template = campaign ? getTemplateById(campaign.templateId) : undefined;
 
   useEffect(() => {
     if (!submittedContent?.avatar) return;
@@ -110,7 +108,7 @@ export function CampaignPublicPage() {
     );
   }
 
-  if (!campaign || !template) {
+  if (!campaign) {
     return <NotFoundPage />;
   }
 
@@ -184,7 +182,6 @@ export function CampaignPublicPage() {
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10">
       <Previewer
-        template={template}
         campaign={campaign}
         submittedContent={submittedContent}
         form={form}
@@ -193,8 +190,8 @@ export function CampaignPublicPage() {
         {resultImage ? (
           <TributeResult
             imageUrl={resultImage}
-            canvasWidth={template.canvas.width}
-            canvasHeight={template.canvas.height}
+            canvasWidth={campaign.layout.canvas.width}
+            canvasHeight={campaign.layout.canvas.height}
           />
         ) : isFull ? (
           <Alert
@@ -226,7 +223,13 @@ export function CampaignPublicPage() {
         >
           <PrintArea
             ref={compositeRef}
-            template={{ ...template, background: campaign.backgroundImageUrl }}
+            template={{
+              id: campaign.id,
+              name: "",
+              description: "",
+              background: campaign.backgroundImageUrl,
+              ...campaign.layout,
+            }}
             content={submittedContent}
           />
         </div>
@@ -236,18 +239,17 @@ export function CampaignPublicPage() {
 }
 
 type PreviewerProps = {
-  template: ReturnType<typeof getTemplateById>;
   campaign: Campaign;
   submittedContent: FrameContent | null;
   form: UseFormReturn<TributeSubmitValues>;
 };
 
 function Previewer({
-  template,
   campaign,
   submittedContent,
   form,
 }: PreviewerProps) {
+  const layout: CampaignLayout = campaign.layout;
   const formValues = useWatch(form);
   const containerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -256,9 +258,9 @@ function Previewer({
     const container = containerRef?.current;
     const innerElement = innerRef.current;
 
-    if (!container || !innerElement || !template) return;
+    if (!container || !innerElement) return;
 
-    const TARGET_WIDTH = template.canvas.width; // The original width of the template
+    const TARGET_WIDTH = layout.canvas.width; // The original width of the campaign's canvas
 
     // Create the ResizeObserver to listen to the parent container's width changes
     const resizeObserver = new ResizeObserver((entries) => {
@@ -283,8 +285,8 @@ function Previewer({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [template, containerRef]); // Empty dependency array ensures this runs once on mount
-  if (!template || !campaign) {
+  }, [layout, containerRef]); // Empty dependency array ensures this runs once on mount
+  if (!campaign) {
     return null;
   }
 
@@ -296,23 +298,26 @@ function Previewer({
       <div
         className="relative overflow-hidden rounded-lg shadow"
         style={{
-          aspectRatio: `${template.canvas.width} / ${template.canvas.height}`,
+          aspectRatio: `${layout.canvas.width} / ${layout.canvas.height}`,
         }}
         ref={containerRef}
       >
         <div
           className="relative"
           style={{
-            width: template.canvas.width,
-            height: template.canvas.height,
+            width: layout.canvas.width,
+            height: layout.canvas.height,
             transformOrigin: "top left",
           }}
           ref={innerRef}
         >
           <PrintArea
             template={{
-              ...template,
+              id: campaign.id,
+              name: "",
+              description: "",
               background: campaign.backgroundImageUrl,
+              ...layout,
             }}
             content={{
               avatar:

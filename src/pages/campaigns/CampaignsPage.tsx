@@ -58,6 +58,11 @@ const COLUMNS: ColumnsType<Campaign> = [
     key: 'createdAt',
     render: (createdAt: string) => new Date(createdAt).toLocaleDateString('vi-VN'),
   },
+  {
+    title: '',
+    key: 'actions',
+    render: (_: unknown, campaign: Campaign) => <Link to={`/campaigns/${campaign.id}/edit`}>Chỉnh sửa bố cục</Link>,
+  },
 ];
 
 export function CampaignsPage() {

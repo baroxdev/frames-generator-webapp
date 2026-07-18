@@ -14,14 +14,24 @@ import {
   campaignsQueryOptions,
   createCampaignMutationOptions,
   slugAvailabilityQueryOptions,
+  updateCampaignLayoutMutationOptions,
   uploadCampaignBackgroundMutationOptions,
 } from './campaign.queries';
+
+const LAYOUT = {
+  canvas: { width: 1500, height: 843 },
+  avatarBox: { top: 100, left: 100, width: 200, height: 200, shape: 'circle' as const },
+  nameBox: { top: 500, left: 100, width: 300, height: 40, textColor: '#ffffff' },
+  roleBox: { top: 550, left: 100, width: 300, height: 40, textColor: '#ffffff' },
+  messageBox: { top: 100, left: 500, width: 800, height: 400, textColor: '#000000' },
+};
 
 const CAMPAIGN = {
   id: 'campaign-1',
   ownerId: 'user-1',
   slug: 'dai-hoi-ben-tre',
-  templateId: 'modern-portrait',
+  templateId: null,
+  layout: LAYOUT,
   backgroundImageUrl: 'https://cdn.example.com/bg.jpg',
   musicUrl: null,
   visibility: 'private' as const,
@@ -73,13 +83,26 @@ describe('campaign.queries', () => {
 
     const params: CreateCampaignParams = {
       slug: 'dai-hoi-ben-tre',
-      templateId: 'modern-portrait',
+      layout: LAYOUT,
       backgroundImageUrl: 'https://cdn.example.com/bg.jpg',
     };
     const mutationFn = createCampaignMutationOptions().mutationFn;
     await mutationFn?.(params, { client: new QueryClient(), meta: undefined });
 
     expect(createCampaign).toHaveBeenCalledWith(params);
+  });
+
+  it('updateCampaignLayoutMutationOptions wraps campaign.service.updateCampaignLayout without adding its own logic', async () => {
+    const updateCampaignLayout = vi.fn().mockResolvedValue(CAMPAIGN);
+    vi.mocked(getCampaignService).mockReturnValue({ updateCampaignLayout } as unknown as CampaignService);
+
+    const mutationFn = updateCampaignLayoutMutationOptions().mutationFn;
+    await mutationFn?.(
+      { campaignId: 'campaign-1', layout: LAYOUT },
+      { client: new QueryClient(), meta: undefined },
+    );
+
+    expect(updateCampaignLayout).toHaveBeenCalledWith('campaign-1', LAYOUT);
   });
 
   it('uploadCampaignBackgroundMutationOptions wraps storage.service.uploadCampaignBackground without adding its own logic', async () => {

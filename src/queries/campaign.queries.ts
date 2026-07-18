@@ -11,6 +11,7 @@ export const campaignKeys = {
   all: ['campaigns'] as const,
   list: () => [...campaignKeys.all, 'list'] as const,
   slugAvailability: (slug: string) => [...campaignKeys.all, 'slug-availability', slug] as const,
+  bySlug: (slug: string) => [...campaignKeys.all, 'by-slug', slug] as const,
 };
 
 export function campaignsQueryOptions() {
@@ -31,6 +32,14 @@ export function slugAvailabilityQueryOptions(slug: string) {
     queryKey: campaignKeys.slugAvailability(slug),
     queryFn: (): Promise<boolean> => getCampaignService().isSlugAvailable(slug),
     staleTime: 0,
+  });
+}
+
+/** Powers the public /:slug campaign page — callable while signed out. */
+export function campaignBySlugQueryOptions(slug: string) {
+  return queryOptions({
+    queryKey: campaignKeys.bySlug(slug),
+    queryFn: (): Promise<Campaign | null> => getCampaignService().getCampaignBySlug(slug),
   });
 }
 

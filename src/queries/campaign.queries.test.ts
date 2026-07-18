@@ -9,6 +9,7 @@ vi.mock('../services/storage.service.instance', () => ({ getStorageService: vi.f
 import { getCampaignService } from '../services/campaign.service.instance';
 import { getStorageService } from '../services/storage.service.instance';
 import {
+  campaignBySlugQueryOptions,
   campaignKeys,
   campaignsQueryOptions,
   createCampaignMutationOptions,
@@ -52,6 +53,18 @@ describe('campaign.queries', () => {
     expect(result).toBe(true);
     expect(isSlugAvailable).toHaveBeenCalledWith('dai-hoi-ben-tre');
     expect(queryClient.getQueryData(campaignKeys.slugAvailability('dai-hoi-ben-tre'))).toBe(true);
+  });
+
+  it('campaignBySlugQueryOptions fetches through campaign.service, keyed per slug, and caches null when not found', async () => {
+    const getCampaignBySlug = vi.fn().mockResolvedValue(null);
+    vi.mocked(getCampaignService).mockReturnValue({ getCampaignBySlug } as unknown as CampaignService);
+
+    const queryClient = new QueryClient();
+    const result = await queryClient.fetchQuery(campaignBySlugQueryOptions('unknown-slug'));
+
+    expect(result).toBeNull();
+    expect(getCampaignBySlug).toHaveBeenCalledWith('unknown-slug');
+    expect(queryClient.getQueryData(campaignKeys.bySlug('unknown-slug'))).toBeNull();
   });
 
   it('createCampaignMutationOptions wraps campaign.service.createCampaign without adding its own logic', async () => {

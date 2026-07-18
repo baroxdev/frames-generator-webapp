@@ -21,6 +21,7 @@ type MockQueryBuilder = {
   eq: ReturnType<typeof vi.fn>;
   order: ReturnType<typeof vi.fn>;
   single: ReturnType<typeof vi.fn>;
+  maybeSingle: ReturnType<typeof vi.fn>;
   then: (resolve: (value: unknown) => void) => void;
 };
 
@@ -43,6 +44,7 @@ function createMockSupabaseClient(options: {
     eq: vi.fn(() => builder),
     order: vi.fn(() => builder),
     single: vi.fn(() => builder),
+    maybeSingle: vi.fn(() => builder),
     then: (resolve: (value: unknown) => void) => resolve(queryResult),
   };
 
@@ -162,6 +164,35 @@ describe('campaign.service', () => {
       const service = createCampaignService(client);
 
       await expect(service.listCampaignsForOwner()).rejects.toBeInstanceOf(CampaignServiceError);
+    });
+  });
+
+  describe('getCampaignBySlug', () => {
+    it('returns the campaign mapped to camelCase when RLS allows the row through (approved, or owned by the caller)', async () => {
+      const { client, builder } = createMockSupabaseClient({ queryResult: { data: CAMPAIGN_ROW, error: null } });
+      const service = createCampaignService(client);
+
+      const result = await service.getCampaignBySlug('dai-hoi-ben-tre');
+
+      expect(result?.slug).toBe('dai-hoi-ben-tre');
+      expect(builder.eq).toHaveBeenCalledWith('slug', 'dai-hoi-ben-tre');
+      // No auth.getUser() guard here — this is the one method a signed-out
+      // visitor calls, so it must not require a session.
+      expect(client.auth.getUser).not.toHaveBeenCalled();
+    });
+
+    it('returns null (not a thrown error) when no row is visible — RLS makes a pending/rejected/suspended campaign and a nonexistent slug indistinguishable', async () => {
+      const { client } = createMockSupabaseClient({ queryResult: { data: null, error: null } });
+      const service = createCampaignService(client);
+
+      await expect(service.getCampaignBySlug('not-approved-or-missing')).resolves.toBeNull();
+    });
+
+    it('throws a friendly CampaignServiceError on an actual query failure', async () => {
+      const { client } = createMockSupabaseClient({ queryResult: { data: null, error: { message: 'network error' } } });
+      const service = createCampaignService(client);
+
+      await expect(service.getCampaignBySlug('dai-hoi-ben-tre')).rejects.toBeInstanceOf(CampaignServiceError);
     });
   });
 });

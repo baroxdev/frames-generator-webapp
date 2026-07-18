@@ -12,6 +12,8 @@ import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage.tsx";
 import { SignUpPage } from "./pages/auth/SignUpPage.tsx";
 import { CampaignsPage } from "./pages/campaigns/CampaignsPage.tsx";
 import { NewCampaignPage } from "./pages/campaigns/NewCampaignPage.tsx";
+import { CampaignPublicPage } from "./pages/public/CampaignPublicPage.tsx";
+import { NotFoundPage } from "./pages/public/NotFoundPage.tsx";
 import "./index.css";
 
 // Single QueryClient for the whole app. Every later ticket's queries/
@@ -34,6 +36,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           <Route path="/account" element={<AccountPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
           <Route path="/campaigns/new" element={<NewCampaignPage />} />
+          <Route path="/:slug" element={<CampaignPublicPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

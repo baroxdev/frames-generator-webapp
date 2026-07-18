@@ -26,6 +26,14 @@ export interface CampaignService {
   isSlugAvailable(slug: string): Promise<boolean>;
   createCampaign(params: CreateCampaignParams): Promise<Campaign>;
   listCampaignsForOwner(): Promise<Campaign[]>;
+  /**
+   * Looks up a campaign by its public slug — the one method here callable
+   * by a signed-out visitor. Row-level security (0002_public_approved_campaigns.sql)
+   * only exposes a row if it's `approved` or owned by the caller, so a
+   * pending/rejected/suspended campaign and a slug that was never
+   * registered both resolve to `null` here, indistinguishably.
+   */
+  getCampaignBySlug(slug: string): Promise<Campaign | null>;
 }
 
 /** Thrown by every campaign.service method; `message` is always safe to show a user. */
@@ -144,6 +152,16 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
       }
 
       return (data as CampaignRow[]).map(toCampaign);
+    },
+
+    async getCampaignBySlug(slug) {
+      const { data, error } = await client.from('campaigns').select().eq('slug', slug).maybeSingle();
+
+      if (error) {
+        throw new CampaignServiceError('Không thể tải chiến dịch. Vui lòng thử lại.', { cause: error });
+      }
+
+      return data ? toCampaign(data as CampaignRow) : null;
     },
   };
 }

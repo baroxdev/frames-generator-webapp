@@ -78,4 +78,39 @@ describe('storage.service', () => {
 
     await expect(service.uploadCampaignBackground(ORIGINAL_FILE)).rejects.toBeInstanceOf(StorageServiceError);
   });
+
+  describe('uploadSubmissionAvatar', () => {
+    const SUBMISSION_PRESIGNED = {
+      uploadUrl: 'https://r2.example.com/submissions/campaign-1/abc.jpg?X-Amz-Signature=...',
+      publicUrl: 'https://cdn.example.com/submissions/campaign-1/abc.jpg',
+    };
+
+    it('compresses the file, requests a presigned URL scoped to the campaign, PUTs to R2, and returns the public URL', async () => {
+      const invoke = vi.fn().mockResolvedValue({ data: SUBMISSION_PRESIGNED, error: null });
+      const client = createMockSupabaseClient({ invoke });
+      const service = createStorageService(client);
+
+      const result = await service.uploadSubmissionAvatar('campaign-1', ORIGINAL_FILE);
+
+      expect(mockCompressImage).toHaveBeenCalledWith(ORIGINAL_FILE);
+      expect(invoke).toHaveBeenCalledWith('submission-presigned-upload', {
+        body: { contentType: 'image/jpeg', campaignId: 'campaign-1' },
+      });
+      expect(fetch).toHaveBeenCalledWith(
+        SUBMISSION_PRESIGNED.uploadUrl,
+        expect.objectContaining({ method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: COMPRESSED_FILE }),
+      );
+      expect(result).toBe(SUBMISSION_PRESIGNED.publicUrl);
+    });
+
+    it('throws a StorageServiceError when requesting the presigned URL fails', async () => {
+      const invoke = vi.fn().mockResolvedValue({ data: null, error: { message: 'campaign not approved' } });
+      const client = createMockSupabaseClient({ invoke });
+      const service = createStorageService(client);
+
+      await expect(service.uploadSubmissionAvatar('campaign-1', ORIGINAL_FILE)).rejects.toBeInstanceOf(
+        StorageServiceError,
+      );
+    });
+  });
 });

@@ -5,6 +5,8 @@ type TurnstileRenderOptions = {
   callback: (token: string) => void;
   'expired-callback'?: () => void;
   'error-callback'?: () => void;
+  /** Echoed back in siteverify's response so a server can confirm the token was solved for this specific action (see submit-tribute's Turnstile check). */
+  action?: string;
 };
 
 declare global {
@@ -42,6 +44,8 @@ type TurnstileWidgetProps = {
   onVerify: (token: string) => void;
   onExpire?: () => void;
   onError?: () => void;
+  /** Passed through to Turnstile's `action` render option — set this when a server needs to verify the token was solved for a specific action (e.g. `submit-tribute`), not just anywhere on the site. */
+  action?: string;
 };
 
 /** Imperative handle so callers can force a fresh challenge (Turnstile tokens are single-use — a failed submit must reset the widget before retrying). */
@@ -50,13 +54,15 @@ export type TurnstileWidgetHandle = {
 };
 
 /**
- * Renders a Cloudflare Turnstile CAPTCHA challenge. Supabase Auth verifies
- * the resulting token server-side when it's passed as `captchaToken` to
- * `signUp`, so this component only needs to collect the token — there is no
- * custom backend for it to call.
+ * Renders a Cloudflare Turnstile CAPTCHA challenge. This component only
+ * collects the token — verification happens server-side wherever it's
+ * consumed: Supabase Auth verifies it directly when passed as
+ * `captchaToken` to `signUp`, while the visitor submission flow (#6) sends
+ * it to the `submit-tribute` Edge Function, which calls Cloudflare's
+ * siteverify API itself.
  */
 export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(function TurnstileWidget(
-  { siteKey, onVerify, onExpire, onError },
+  { siteKey, onVerify, onExpire, onError, action },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,6 +92,7 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
           callback: onVerify,
           'expired-callback': onExpire,
           'error-callback': onError,
+          action,
         });
       })
       .catch(() => onError?.());

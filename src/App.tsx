@@ -8,7 +8,6 @@ import {
   UploadProps,
 } from "antd/es/upload";
 import imageCompression from "browser-image-compression";
-import html2canvas from "html2canvas-pro";
 import { DownloadIcon, EyeIcon } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import FileResizer from "react-image-file-resizer";
@@ -21,7 +20,7 @@ import { Button } from "./components/ui/button";
 import PrintArea from "./components/PrintArea";
 import TemplateGallery from "./components/TemplateGallery";
 import TopBanner from "./components/TopBanner";
-import { getExportWindowWidth } from "./services/frameExport.service";
+import { compositeFrameToDataUrl } from "./services/frameCompositor.service";
 import { DEFAULT_TEMPLATE_ID, getTemplateById, getTemplateGallery } from "./templates";
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -204,21 +203,7 @@ function App() {
         setAvatar(compressedImage as RcFile);
       }
 
-      const canvas = await html2canvas(cardRef.current, {
-        windowWidth: getExportWindowWidth(selectedTemplate.canvas.width),
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        scale: 2, // Higher scale for better quality on mobile
-        onclone: (document) => {
-          // Force load fonts before rendering
-          document.fonts.ready.then(() => {
-            console.log("Fonts have loaded and are ready to use");
-          });
-        },
-      });
-
-      return canvas.toDataURL("image/jpeg", 0.9);
+      return await compositeFrameToDataUrl(cardRef.current, selectedTemplate.canvas.width);
     } catch (error) {
       console.error("Compression error:", error);
       messageApi.open({

@@ -249,6 +249,23 @@ function Previewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
 
+  // As soon as the visitor picks/crops an avatar, the live preview should
+  // show that actual photo — not the static placeholder — even before they
+  // submit. `submittedContent` (below) only exists post-submit, so this is
+  // a second, earlier source for the same `avatar` slot; the placeholder
+  // stays the fallback for "nothing chosen yet" only.
+  const avatarFile = formValues.avatar?.file;
+  const [liveAvatarUrl, setLiveAvatarUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!avatarFile) {
+      setLiveAvatarUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(avatarFile);
+    setLiveAvatarUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [avatarFile]);
+
   React.useEffect(() => {
     const container = containerRef?.current;
     const innerElement = innerRef.current;
@@ -311,6 +328,7 @@ function Previewer({
             content={{
               avatar:
                 submittedContent?.avatar ??
+                liveAvatarUrl ??
                 "https://placehold.co/150x150?text=Avatar",
               fullName: formValues.fullName ?? "Họ và tên",
               role: formValues.role ?? "Đơn vị / Chức vụ",

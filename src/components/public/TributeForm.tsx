@@ -18,23 +18,9 @@ type TributeFormProps = {
   turnstileSiteKey: string;
   isSubmitting: boolean;
   form: UseFormReturn<TributeSubmitValues>;
-  /** Rejecting signals a failed submit — the form resets its (single-use) Turnstile token so the visitor can retry without a confusing silent failure. */
   onSubmit: (values: TributeSubmitValues) => Promise<void>;
 };
 
-/**
- * The visitor-facing tribute submission form: avatar (crop to a square,
- * matching legacy App.tsx's `antd-img-crop` + `Upload` pattern), full name,
- * role/unit, message, a Turnstile challenge, and a one-line consent notice
- * next to the submit action — the ticket #6 acceptance criteria in form
- * order. Owns all of its own field state so `CampaignPublicPage` only needs
- * to know about the final submitted values.
- *
- * `avatarFile` is only ever used to render into the visitor's live template
- * preview for compositing — it is never uploaded on its own. Only the final
- * composited frame (background + this avatar + the text fields below,
- * produced by `frameCompositor.service.ts`) gets uploaded to R2.
- */
 export function TributeForm({
   turnstileSiteKey,
   isSubmitting,
@@ -97,6 +83,7 @@ export function TributeForm({
                 modalTitle="Chỉnh sửa ảnh đại diện"
               >
                 <Upload
+                  style={{ width: 120, height: 120 }}
                   listType="picture-circle"
                   maxCount={1}
                   showUploadList={false}

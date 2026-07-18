@@ -3,10 +3,14 @@ import Konva from 'konva';
 import { useEffect, useRef, useState } from 'react';
 import { Image as KonvaImage, Layer, Rect, Stage, Text, Transformer } from 'react-konva';
 import { useHtmlImage } from '../../hooks/useHtmlImage';
+import { fitTextFontSize } from '../../utils/fitTextToBox';
+import { measureTextWidth } from '../../utils/measureText';
+import { fontAtSize, MESSAGE_FONT_TEMPLATE, NAME_ROLE_FONT_TEMPLATE } from '../../utils/textFonts';
 import type { AvatarShape, Box, CampaignLayout } from '../../templates/types';
 import { clampBoxToCanvas } from './layoutBoxMath';
 
 type BoxKey = 'avatarBox' | 'nameBox' | 'roleBox' | 'messageBox';
+type TextBoxKey = Exclude<BoxKey, 'avatarBox'>;
 
 const BOX_KEYS: BoxKey[] = ['avatarBox', 'nameBox', 'roleBox', 'messageBox'];
 
@@ -25,6 +29,17 @@ const BOX_TITLE: Record<BoxKey, string> = {
   messageBox: 'Thông điệp',
 };
 
+const FONT_TEMPLATE: Record<TextBoxKey, string> = {
+  nameBox: NAME_ROLE_FONT_TEMPLATE,
+  roleBox: NAME_ROLE_FONT_TEMPLATE,
+  messageBox: MESSAGE_FONT_TEMPLATE,
+};
+
+// Mirrors Message.tsx's own cap — however large the message box is, the
+// preview shouldn't suggest text bigger than what production will ever
+// actually render.
+const MAX_MESSAGE_FONT_SIZE = 150;
+
 type LayoutEditorProps = {
   layout: CampaignLayout;
   backgroundImageUrl: string;
@@ -39,11 +54,13 @@ type LayoutEditorProps = {
  * field) rather than the DOM/CSS `PrintArea` component — an earlier
  * PrintArea-underneath + transparent-Konva-overlay hybrid didn't hold up in
  * practice (see PR discussion), and `PrintArea` stays reserved for the
- * actual visitor-facing campaign page and export pipeline. This trades away
- * exact font/style fidelity in the editor's preview (its placeholders are
- * plain Konva text, not the real `Name`/`Role`/`Message` components) in
- * exchange for a single, consistently-behaved rendering/interaction layer;
- * closing that visual gap is a follow-up, not solved here.
+ * actual visitor-facing campaign page and export pipeline.
+ *
+ * Text box labels use the same `fitTextFontSize`/`measureTextWidth`
+ * machinery as the real `Name`/`Role`/`Message` components (see
+ * `src/utils/textFonts.ts`), so sizing behaves consistently between this
+ * preview and production even though the rendering technology (canvas vs.
+ * DOM) differs.
  *
  * Fits the canvas to the available container width by scaling the `Stage`
  * itself (`scaleX`/`scaleY`) rather than transforming a wrapper div — Konva
@@ -57,6 +74,15 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
   const transformerRef = useRef<Konva.Transformer>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+
+  // Ephemeral, preview-only sample text per text box — double-click a box
+  // to edit it, purely to see how auto-fit sizing behaves for a shorter or
+  // longer sample than the default placeholder. Never sent to `onChange`:
+  // `CampaignLayout` only ever stores box position/size/shape/color, never
+  // content (see docs/specs/free-form-layout-editor.md).
+  const [previewText, setPreviewText] = useState<Partial<Record<TextBoxKey, string>>>({});
+  const [editingKey, setEditingKey] = useState<TextBoxKey | null>(null);
+  const [draftText, setDraftText] = useState('');
 
   const backgroundImage = useHtmlImage(backgroundImageUrl);
 
@@ -88,13 +114,28 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
     onChange({ ...layout, avatarBox: { ...layout.avatarBox, shape } });
   };
 
-  const setTextColor = (key: Exclude<BoxKey, 'avatarBox'>, textColor: string) => {
+  const setTextColor = (key: TextBoxKey, textColor: string) => {
     onChange({ ...layout, [key]: { ...layout[key], textColor } });
   };
 
+  const startEditing = (key: TextBoxKey) => {
+    setSelected(key);
+    setEditingKey(key);
+    setDraftText(previewText[key] ?? PLACEHOLDER_LABEL[key]);
+  };
+
+  const commitEditing = () => {
+    if (editingKey) {
+      setPreviewText((previous) => ({ ...previous, [editingKey]: draftText.trim() || PLACEHOLDER_LABEL[editingKey] }));
+    }
+    setEditingKey(null);
+  };
+
+  const cancelEditing = () => setEditingKey(null);
+
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <div ref={containerRef} className="min-w-0 flex-1">
+      <div ref={containerRef} className="relative min-w-0 flex-1">
         <Stage
           width={layout.canvas.width * scale}
           height={layout.canvas.height * scale}
@@ -141,6 +182,8 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
                   draggable
                   onClick={() => setSelected(key)}
                   onTap={() => setSelected(key)}
+                  onDblClick={() => !isAvatar && startEditing(key as TextBoxKey)}
+                  onDblTap={() => !isAvatar && startEditing(key as TextBoxKey)}
                   dragBoundFunc={(pos) => {
                     const clamped = clampBoxToCanvas({ ...box, left: pos.x, top: pos.y }, layout.canvas);
                     return { x: clamped.left, y: clamped.top };
@@ -177,6 +220,23 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
             {BOX_KEYS.map((key) => {
               const box = layout[key];
               const isAvatar = key === 'avatarBox';
+              // Hide the label while its own textarea overlay is open —
+              // otherwise the stale Konva-drawn text shows through beneath
+              // the (semi-transparent) box while typing.
+              if (editingKey === key) return null;
+
+              const text = isAvatar ? PLACEHOLDER_LABEL[key] : previewText[key as TextBoxKey] ?? PLACEHOLDER_LABEL[key];
+              const fontSize = isAvatar
+                ? Math.max(12, Math.min(box.height * 0.3, 32))
+                : fitTextFontSize({
+                    text,
+                    box,
+                    multiline: key === 'messageBox',
+                    maxFontSize: key === 'messageBox' ? MAX_MESSAGE_FONT_SIZE : undefined,
+                    measure: (measuredText, sizePx) =>
+                      measureTextWidth(measuredText, fontAtSize(FONT_TEMPLATE[key as TextBoxKey], sizePx)),
+                  });
+
               return (
                 <Text
                   key={`${key}-label`}
@@ -184,8 +244,8 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
                   y={box.top}
                   width={box.width}
                   height={box.height}
-                  text={PLACEHOLDER_LABEL[key]}
-                  fontSize={Math.max(12, Math.min(box.height * 0.3, 32))}
+                  text={text}
+                  fontSize={fontSize}
                   fill={isAvatar ? '#334155' : (layout[key] as { textColor?: string }).textColor ?? '#334155'}
                   align="center"
                   verticalAlign="middle"
@@ -209,6 +269,33 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
             />
           </Layer>
         </Stage>
+
+        {editingKey && (
+          <textarea
+            autoFocus
+            data-testid="preview-text-editor"
+            className="absolute resize-none border-2 border-blue-500 bg-white/90 p-1 outline-none"
+            style={{
+              left: layout[editingKey].left * scale,
+              top: layout[editingKey].top * scale,
+              width: layout[editingKey].width * scale,
+              height: layout[editingKey].height * scale,
+              fontSize: 14,
+            }}
+            value={draftText}
+            onChange={(event) => setDraftText(event.target.value)}
+            onBlur={commitEditing}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                cancelEditing();
+              } else if (event.key === 'Enter' && !event.shiftKey && editingKey !== 'messageBox') {
+                event.preventDefault();
+                commitEditing();
+              }
+            }}
+          />
+        )}
       </div>
 
       {/* Properties sidebar, mirroring how design tools (Figma, etc.) show
@@ -239,13 +326,18 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
             )}
 
             {selected !== 'avatarBox' && (
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-slate-500">Màu chữ</span>
-                <ColorPicker
-                  value={layout[selected].textColor}
-                  onChangeComplete={(color) => setTextColor(selected, color.toHexString())}
-                />
-              </div>
+              <>
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs text-slate-500">Màu chữ</span>
+                  <ColorPicker
+                    value={layout[selected].textColor}
+                    onChangeComplete={(color) => setTextColor(selected, color.toHexString())}
+                  />
+                </div>
+                <p className="text-xs text-slate-400">
+                  Cỡ chữ tự động vừa khít theo kích thước ô. Nhấp đúp vào ô trên ảnh để thử với nội dung mẫu khác.
+                </p>
+              </>
             )}
           </div>
         )}

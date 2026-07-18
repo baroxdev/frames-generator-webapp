@@ -1,5 +1,34 @@
 import { domToBlob } from 'modern-screenshot';
 
+// Common social platforms (Facebook, Zalo, etc.) downscale a shared image's
+// long edge to somewhere in this neighborhood server-side regardless of
+// what's uploaded — exporting at a higher resolution than this spends bytes
+// on pixels no viewer will ever actually see.
+const MAX_EXPORT_LONG_EDGE = 2048;
+// Upper bound on the rasterization multiplier itself, so a small campaign
+// canvas doesn't get supersampled far beyond any visible benefit.
+const MAX_EXPORT_SCALE = 2;
+
+/**
+ * Picks a rasterization scale so the exported image's long edge lands at
+ * `MAX_EXPORT_LONG_EDGE` regardless of the campaign's own canvas size —
+ * before the free-form layout editor, every canvas was a fixed, modest
+ * template size and a flat `scale: 2` was harmless; now a campaign's canvas
+ * is derived directly from whatever background the owner uploaded (seen as
+ * large as 5555x3124 in testing), so a flat multiplier could rasterize at
+ * tens of megapixels for no visual benefit and a large file-size cost.
+ *
+ * A small canvas still gets scaled *up* to `MAX_EXPORT_SCALE`, not forced
+ * down to fit exactly `MAX_EXPORT_LONG_EDGE` — there's no benefit to
+ * supersampling far past that, but under it, standard crisper-export
+ * behavior is kept.
+ */
+export function computeExportScale(node: HTMLElement): number {
+  const longEdge = Math.max(node.offsetWidth, node.offsetHeight);
+  if (longEdge <= 0) return MAX_EXPORT_SCALE;
+  return Math.min(MAX_EXPORT_LONG_EDGE / longEdge, MAX_EXPORT_SCALE);
+}
+
 /**
  * Rasterizes a rendered `PrintArea` node into the final composited JPEG,
  * as a `Blob` — extracted from App.tsx's original `generateDataUrl` (the
@@ -30,7 +59,7 @@ export async function compositeFrameToBlob(node: HTMLElement): Promise<Blob> {
   return domToBlob(node, {
     type: 'image/jpeg',
     quality: 0.9,
-    scale: 2,
+    scale: computeExportScale(node),
     font: {},
   });
 }

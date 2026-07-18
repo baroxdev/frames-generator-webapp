@@ -42,6 +42,15 @@ describe('getDefaultCampaignLayout', () => {
     expect(layout.messageBox.textColor).toBeTruthy();
   });
 
+  it('opts every text box into continuous auto-fit sizing (not the source template\'s shrinkAt threshold)', () => {
+    const layout = getDefaultCampaignLayout({ width: 1200, height: 900 });
+    expect(layout.nameBox.autoFit).toBe(true);
+    expect(layout.roleBox.autoFit).toBe(true);
+    expect(layout.messageBox.autoFit).toBe(true);
+    expect(layout.nameBox.shrinkAt).toBeUndefined();
+    expect(layout.roleBox.shrinkAt).toBeUndefined();
+  });
+
   it('keeps every box fully inside the resulting canvas, for a canvas of a very different aspect ratio', () => {
     const canvas = { width: 2000, height: 500 };
     const layout = getDefaultCampaignLayout(canvas);

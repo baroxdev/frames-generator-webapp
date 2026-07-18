@@ -14,6 +14,7 @@ export interface ResolvedBoxProps {
   y: number;
   limit?: number;
   textColor?: string;
+  autoFit?: boolean;
 }
 
 export interface ResolvedAvatarProps extends ResolvedBoxProps {
@@ -59,6 +60,7 @@ export function resolveTemplateLayout(
       y: template.nameBox.left,
       limit: template.nameBox.shrinkAt,
       textColor: template.nameBox.textColor,
+      autoFit: template.nameBox.autoFit,
     },
     role: {
       content: content.role,
@@ -68,6 +70,7 @@ export function resolveTemplateLayout(
       y: template.roleBox.left,
       limit: template.roleBox.shrinkAt,
       textColor: template.roleBox.textColor,
+      autoFit: template.roleBox.autoFit,
     },
     message: {
       content: content.message,
@@ -76,6 +79,7 @@ export function resolveTemplateLayout(
       x: template.messageBox.top,
       y: template.messageBox.left,
       textColor: template.messageBox.textColor,
+      autoFit: template.messageBox.autoFit,
     },
   };
 }

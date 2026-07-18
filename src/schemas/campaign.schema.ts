@@ -30,6 +30,10 @@ const boxSchema = z.object({
 const textBoxSchema = boxSchema.extend({
   shrinkAt: z.number().positive().optional(),
   textColor: z.string().min(1, 'Vui lòng chọn màu chữ'),
+  // See TextBoxConfig.autoFit in src/templates/types.ts — mutually
+  // exclusive with shrinkAt in practice, but both stay optional here since
+  // nothing enforces that exclusivity at the type level either.
+  autoFit: z.boolean().optional(),
 });
 
 /** Every box must stay fully inside the campaign's own canvas (decided: clamp to canvas, see docs/specs/free-form-layout-editor.md). */

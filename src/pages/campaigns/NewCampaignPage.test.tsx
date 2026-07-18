@@ -151,9 +151,9 @@ describe('NewCampaignPage', () => {
           layout: {
             canvas: { width: 1500, height: 843 },
             avatarBox: { top: 335, left: 200, width: 286, height: 260, shape: 'circle' },
-            nameBox: { top: 605, left: 159, width: 389, height: 40, shrinkAt: 29, textColor: '#ffffff' },
-            roleBox: { top: 650, left: 157, width: 389, height: 45, shrinkAt: 20, textColor: '#ffffff' },
-            messageBox: { top: 358, left: 506, width: 801, height: 229, textColor: '#000' },
+            nameBox: { top: 605, left: 159, width: 389, height: 40, autoFit: true, textColor: '#ffffff' },
+            roleBox: { top: 650, left: 157, width: 389, height: 45, autoFit: true, textColor: '#ffffff' },
+            messageBox: { top: 358, left: 506, width: 801, height: 229, autoFit: true, textColor: '#000' },
           },
           backgroundImageUrl: 'https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg',
         },

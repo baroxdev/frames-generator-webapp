@@ -27,7 +27,13 @@ function scaleBox(box: Box, sourceCanvas: CanvasSize, targetCanvas: CanvasSize):
 function scaleTextBox(box: TextBoxConfig, sourceCanvas: CanvasSize, targetCanvas: CanvasSize, fallbackColor: string): TextBoxConfig {
   return {
     ...scaleBox(box, sourceCanvas, targetCanvas),
-    shrinkAt: box.shrinkAt,
+    // Every free-form campaign layout opts into continuous auto-fit sizing
+    // (see TextBoxConfig.autoFit) instead of the source template's
+    // shrinkAt threshold — the two are mutually exclusive in practice, so
+    // shrinkAt is deliberately not copied over here (it would be dead data:
+    // there's no UI to turn autoFit back off once the free-form editor
+    // owns a campaign's layout).
+    autoFit: true,
     // The source template relies on Name/Role/Message's own component
     // default color when unset (white for name/role, blue for message) —
     // the editor's color picker needs a concrete starting value instead of

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import React, { useEffect } from "react";
+import React from "react";
 
 import { FrameContent, Template } from "../templates/types";
 import { resolveTemplateLayout } from "../templates/resolveTemplate";
@@ -10,11 +10,8 @@ import Role from "./Role";
 
 interface PrintAreaProps {
   isDevMod?: boolean;
-  /** The template's coordinate/config schema — swap this to change the whole layout. */
   template: Template;
-  /** The submission's data to render into the template's boxes. */
   content: FrameContent;
-  containerRef?: React.RefObject<HTMLDivElement>;
 }
 
 /**
@@ -28,7 +25,7 @@ interface PrintAreaProps {
  * never `display:none`, which leaves a node with no layout box to capture.
  */
 const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
-  ({ isDevMod, template, content, containerRef }, ref) => {
+  ({ isDevMod, template, content }, ref) => {
     const layout = resolveTemplateLayout(template, content);
 
     return (
@@ -48,14 +45,6 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             src={layout.background}
             width={layout.canvas.width}
             height={layout.canvas.height}
-            // Tailwind's preflight resets `img { height: auto }`, which
-            // beats the width/height *attributes* above in the cascade —
-            // any background whose natural aspect ratio doesn't happen to
-            // match the template's canvas would silently render at the
-            // wrong height (box coordinates would still be correct, but
-            // they'd land on a stretched-or-not, wrong-sized image). The
-            // inline style wins over that reset, so the canvas is always
-            // exactly the template's declared size.
             style={{ width: layout.canvas.width, height: layout.canvas.height }}
           />
           <Avatar
@@ -74,6 +63,7 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             content={layout.name.content}
             limit={layout.name.limit}
             textColor={layout.name.textColor}
+            autoFit={layout.name.autoFit}
             isDev={isDevMod}
           />
           <Role
@@ -84,6 +74,7 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             content={layout.role.content}
             limit={layout.role.limit}
             textColor={layout.role.textColor}
+            autoFit={layout.role.autoFit}
             isDev={isDevMod}
           />
           <Message
@@ -93,6 +84,7 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             y={layout.message.y}
             content={layout.message.content}
             textColor={layout.message.textColor}
+            autoFit={layout.message.autoFit}
             isDev={isDevMod}
           />
         </div>

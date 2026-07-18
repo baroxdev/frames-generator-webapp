@@ -30,7 +30,7 @@ import { TributeForm } from "./TributeForm";
 import type { TributeSubmitValues } from "./TributeForm";
 
 function renderTributeForm(
-  onSubmit: (values: TributeSubmitValues) => Promise<void> | void,
+  onSubmit: (values: TributeSubmitValues) => Promise<void>,
 ) {
   function Harness() {
     const form = useForm<TributeSubmitValues>({

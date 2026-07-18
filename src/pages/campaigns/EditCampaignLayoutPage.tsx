@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Card, message } from 'antd';
+import { Alert, Button, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { LayoutEditor } from '../../components/campaigns/LayoutEditor';
@@ -75,17 +75,23 @@ export function EditCampaignLayoutPage() {
 
   return (
     <OwnerLayout title="Chỉnh sửa bố cục">
-      <Card title={`/${campaign.slug}`} size="small" className="mb-6">
-        <p className="mb-4 text-xs text-slate-500">
+      <div className="flex flex-col gap-4">
+        {/* Top bar: slug (top-left, read-only — not editable after creation) + save action (top-right), mirroring NewCampaignPage's shell. */}
+        <div className="flex items-start justify-between gap-4">
+          <h3 className="text-base font-semibold text-slate-700">/{campaign.slug}</h3>
+          <Button type="primary" onClick={handleSave} loading={updateLayoutMutation.isPending} disabled={!layout}>
+            Lưu bố cục
+          </Button>
+        </div>
+
+        <p className="text-xs text-slate-500">
           Kéo và thay đổi kích thước các ô để tùy chỉnh vị trí ảnh đại diện, tên, chức vụ và thông điệp.
         </p>
+
         {layout && (
           <LayoutEditor layout={layout} backgroundImageUrl={campaign.backgroundImageUrl} onChange={setLayout} />
         )}
-      </Card>
-      <Button type="primary" onClick={handleSave} loading={updateLayoutMutation.isPending} disabled={!layout}>
-        Lưu bố cục
-      </Button>
+      </div>
     </OwnerLayout>
   );
 }

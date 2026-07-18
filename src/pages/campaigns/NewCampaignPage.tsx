@@ -1,6 +1,6 @@
 import { InboxOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Form, Input, Upload, message, type UploadFile, type UploadProps } from 'antd';
+import { Button, Form, Input, Upload, message, type UploadFile, type UploadProps } from 'antd';
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
@@ -153,52 +153,83 @@ export function NewCampaignPage() {
 
   return (
     <OwnerLayout title="Tạo chiến dịch mới">
-      <Form layout="vertical" onFinish={handleSubmit} noValidate>
-        <Form.Item label="Đường dẫn" validateStatus={errors.slug ? 'error' : ''} help={errors.slug}>
-          <Input
-            value={slug}
-            onChange={(event) => setSlug(event.target.value)}
-            placeholder="dai-hoi-ben-tre"
-            aria-label="Đường dẫn"
-          />
-        </Form.Item>
-        {!errors.slug && slugFormatValid && slugAvailabilityQuery.data === true && (
-          <p className="-mt-4 mb-4 text-xs text-green-600">Đường dẫn khả dụng</p>
-        )}
-        {!errors.slug && slugFormatValid && slugAvailabilityQuery.data === false && (
-          <p className="-mt-4 mb-4 text-xs text-red-600">Đường dẫn này đã được sử dụng</p>
-        )}
+      <Form layout="vertical" onFinish={handleSubmit} noValidate className="flex flex-col gap-4">
+        {/* Top bar: slug (top-left) + submit action (top-right). */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="w-full max-w-xs">
+            <Form.Item
+              label="Đường dẫn"
+              validateStatus={errors.slug ? 'error' : ''}
+              help={errors.slug}
+              className="!mb-1"
+            >
+              <Input
+                value={slug}
+                onChange={(event) => setSlug(event.target.value)}
+                placeholder="dai-hoi-ben-tre"
+                aria-label="Đường dẫn"
+              />
+            </Form.Item>
+            {!errors.slug && slugFormatValid && slugAvailabilityQuery.data === true && (
+              <p className="text-xs text-green-600">Đường dẫn khả dụng</p>
+            )}
+            {!errors.slug && slugFormatValid && slugAvailabilityQuery.data === false && (
+              <p className="text-xs text-red-600">Đường dẫn này đã được sử dụng</p>
+            )}
+          </div>
 
-        <Form.Item label="Ảnh nền" validateStatus={errors.backgroundImage ? 'error' : ''} help={errors.backgroundImage}>
-          <Upload.Dragger
-            accept={ALLOWED_BACKGROUND_TYPES.join(',')}
-            listType="picture"
-            maxCount={1}
-            fileList={backgroundFileList}
-            beforeUpload={() => false}
-            onChange={handleBackgroundChange}
-            onRemove={handleBackgroundRemove}
-          >
-            <p className="ant-upload-drag-icon">
-              <InboxOutlined />
-            </p>
-            <p className="ant-upload-text">Kéo thả ảnh vào đây, hoặc bấm để chọn ảnh</p>
-            <p className="ant-upload-hint">Chấp nhận JPEG, PNG hoặc WEBP</p>
-          </Upload.Dragger>
-        </Form.Item>
+          <Button type="primary" htmlType="submit" loading={isSubmitting} className="shrink-0">
+            Tạo chiến dịch
+          </Button>
+        </div>
 
-        {backgroundPreviewUrl && layout && (
-          <Card title="Bố trí khung ảnh" size="small" className="mb-6">
-            <p className="mb-4 text-xs text-slate-500">
-              Kéo và thay đổi kích thước các ô để tùy chỉnh vị trí ảnh đại diện, tên, chức vụ và thông điệp.
-            </p>
-            <LayoutEditor layout={layout} backgroundImageUrl={backgroundPreviewUrl} onChange={setLayout} />
-          </Card>
-        )}
+        {/* Left sidebar (background upload) + canvas/properties. */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div className="w-full shrink-0 rounded-md border border-slate-200 p-4 lg:w-64">
+            <h4 className="mb-3 text-sm font-semibold text-slate-700">Ảnh nền</h4>
 
-        <Button type="primary" htmlType="submit" block loading={isSubmitting}>
-          Tạo chiến dịch
-        </Button>
+            {backgroundPreviewUrl ? (
+              <div className="flex flex-col gap-3">
+                <img
+                  src={backgroundPreviewUrl}
+                  alt=""
+                  className="aspect-video w-full rounded border border-slate-200 object-cover"
+                />
+                <Button block onClick={handleBackgroundRemove}>
+                  Thay ảnh nền
+                </Button>
+              </div>
+            ) : (
+              <Upload.Dragger
+                accept={ALLOWED_BACKGROUND_TYPES.join(',')}
+                listType="picture"
+                maxCount={1}
+                fileList={backgroundFileList}
+                beforeUpload={() => false}
+                onChange={handleBackgroundChange}
+                onRemove={handleBackgroundRemove}
+              >
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined />
+                </p>
+                <p className="ant-upload-text">Kéo thả ảnh vào đây, hoặc bấm để chọn ảnh</p>
+                <p className="ant-upload-hint">Chấp nhận JPEG, PNG hoặc WEBP</p>
+              </Upload.Dragger>
+            )}
+
+            {errors.backgroundImage && <p className="mt-2 text-xs text-red-600">{errors.backgroundImage}</p>}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            {backgroundPreviewUrl && layout ? (
+              <LayoutEditor layout={layout} backgroundImageUrl={backgroundPreviewUrl} onChange={setLayout} />
+            ) : (
+              <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-400">
+                Tải ảnh nền lên để bắt đầu bố trí khung ảnh
+              </div>
+            )}
+          </div>
+        </div>
       </Form>
     </OwnerLayout>
   );

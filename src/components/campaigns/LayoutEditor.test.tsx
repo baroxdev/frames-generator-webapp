@@ -33,22 +33,28 @@ vi.mock('react-konva', () => ({
   Layer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   Image: ({ image }: { image?: HTMLImageElement }) =>
     image ? <img data-testid="konva-background" src={image.src} alt="" /> : null,
-  Text: ({ text }: { text: string }) => <span data-testid="konva-text">{text}</span>,
+  Text: ({ text, fontSize }: { text: string; fontSize: number }) => (
+    <span data-testid="konva-text" data-font-size={fontSize}>
+      {text}
+    </span>
+  ),
   Rect: ({
     name,
     x,
     y,
     onClick,
     onDragMove,
+    onDblClick,
   }: {
     name: string;
     x: number;
     y: number;
     onClick?: () => void;
     onDragMove?: (e: { target: { x: () => number; y: () => number } }) => void;
+    onDblClick?: () => void;
   }) => (
     <div>
-      <button type="button" data-testid={`konva-rect-${name}`} onClick={onClick}>
+      <button type="button" data-testid={`konva-rect-${name}`} onClick={onClick} onDoubleClick={onDblClick}>
         {name}
       </button>
       <button
@@ -155,6 +161,92 @@ describe('LayoutEditor', () => {
     expect(onChange).toHaveBeenCalledWith({
       ...LAYOUT,
       avatarBox: { ...LAYOUT.avatarBox, shape: 'square' },
+    });
+  });
+
+  describe('ephemeral preview-text editing (double-click)', () => {
+    it('double-clicking a text box opens an editable overlay pre-filled with its current sample text', () => {
+      render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />);
+
+      fireEvent.doubleClick(screen.getByTestId('konva-rect-nameBox'));
+
+      const editor = screen.getByTestId('preview-text-editor') as HTMLTextAreaElement;
+      expect(editor.value).toBe('Nguyễn Văn A');
+    });
+
+    it('double-clicking the avatar box does nothing (no text content to edit)', () => {
+      render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />);
+
+      fireEvent.doubleClick(screen.getByTestId('konva-rect-avatarBox'));
+
+      expect(screen.queryByTestId('preview-text-editor')).toBeNull();
+    });
+
+    it('committing edited text (Enter, for single-line boxes) updates the on-canvas label and never calls onChange', () => {
+      const onChange = vi.fn();
+      render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={onChange} />);
+
+      fireEvent.doubleClick(screen.getByTestId('konva-rect-nameBox'));
+      const editor = screen.getByTestId('preview-text-editor');
+      fireEvent.change(editor, { target: { value: 'A Much Longer Sample Name To Test' } });
+      fireEvent.keyDown(editor, { key: 'Enter' });
+
+      expect(screen.queryByTestId('preview-text-editor')).toBeNull();
+      expect(screen.getByText('A Much Longer Sample Name To Test')).toBeTruthy();
+      // Preview text is ephemeral/local only — never persisted to the layout.
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('pressing Escape cancels the edit, leaving the original sample text on canvas', () => {
+      render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />);
+
+      fireEvent.doubleClick(screen.getByTestId('konva-rect-roleBox'));
+      const editor = screen.getByTestId('preview-text-editor');
+      fireEvent.change(editor, { target: { value: 'Something Else Entirely' } });
+      fireEvent.keyDown(editor, { key: 'Escape' });
+
+      expect(screen.queryByTestId('preview-text-editor')).toBeNull();
+      // "Đơn vị / Chức vụ" is both the roleBox's on-canvas placeholder and
+      // the sidebar's box-title heading (same string) — two matches, both
+      // unchanged, confirms the cancel left the sample text alone.
+      expect(screen.getAllByText('Đơn vị / Chức vụ')).toHaveLength(2);
+      expect(screen.queryByText('Something Else Entirely')).toBeNull();
+    });
+
+    it('committing via blur works for the message box (Enter alone must not commit, since it should allow multiple lines)', () => {
+      render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />);
+
+      fireEvent.doubleClick(screen.getByTestId('konva-rect-messageBox'));
+      const editor = screen.getByTestId('preview-text-editor');
+      fireEvent.change(editor, { target: { value: 'A brand new tribute message' } });
+      fireEvent.keyDown(editor, { key: 'Enter' });
+      expect(screen.getByTestId('preview-text-editor')).toBeTruthy(); // still open
+
+      fireEvent.blur(editor);
+      expect(screen.queryByTestId('preview-text-editor')).toBeNull();
+      expect(screen.getByText('A brand new tribute message')).toBeTruthy();
+    });
+  });
+
+  describe('auto-fit font sizing', () => {
+    it('gives a longer sample text a smaller (or equal) font size than a shorter one in the same box', () => {
+      const onChange = vi.fn();
+      const { rerender } = render(
+        <LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={onChange} />,
+      );
+      const shortSize = Number(screen.getByText('Nguyễn Văn A').getAttribute('data-font-size'));
+
+      fireEvent.doubleClick(screen.getByTestId('konva-rect-nameBox'));
+      fireEvent.change(screen.getByTestId('preview-text-editor'), {
+        target: { value: 'A Considerably Longer Full Name Than Before' },
+      });
+      fireEvent.keyDown(screen.getByTestId('preview-text-editor'), { key: 'Enter' });
+      rerender(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={onChange} />);
+
+      const longSize = Number(
+        screen.getByText('A Considerably Longer Full Name Than Before').getAttribute('data-font-size'),
+      );
+      expect(longSize).toBeLessThanOrEqual(shortSize);
     });
   });
 });

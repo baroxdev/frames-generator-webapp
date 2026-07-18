@@ -86,14 +86,16 @@ describe('storage.service', () => {
       publicUrl: 'https://cdn.example.com/submissions/campaign-1/abc.jpg',
     };
 
-    it('requests a presigned URL scoped to the campaign, PUTs the image to R2 uncompressed, and returns the public URL', async () => {
+    it('compresses the composited image (targeting <700KB, see image.service.ts), PUTs the result to R2, and returns the public URL', async () => {
+      const compressedSubmissionImage = new File(['compressed-tribute'], 'tribute.jpg', { type: 'image/jpeg' });
+      mockCompressImage.mockResolvedValue(compressedSubmissionImage);
       const invoke = vi.fn().mockResolvedValue({ data: SUBMISSION_PRESIGNED, error: null });
       const client = createMockSupabaseClient({ invoke });
       const service = createStorageService(client);
 
       const result = await service.uploadSubmissionImage('campaign-1', COMPOSITED_IMAGE);
 
-      expect(mockCompressImage).not.toHaveBeenCalled();
+      expect(mockCompressImage).toHaveBeenCalledWith(expect.any(File));
       expect(invoke).toHaveBeenCalledWith('submission-presigned-upload', {
         body: { campaignId: 'campaign-1' },
       });
@@ -102,10 +104,24 @@ describe('storage.service', () => {
         expect.objectContaining({
           method: 'PUT',
           headers: { 'Content-Type': 'image/jpeg' },
-          body: COMPOSITED_IMAGE,
+          body: compressedSubmissionImage,
         }),
       );
       expect(result).toBe(SUBMISSION_PRESIGNED.publicUrl);
+    });
+
+    it('falls back to the uncompressed composited image when compression fails', async () => {
+      mockCompressImage.mockResolvedValue(null);
+      const invoke = vi.fn().mockResolvedValue({ data: SUBMISSION_PRESIGNED, error: null });
+      const client = createMockSupabaseClient({ invoke });
+      const service = createStorageService(client);
+
+      await service.uploadSubmissionImage('campaign-1', COMPOSITED_IMAGE);
+
+      expect(fetch).toHaveBeenCalledWith(
+        SUBMISSION_PRESIGNED.uploadUrl,
+        expect.objectContaining({ body: COMPOSITED_IMAGE }),
+      );
     });
 
     it('throws a StorageServiceError when requesting the presigned URL fails', async () => {

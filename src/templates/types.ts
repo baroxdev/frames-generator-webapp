@@ -42,6 +42,17 @@ export interface TextBoxConfig extends Box {
   shrinkAt?: number;
   /** CSS color for the text. Defaults are preserved per-component when omitted. */
   textColor?: string;
+  /**
+   * Opt-in continuous auto-fit sizing (binary-searches the largest font
+   * size that fits the box's own width/height and the content's character
+   * count — see `src/utils/fitTextToBox.ts`), replacing the two-tier
+   * `shrinkAt` behavior below. Only ever set by the free-form layout
+   * editor's generated/edited campaigns — omitted (falsy) on every
+   * pre-existing template/row, which keeps rendering the exact `shrinkAt`
+   * behavior unchanged. Never both: a box either auto-fits or uses
+   * `shrinkAt`, not some mix of the two.
+   */
+  autoFit?: boolean;
 }
 
 export interface Template {

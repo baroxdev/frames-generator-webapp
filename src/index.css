@@ -34,8 +34,12 @@
   -webkit-text-size-adjust: 100%;
 }
 
+.ant-upload-picture-circle-wrapper {
+  @apply !flex items-center justify-center;
+}
+
 .ant-upload.ant-upload-select {
-  @apply flex-shrink-0 !w-full !h-full !mx-auto max-md:!w-[130px] max-md:!h-[130px];
+  @apply flex-shrink-0 !w-[200px] mx-auto !h-[200px] !mx-auto max-md:!w-[130px] max-md:!h-[130px];
 }
 
 .octagonWrap {

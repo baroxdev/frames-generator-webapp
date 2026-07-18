@@ -156,28 +156,54 @@ during initial creation (before submit) recomputes defaults from scratch.
 
 ## 5. Editor architecture
 
-**Rendering split (decided: option B):**
+**Rendering split — revised after live testing.**
 
-- `PrintArea` (existing DOM/CSS component, **unchanged**) stays the single
-  visual source of truth — the same component used for the live preview
-  today and for the actual export via `compositeFrameToBlob`. It renders
-  the real background image and placeholder avatar/name/role/message
-  content at the box positions currently held in React state.
-- A `react-konva` `<Stage>`/`<Layer>` sits as a **transparent overlay** on
-  top of `PrintArea`, positioned/sized to exactly match it. It renders only
-  four invisible-fill, outlined `Konva.Rect` nodes (one per box) plus a
-  `Konva.Transformer` bound to whichever is selected — no background image,
-  no text, no avatar content duplicated into Konva.
-- On `dragMove`/`transform` (or `dragEnd`/`transformEnd` — implementation
-  detail, live-drag is preferable for direct visual feedback), the
-  corresponding box's `{top, left, width, height}` is written into the
-  same React state that feeds `PrintArea`'s `template.avatarBox` /
-  `nameBox` / etc. So what's visible under the drag handles, at every
-  frame, **is** `PrintArea`'s real render — no separate canvas-rendered
-  preview to drift out of sync with the actual export.
+The initially-planned "option B" (`PrintArea` underneath as the DOM/CSS
+visual truth, a transparent `react-konva` overlay on top providing only
+drag/resize handles) is **not what got built**. It was implemented once,
+but breaking it out into a background job and reviewing it via mocked unit
+tests only (never actually opened in a browser) let a basic bug ship: the
+editor rendered at literal native pixel size with zero responsive scaling,
+so any realistically-sized upload (e.g. 5555×3124) overflowed the page
+entirely, unusable. Once caught by manual testing, the call was made to
+drop the hybrid rather than patch it — see the decision below.
+
+**What's actually built instead:** the editor renders **entirely in
+Konva** — background image, and a placeholder box + label per field
+(avatar/name/role/message) — with `PrintArea` dropped from the editor
+altogether.
+
+- `PrintArea` (existing DOM/CSS component, **unchanged**) is reserved
+  exclusively for the actual visitor-facing campaign page
+  (`CampaignPublicPage`) and the real export via `compositeFrameToBlob` —
+  it is *not* used by the editor at all anymore.
+- The editor's `<Stage>`/`<Layer>` renders a `Konva.Image` for the
+  background, a `Konva.Rect` + `Konva.Text` placeholder pair per box, and
+  a `Konva.Transformer` bound to whichever box is selected.
+- Fit-to-container: the `Stage`'s own `scaleX`/`scaleY` are driven by a
+  `ResizeObserver` on the wrapping div (`scale = containerWidth /
+  canvas.width`). Konva accounts for its own scale when mapping pointer
+  coordinates, so drag/resize math stays in plain, unscaled canvas-pixel
+  space regardless of how small the stage is drawn on screen — verified by
+  manually dragging/resizing/toggling shape on a 5555×3124 upload in a real
+  browser.
+- On `dragMove`/`transform` (continuous, not just on release), the
+  corresponding box's `{top, left, width, height}` is written into React
+  state, so the Konva-rendered box (and its label) tracks the pointer live.
 - Bounds: each `Konva.Rect`/`Transformer` clamps fully within the canvas
   bounds during both drag and resize (`dragBoundFunc` / `boundBoxFunc`).
   No minimum size, no overlap prevention (see Scope).
+
+**Trade-off accepted, not solved here:** the editor's placeholder text is
+plain Konva `Text` (a generic font), not the real `Name`/`Role`/`Message`
+DOM components — so it no longer pixel-matches `PrintArea`'s actual
+fonts/styling the way "option B" would have. The owner sees accurate
+*position/size* against the real background, not a font-accurate preview;
+closing that visual gap is a follow-up, not addressed by this change.
+
+**Properties panel:** shape/color controls for the selected box are shown
+in a sidebar next to the canvas (Figma-style contextual properties panel),
+not inline text below it.
 
 **Library:** `react-konva` + `konva` (chosen over `react-rnd`: 6.4k/14.6k
 stars vs 4.3k, 3/17 open issues vs 182, actively pushed within the last
@@ -196,10 +222,10 @@ which is exactly this use case.
 1. Enter slug (unchanged).
 2. Upload background image (unchanged UI, `Upload.Dragger`).
 3. Once a background file is selected: the "Mẫu khung" `Form.Item`
-   (`TemplateGallery`) is removed from this page; in its place, the editor
-   appears — `PrintArea` rendering the uploaded background + placeholder
-   content at the computed default layout, with the Konva overlay active
-   for dragging/resizing, plus shape/color controls.
+   (`TemplateGallery`) is removed from this page; in its place, the
+   Konva-rendered editor appears — the uploaded background + placeholder
+   content at the computed default layout, draggable/resizable, with
+   shape/color controls in a properties sidebar.
 4. Submit: `createCampaign` now sends `{ slug, layout, backgroundImageUrl }`
    instead of `{ slug, templateId, backgroundImageUrl }`.
 
@@ -245,11 +271,17 @@ which is exactly this use case.
 
 1. Re-edit doesn't allow changing the background image — only layout.
    Confirm this is acceptable, or should re-edit also allow re-upload?
-2. Exact placement of the "edit layout" entry point in the owner UI
-   (table row action vs. dedicated page) — not yet decided.
-3. Live-drag (continuous state update while dragging) vs. commit-on-release
-   for updating `PrintArea` — a performance/feel choice, not yet decided.
+2. ~~Exact placement of the "edit layout" entry point~~ — **resolved:**
+   `CampaignsPage`'s table has a "Chỉnh sửa bố cục" row action linking to
+   `/campaigns/:id/edit` (`EditCampaignLayoutPage`).
+3. ~~Live-drag vs. commit-on-release~~ — **resolved, and the rendering
+   target changed:** the editor updates live on every `dragMove`/
+   `transform` frame, but against Konva-rendered placeholders, not
+   `PrintArea` — see the revised §5.
 4. Whether `shrinkAt` (auto font-shrink threshold) stays a fixed constant
    per box type or becomes owner-configurable — assumed fixed constant,
    not exposed in the editor UI, consistent with "no minimum box size" not
    being a concern the owner needs to manage directly either.
+5. **New:** closing the visual gap between the editor's Konva placeholders
+   and `PrintArea`'s real fonts/styling (see §5's trade-off) — not
+   addressed by this change, follow-up work.

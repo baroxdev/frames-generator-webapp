@@ -1,21 +1,29 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { Alert } from 'antd';
-import { useEffect, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
-import { useParams } from 'react-router-dom';
-import { ConfigErrorNotice } from '../../components/auth/ConfigErrorNotice';
-import PrintArea from '../../components/PrintArea';
-import { TributeForm, type TributeSubmitValues } from '../../components/public/TributeForm';
-import { TributeResult } from '../../components/public/TributeResult';
-import { useEnv } from '../../config/useEnv';
-import { campaignBySlugQueryOptions } from '../../queries/campaign.queries';
-import { submitTributeMutationOptions, uploadSubmissionImageMutationOptions } from '../../queries/submission.queries';
-import { compositeFrameToBlob } from '../../services/frameCompositor.service';
-import { SubmissionServiceError } from '../../services/submission.service';
-import { getTemplateById } from '../../templates';
-import type { FrameContent } from '../../templates/types';
-import { reportSubmissionError } from '../../utils/report-submission-error';
-import { NotFoundPage } from './NotFoundPage';
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Alert } from "antd";
+import React, { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { useParams } from "react-router-dom";
+import { ConfigErrorNotice } from "../../components/auth/ConfigErrorNotice";
+import PrintArea from "../../components/PrintArea";
+import {
+  TributeForm,
+  type TributeSubmitValues,
+} from "../../components/public/TributeForm";
+import { TributeResult } from "../../components/public/TributeResult";
+import { useEnv } from "../../config/useEnv";
+import { campaignBySlugQueryOptions } from "../../queries/campaign.queries";
+import {
+  submitTributeMutationOptions,
+  uploadSubmissionImageMutationOptions,
+} from "../../queries/submission.queries";
+import { compositeFrameToBlob } from "../../services/frameCompositor.service";
+import { SubmissionServiceError } from "../../services/submission.service";
+import { getTemplateById } from "../../templates";
+import type { FrameContent } from "../../templates/types";
+import { reportSubmissionError } from "../../utils/report-submission-error";
+import { NotFoundPage } from "./NotFoundPage";
+import { useForm, UseFormReturn, useWatch } from "react-hook-form";
+import { Campaign } from "../../services/campaign.service";
 
 // Mirrors the `5000` in `create_submission`'s guard
 // (supabase/migrations/0003_submissions.sql) — this copy only drives a
@@ -41,10 +49,27 @@ const SUBMISSION_CAP = 5000;
  */
 export function CampaignPublicPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { env, error: envError } = useEnv();
-  const query = useQuery({ ...campaignBySlugQueryOptions(slug ?? ''), enabled: Boolean(slug) });
 
-  const [submittedContent, setSubmittedContent] = useState<FrameContent | null>(null);
+  const { env, error: envError } = useEnv();
+  const query = useQuery({
+    ...campaignBySlugQueryOptions(slug ?? ""),
+    enabled: Boolean(slug),
+  });
+  const form = useForm<TributeSubmitValues>({
+    defaultValues: {
+      fullName: "",
+      role: "",
+      message: "",
+      avatar: {
+        file: null,
+      },
+      turnstileToken: "",
+    },
+    mode: "onChange",
+  });
+  const [submittedContent, setSubmittedContent] = useState<FrameContent | null>(
+    null,
+  );
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [campaignFull, setCampaignFull] = useState(false);
   // Covers the gap between clicking submit and the upload mutation actually
@@ -58,7 +83,9 @@ export function CampaignPublicPage() {
   // preview.
   const compositeRef = useRef<HTMLDivElement>(null);
 
-  const uploadImageMutation = useMutation(uploadSubmissionImageMutationOptions());
+  const uploadImageMutation = useMutation(
+    uploadSubmissionImageMutationOptions(),
+  );
   const submitTributeMutation = useMutation(submitTributeMutationOptions());
 
   const campaign = query.data;
@@ -90,28 +117,41 @@ export function CampaignPublicPage() {
   const isFull = campaignFull || campaign.submissionCount >= SUBMISSION_CAP;
 
   const handleSubmit = async (values: TributeSubmitValues) => {
-    const avatarObjectUrl = URL.createObjectURL(values.avatarFile);
+    const avatarFile = values.avatar.file;
+    if (!avatarFile) {
+      throw new Error("Missing avatar file");
+    }
+
+    const avatarObjectUrl = URL.createObjectURL(avatarFile);
     // Render the off-screen PrintArea with the submitted content and force
     // React to commit it synchronously — compositing right after needs the
     // DOM node to already reflect these values, and a plain `setState`
     // wouldn't be flushed yet at this point in an event handler.
     flushSync(() => {
-      setSubmittedContent({ avatar: avatarObjectUrl, fullName: values.fullName, role: values.role, message: values.message });
+      setSubmittedContent({
+        avatar: avatarObjectUrl,
+        fullName: values.fullName,
+        role: values.role,
+        message: values.message,
+      });
     });
     setIsCompositing(true);
 
     try {
       if (!compositeRef.current) {
-        throw new Error('Compositor node did not mount');
+        throw new Error("Compositor node did not mount");
       }
       // Composite first, before any network call: it's local and free, so a
       // failure here (e.g. a font/rendering issue) is caught before
       // spending the single-use Turnstile token or any R2/DB round-trip.
       const imageBlob = await compositeFrameToBlob(compositeRef.current);
-      const imageUrl = await uploadImageMutation.mutateAsync({ campaignId: campaign.id, image: imageBlob });
+      const imageUrl = await uploadImageMutation.mutateAsync({
+        campaignId: campaign.id,
+        image: imageBlob,
+      });
       await submitTributeMutation.mutateAsync({
         campaignId: campaign.id,
-        turnstileToken: values.turnstileToken,
+        turnstileToken: values.turnstileToken ?? "",
         fullName: values.fullName,
         role: values.role,
         message: values.message,
@@ -124,10 +164,16 @@ export function CampaignPublicPage() {
       // The avatar object URL is revoked by the cleanup effect above once
       // `submittedContent` changes — no need to revoke it again here.
       setSubmittedContent(null);
-      if (error instanceof SubmissionServiceError && error.code === 'CAMPAIGN_FULL') {
+      if (
+        error instanceof SubmissionServiceError &&
+        error.code === "CAMPAIGN_FULL"
+      ) {
         setCampaignFull(true);
       } else {
-        reportSubmissionError(error, 'Không thể gửi thông điệp. Vui lòng thử lại.');
+        reportSubmissionError(
+          error,
+          "Không thể gửi thông điệp. Vui lòng thử lại.",
+        );
       }
       throw error;
     } finally {
@@ -137,63 +183,148 @@ export function CampaignPublicPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10">
-      {!resultImage && (
-        // `cqw` scales the fixed-pixel template canvas to the container's
-        // actual width without any JS measurement (jsdom can't compute real
-        // layout, so a ResizeObserver-based approach wouldn't be reliably
-        // testable) — the browser recomputes it on resize for free.
-        <div className="mx-auto w-full max-w-4xl" style={{ containerType: 'inline-size' }}>
-          <div
-            className="relative overflow-hidden rounded-lg shadow"
-            style={{ aspectRatio: `${template.canvas.width} / ${template.canvas.height}` }}
-          >
-            <div
-              className="relative"
-              style={{
-                width: template.canvas.width,
-                height: template.canvas.height,
-                transform: `scale(calc(100cqw / ${template.canvas.width}))`,
-                transformOrigin: 'top left',
-              }}
-            >
-              <PrintArea
-                isDevMod
-                template={{ ...template, background: campaign.backgroundImageUrl }}
-                content={{}}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
+      <Previewer
+        template={template}
+        campaign={campaign}
+        submittedContent={submittedContent}
+        form={form}
+      />
       <div className="mx-auto mt-8 w-full max-w-md">
         {resultImage ? (
-          <TributeResult imageUrl={resultImage} />
+          <TributeResult
+            imageUrl={resultImage}
+            canvasWidth={template.canvas.width}
+            canvasHeight={template.canvas.height}
+          />
         ) : isFull ? (
           <Alert
             type="warning"
             showIcon
-            title="Chiến dịch đã đủ số lượng gửi"
+            message="Chiến dịch đã đủ số lượng gửi"
             description="Chiến dịch này đã nhận đủ số lượng thông điệp tối đa. Vui lòng thử lại ở một chiến dịch khác."
           />
         ) : envError || !env ? (
-          <ConfigErrorNotice message={envError ?? 'Thiếu cấu hình.'} />
+          <ConfigErrorNotice message={envError ?? "Thiếu cấu hình."} />
         ) : (
           <TributeForm
+            form={form}
             turnstileSiteKey={env.VITE_TURNSTILE_SITE_KEY}
-            isSubmitting={isCompositing || uploadImageMutation.isPending || submitTributeMutation.isPending}
+            isSubmitting={
+              isCompositing ||
+              uploadImageMutation.isPending ||
+              submitTributeMutation.isPending
+            }
             onSubmit={handleSubmit}
           />
         )}
       </div>
 
       {submittedContent && !resultImage && (
-        <PrintArea
-          ref={compositeRef}
-          template={{ ...template, background: campaign.backgroundImageUrl }}
-          content={submittedContent}
-        />
+        <div
+          className="fixed left-[-10000px] top-0 pointer-events-none"
+          aria-hidden
+        >
+          <PrintArea
+            ref={compositeRef}
+            template={{ ...template, background: campaign.backgroundImageUrl }}
+            content={submittedContent}
+          />
+        </div>
       )}
+    </div>
+  );
+}
+
+type PreviewerProps = {
+  template: ReturnType<typeof getTemplateById>;
+  campaign: Campaign;
+  submittedContent: FrameContent | null;
+  form: UseFormReturn<TributeSubmitValues>;
+};
+
+function Previewer({
+  template,
+  campaign,
+  submittedContent,
+  form,
+}: PreviewerProps) {
+  const formValues = useWatch(form);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const container = containerRef?.current;
+    const innerElement = innerRef.current;
+
+    if (!container || !innerElement || !template) return;
+
+    const TARGET_WIDTH = template.canvas.width; // The original width of the template
+
+    // Create the ResizeObserver to listen to the parent container's width changes
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Use borderBoxSize for accuracy, falling back to contentRect
+        const containerWidth =
+          entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width;
+
+        // Formula: scale = current / original
+        const scale = containerWidth / TARGET_WIDTH;
+
+        // Apply the styles directly to the DOM for performance
+        innerElement.style.transformOrigin = "left top";
+        innerElement.style.transform = `scale(${scale})`;
+      }
+    });
+
+    // Start tracking the parent container
+    resizeObserver.observe(container);
+
+    // Clean up the observer when the component unmounts
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [template, containerRef]); // Empty dependency array ensures this runs once on mount
+  if (!template || !campaign) {
+    return null;
+  }
+
+  return (
+    <div
+      className="mx-auto w-full max-w-4xl"
+      style={{ containerType: "inline-size" }}
+    >
+      <div
+        className="relative overflow-hidden rounded-lg shadow"
+        style={{
+          aspectRatio: `${template.canvas.width} / ${template.canvas.height}`,
+        }}
+        ref={containerRef}
+      >
+        <div
+          className="relative"
+          style={{
+            width: template.canvas.width,
+            height: template.canvas.height,
+            transformOrigin: "top left",
+          }}
+          ref={innerRef}
+        >
+          <PrintArea
+            template={{
+              ...template,
+              background: campaign.backgroundImageUrl,
+            }}
+            content={{
+              avatar:
+                submittedContent?.avatar ??
+                "https://placehold.co/150x150?text=Avatar",
+              fullName: formValues.fullName ?? "Họ và tên",
+              role: formValues.role ?? "Đơn vị / Chức vụ",
+              message: formValues.message ?? "Thông điệp gửi đến đại hội",
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

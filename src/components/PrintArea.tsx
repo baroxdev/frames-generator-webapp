@@ -1,12 +1,12 @@
-import clsx from 'clsx';
-import React from 'react';
+import clsx from "clsx";
+import React, { useEffect } from "react";
 
-import { FrameContent, Template } from '../templates/types';
-import { resolveTemplateLayout } from '../templates/resolveTemplate';
-import Avatar from './Avatar';
-import Message from './Message';
-import Name from './Name';
-import Role from './Role';
+import { FrameContent, Template } from "../templates/types";
+import { resolveTemplateLayout } from "../templates/resolveTemplate";
+import Avatar from "./Avatar";
+import Message from "./Message";
+import Name from "./Name";
+import Role from "./Role";
 
 interface PrintAreaProps {
   isDevMod?: boolean;
@@ -14,6 +14,7 @@ interface PrintAreaProps {
   template: Template;
   /** The submission's data to render into the template's boxes. */
   content: FrameContent;
+  containerRef?: React.RefObject<HTMLDivElement>;
 }
 
 /**
@@ -27,17 +28,23 @@ interface PrintAreaProps {
  * never `display:none`, which leaves a node with no layout box to capture.
  */
 const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
-  ({ isDevMod, template, content }, ref) => {
+  ({ isDevMod, template, content, containerRef }, ref) => {
     const layout = resolveTemplateLayout(template, content);
 
     return (
-      <div className='overflow-hidden'>
+      <div
+        className="relative overflow-hidden"
+        style={{
+          width: layout.canvas.width,
+          height: layout.canvas.height,
+        }}
+      >
         <div
-          className={clsx('absolute top-0 left-0', isDevMod ? 'z-[99]' : 'z-[-1]')}
+          className={clsx("absolute inset-0", isDevMod ? "z-[99]" : "z-[-1]")}
           ref={ref}
         >
           <img
-            crossOrigin='anonymous'
+            crossOrigin="anonymous"
             src={layout.background}
             width={layout.canvas.width}
             height={layout.canvas.height}
@@ -91,9 +98,9 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
         </div>
       </div>
     );
-  }
+  },
 );
 
-PrintArea.displayName = 'PrintArea';
+PrintArea.displayName = "PrintArea";
 
 export default PrintArea;

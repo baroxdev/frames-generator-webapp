@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
   const remoteIp = req.headers.get('cf-connecting-ip');
   if (remoteIp) turnstileForm.set('remoteip', remoteIp);
 
-  let turnstileResult: { success?: boolean; hostname?: string; action?: string };
+  let turnstileResult: { success?: boolean; hostname?: string; action?: string; 'error-codes'?: string[] };
   try {
     const turnstileResponse = await fetch(TURNSTILE_VERIFY_URL, { method: 'POST', body: turnstileForm });
     turnstileResult = await turnstileResponse.json();
@@ -178,6 +178,17 @@ Deno.serve(async (req) => {
     !allowedHostnameList.includes(turnstileResult.hostname) ||
     turnstileResult.action !== EXPECTED_TURNSTILE_ACTION
   ) {
+    // None of these fields are sensitive (no token, no PII) — logging them
+    // is what actually makes a "CAPTCHA invalid" report debuggable instead
+    // of a black box, since the client only ever sees the generic message.
+    console.error('Turnstile verification rejected', {
+      success: turnstileResult.success,
+      hostname: turnstileResult.hostname,
+      action: turnstileResult.action,
+      errorCodes: turnstileResult['error-codes'],
+      allowedHostnames: allowedHostnameList,
+      expectedAction: EXPECTED_TURNSTILE_ACTION,
+    });
     return jsonResponse({ error: 'Xác thực CAPTCHA không hợp lệ. Vui lòng thử lại.' }, 400);
   }
 

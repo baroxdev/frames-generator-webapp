@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AuthSessionSync } from "../components/auth/AuthSessionSync";
+import { usePageViewTracking } from "../hooks/usePageViewTracking";
 import { NotFoundPage } from "../pages/public/NotFoundPage";
 import appCss from "../index.css?url";
 
@@ -67,6 +68,8 @@ export const Route = createRootRoute({
 });
 
 function RootComponent() {
+  usePageViewTracking();
+
   return (
     <RootDocument>
       <QueryClientProvider client={queryClient}>

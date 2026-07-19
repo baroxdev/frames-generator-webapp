@@ -14,6 +14,7 @@ import {
   type TurnstileWidgetHandle,
 } from "../auth/TurnstileWidget";
 import { config } from "../../config";
+import { trackEvent } from "../../lib/analytics";
 
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const TURNSTILE_ACTION = "submit-tribute";
@@ -94,6 +95,9 @@ export function TributeForm({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(blobUrl);
+      trackEvent("tribute_image_download", {
+        campaign_id: metadata?.campaign?.id,
+      });
     } catch (error) {
       console.error("Failed to download result image", error);
       message.error("Không thể tải ảnh xuống. Vui lòng thử lại.");

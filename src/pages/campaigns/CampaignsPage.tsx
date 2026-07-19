@@ -7,6 +7,7 @@ import { Link, Navigate } from '@tanstack/react-router';
 import { OwnerLayout } from '../../components/owner/OwnerLayout';
 import { getEnv } from '../../config/env';
 import { useAuthSession } from '../../hooks/useAuthSession';
+import { trackEvent } from '../../lib/analytics';
 import { loadFacebookSdk } from '../../lib/facebookSdk';
 import { campaignsQueryOptions } from '../../queries/campaign.queries';
 import type { Campaign, CampaignStatus } from '../../services/campaign.service';
@@ -53,6 +54,7 @@ function isPubliclyReachable(campaign: Campaign): boolean {
  */
 function shareToFacebook(appId: string, slug: string) {
   const href = `${window.location.origin}/${slug}`;
+  trackEvent('campaign_share_facebook', { slug });
   if (window.FB) {
     window.FB.ui({ method: 'share', href }, () => undefined);
     return;

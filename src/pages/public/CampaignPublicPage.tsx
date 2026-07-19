@@ -10,6 +10,7 @@ import {
   type TributeSubmitValues,
 } from "../../components/public/TributeForm";
 import { useEnv } from "../../config/useEnv";
+import { trackEvent } from "../../lib/analytics";
 import {
   submitTributeMutationOptions,
   uploadSubmissionImageMutationOptions,
@@ -140,6 +141,7 @@ export function CampaignPublicPage({
         imageUrl,
       });
       setResultImage(imageUrl);
+      trackEvent("tribute_submit_success", { campaign_id: campaign.id });
     } catch (error) {
       setSubmittedContent(null);
       if (
@@ -147,11 +149,16 @@ export function CampaignPublicPage({
         error.code === "CAMPAIGN_FULL"
       ) {
         setCampaignFull(true);
+        trackEvent("tribute_submit_blocked", {
+          campaign_id: campaign.id,
+          reason: "campaign_full",
+        });
       } else {
         reportSubmissionError(
           error,
           "Không thể gửi thông điệp. Vui lòng thử lại.",
         );
+        trackEvent("tribute_submit_error", { campaign_id: campaign.id });
       }
       throw error;
     } finally {

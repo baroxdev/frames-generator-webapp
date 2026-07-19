@@ -14,16 +14,6 @@ interface PrintAreaProps {
   content: FrameContent;
 }
 
-/**
- * Composition root for a generated frame: draws a template's background and
- * its four boxes (avatar, name, role, message), all positioned per the
- * template's config rather than hardcoded coordinates.
- *
- * The forwarded ref points at the exact node the compositor
- * (`frameCompositor.service.ts`) rasterizes for export, so this markup must
- * stay something it can actually capture — kept off-screen via `z-[-1]`,
- * never `display:none`, which leaves a node with no layout box to capture.
- */
 const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
   ({ isDevMod, template, content }, ref) => {
     const layout = resolveTemplateLayout(template, content);
@@ -67,6 +57,7 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             limit={layout.name.limit}
             textColor={layout.name.textColor}
             autoFit={layout.name.autoFit}
+            fontFamily={layout.name.fontFamily}
             isDev={isDevMod}
           />
           <Role
@@ -78,6 +69,7 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             limit={layout.role.limit}
             textColor={layout.role.textColor}
             autoFit={layout.role.autoFit}
+            fontFamily={layout.role.fontFamily}
             isDev={isDevMod}
           />
           <Message
@@ -88,6 +80,7 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             content={layout.message.content}
             textColor={layout.message.textColor}
             autoFit={layout.message.autoFit}
+            fontFamily={layout.message.fontFamily}
             isDev={isDevMod}
           />
         </div>

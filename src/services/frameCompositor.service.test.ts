@@ -1,10 +1,19 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockDomToBlob } = vi.hoisted(() => ({ mockDomToBlob: vi.fn() }));
+const { mockDomToBlob, mockEnsureFontReady } = vi.hoisted(() => ({
+  mockDomToBlob: vi.fn(),
+  mockEnsureFontReady: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('modern-screenshot', () => ({ domToBlob: mockDomToBlob }));
+vi.mock('../utils/loadGoogleFont', () => ({ ensureFontReady: mockEnsureFontReady }));
 
 import { compositeFrameToBlob, computeExportScale } from './frameCompositor.service';
+
+beforeEach(() => {
+  mockDomToBlob.mockReset();
+  mockEnsureFontReady.mockReset().mockResolvedValue(undefined);
+});
 
 /** jsdom never actually lays out elements, so offsetWidth/offsetHeight stay 0 unless stubbed — this simulates a node whose rendered box is a given canvas size. */
 function nodeWithSize(width: number, height: number): HTMLElement {
@@ -57,5 +66,38 @@ describe('compositeFrameToBlob', () => {
       expect.objectContaining({ type: 'image/jpeg', quality: 0.9, scale: computeExportScale(node), font: {} }),
     );
     expect(result).toBe(blob);
+  });
+
+  it("waits for the campaign's font to actually be ready before rasterizing, not just requesting it", async () => {
+    mockDomToBlob.mockResolvedValue(new Blob(['fake-image'], { type: 'image/jpeg' }));
+    let resolveFontReady!: () => void;
+    mockEnsureFontReady.mockReturnValue(new Promise<void>((resolve) => (resolveFontReady = resolve)));
+    const node = nodeWithSize(1500, 843);
+
+    let settled = false;
+    const promise = compositeFrameToBlob(node, 'Lobster').then(() => {
+      settled = true;
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockDomToBlob).not.toHaveBeenCalled();
+    expect(settled).toBe(false);
+
+    resolveFontReady();
+    await promise;
+
+    expect(settled).toBe(true);
+    expect(mockDomToBlob).toHaveBeenCalledTimes(1);
+  });
+
+  it('requests readiness for both the name/role weight and the message weight of the given fontFamily', async () => {
+    mockEnsureFontReady.mockResolvedValue(undefined);
+    mockDomToBlob.mockResolvedValue(new Blob(['fake-image'], { type: 'image/jpeg' }));
+
+    await compositeFrameToBlob(nodeWithSize(1500, 843), 'Lobster');
+
+    expect(mockEnsureFontReady).toHaveBeenCalledWith('Lobster', 700);
+    expect(mockEnsureFontReady).toHaveBeenCalledWith('Lobster', 500);
   });
 });

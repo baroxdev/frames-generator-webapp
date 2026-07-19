@@ -1,71 +1,90 @@
-import { LogoutOutlined, PlusOutlined, ProjectOutlined, UnorderedListOutlined } from '@ant-design/icons';
-import { useMutation } from '@tanstack/react-query';
-import { Avatar, Breadcrumb, Button, Layout, Menu, Typography, type MenuProps } from 'antd';
-import type { ReactNode } from 'react';
-import { useLocation, useNavigate } from '@tanstack/react-router';
-import { useAuthSession } from '../../hooks/useAuthSession';
-import { logOutMutationOptions } from '../../queries/auth.queries';
-import { reportAuthError } from '../../utils/report-auth-error';
+import {
+  LogoutOutlined,
+  PlusOutlined,
+  ProjectOutlined,
+  UnorderedListOutlined,
+} from "@ant-design/icons";
+import { useMutation } from "@tanstack/react-query";
+import {
+  Avatar,
+  Breadcrumb,
+  Button,
+  Layout,
+  Menu,
+  Typography,
+  type MenuProps,
+} from "antd";
+import type { ReactNode } from "react";
+import { useLocation, useNavigate } from "@tanstack/react-router";
+import { useAuthSession } from "../../hooks/useAuthSession";
+import { logOutMutationOptions } from "../../queries/auth.queries";
+import { reportAuthError } from "../../utils/report-auth-error";
 
 const { Sider, Header, Content } = Layout;
 const { Title, Text } = Typography;
 
-const NAV_ITEMS: MenuProps['items'] = [
+const NAV_ITEMS: MenuProps["items"] = [
   {
-    key: 'campaigns-group',
-    label: 'Chiến dịch',
-    type: 'group',
+    key: "campaigns-group",
+    label: "Chiến dịch",
+    type: "group",
     children: [
-      { key: '/campaigns', icon: <UnorderedListOutlined />, label: 'Danh sách' },
-      { key: '/campaigns/new', icon: <PlusOutlined />, label: 'Tạo mới' },
+      {
+        key: "/campaigns",
+        icon: <UnorderedListOutlined />,
+        label: "Danh sách",
+      },
+      { key: "/campaigns/new", icon: <PlusOutlined />, label: "Tạo mới" },
     ],
   },
 ];
 
-/** Route -> the leaf breadcrumb label for that route, under the "Chiến dịch" group. */
 const BREADCRUMB_LEAF: Record<string, string> = {
-  '/campaigns': 'Danh sách',
-  '/campaigns/new': 'Tạo mới',
+  "/campaigns": "Danh sách",
+  "/campaigns/new": "Tạo mới",
 };
 
-/**
- * Shared dashboard chrome for the logged-in owner console pages (campaign
- * list, create campaign): a sidebar nav plus a main content panel. Wider
- * than AuthLayout on purpose — those pages host a template gallery and a
- * live preview, not a single narrow form.
- */
-export function OwnerLayout({ title, children }: { title: string; children: ReactNode }) {
+export function OwnerLayout({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthSession();
   const logOutMutation = useMutation(logOutMutationOptions());
 
-  const handleMenuClick: MenuProps['onClick'] = (info) => navigate({ to: info.key });
+  const handleMenuClick: MenuProps["onClick"] = (info) =>
+    navigate({ to: info.key });
 
   const handleLogout = async () => {
     try {
       await logOutMutation.mutateAsync();
-      navigate({ to: '/login' });
+      navigate({ to: "/login" });
     } catch (error) {
-      reportAuthError(error, 'Không thể đăng xuất.');
+      reportAuthError(error, "Không thể đăng xuất.");
     }
   };
 
-  const emailInitial = user?.email?.[0]?.toUpperCase() ?? '?';
+  const emailInitial = user?.email?.[0]?.toUpperCase() ?? "?";
   const breadcrumbItems = [
     { title: <ProjectOutlined /> },
-    { title: 'Chiến dịch' },
+    { title: "Chiến dịch" },
     { title: BREADCRUMB_LEAF[location.pathname] ?? title },
   ];
 
   return (
     <Layout className="min-h-screen">
       <Sider theme="light" width={240} className="!border-r !border-slate-100">
-        <div className="px-6 py-5 text-base font-semibold text-slate-800">Frame Generator</div>
+        <div className="px-6 py-5 text-base font-semibold text-slate-800">
+          Frame Generator
+        </div>
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
-          defaultOpenKeys={['campaigns-group']}
+          defaultOpenKeys={["campaigns-group"]}
           items={NAV_ITEMS}
           onClick={handleMenuClick}
           className="!border-none"

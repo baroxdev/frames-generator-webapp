@@ -1,3 +1,4 @@
+import { DEFAULT_FONT_FAMILY } from '../constants/fonts';
 import { DEFAULT_TEMPLATE_ID, getTemplateById } from './gallery';
 import type { Box, CampaignLayout, CanvasSize, TextBoxConfig } from './types';
 
@@ -60,5 +61,6 @@ export function getDefaultCampaignLayout(canvas: CanvasSize): CampaignLayout {
     nameBox: scaleTextBox(source.nameBox, source.canvas, canvas, '#ffffff'),
     roleBox: scaleTextBox(source.roleBox, source.canvas, canvas, '#ffffff'),
     messageBox: scaleTextBox(source.messageBox, source.canvas, canvas, '#000000'),
+    fontFamily: DEFAULT_FONT_FAMILY,
   };
 }

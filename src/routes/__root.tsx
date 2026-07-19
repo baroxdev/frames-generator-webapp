@@ -46,12 +46,14 @@ export const Route = createRootRoute({
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.ico" },
       { rel: "stylesheet", href: appCss },
+      // No longer a fixed Google Fonts <link> here: every campaign's
+      // name/role/message font is now loaded dynamically per its own
+      // `layout.fontFamily` (see `src/utils/loadGoogleFont.ts`), since a
+      // campaign owner picks from a curated list rather than the whole site
+      // sharing one hardcoded font. These preconnects still pay off since
+      // that dynamic load always hits the same two hosts.
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Playwrite+HU:wght@100;200;300;400&display=swap",
-      },
     ],
   }),
   component: RootComponent,
@@ -74,17 +76,6 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
     <html lang="vi">
       <head>
         <HeadContent />
-        {/* Ensures the custom font is available before html2canvas/modern-screenshot
-            rasterize the frame — see index.html's original comment. */}
-        <style>{`
-          @font-face {
-            font-family: 'Playwrite HU';
-            font-display: swap;
-            font-weight: 100 400;
-            src: url(https://fonts.gstatic.com/s/playwritehu/v10/playwrighthufont.woff2) format('woff2');
-            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-          }
-        `}</style>
       </head>
       <body>
         {children}

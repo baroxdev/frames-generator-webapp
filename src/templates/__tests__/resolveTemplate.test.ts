@@ -47,6 +47,7 @@ describe('resolveTemplateLayout', () => {
       y: 130,
       limit: 30,
       textColor: '#fff',
+      fontFamily: 'Be Vietnam Pro',
     });
     expect(layout.role).toEqual({
       content: content.role,
@@ -56,6 +57,7 @@ describe('resolveTemplateLayout', () => {
       y: 120,
       limit: 29,
       textColor: undefined,
+      fontFamily: 'Be Vietnam Pro',
     });
   });
 
@@ -69,6 +71,7 @@ describe('resolveTemplateLayout', () => {
       x: 150,
       y: 680,
       textColor: '#1e3a8a',
+      fontFamily: 'Be Vietnam Pro',
     });
   });
 
@@ -107,5 +110,21 @@ describe('resolveTemplateLayout', () => {
     expect(layout.name.content).toBeUndefined();
     expect(layout.role.content).toBeUndefined();
     expect(layout.message.content).toBeUndefined();
+  });
+
+  it("falls back to DEFAULT_FONT_FAMILY when the template has no explicit fontFamily", () => {
+    const layout = resolveTemplateLayout(fixtureTemplate, content);
+
+    expect(layout.name.fontFamily).toBe('Be Vietnam Pro');
+    expect(layout.role.fontFamily).toBe('Be Vietnam Pro');
+    expect(layout.message.fontFamily).toBe('Be Vietnam Pro');
+  });
+
+  it("uses the template's own fontFamily for name/role/message when set, the same one font for all three", () => {
+    const layout = resolveTemplateLayout({ ...fixtureTemplate, fontFamily: 'Playfair Display' }, content);
+
+    expect(layout.name.fontFamily).toBe('Playfair Display');
+    expect(layout.role.fontFamily).toBe('Playfair Display');
+    expect(layout.message.fontFamily).toBe('Playfair Display');
   });
 });

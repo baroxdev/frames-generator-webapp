@@ -64,6 +64,11 @@ const clipFields = {
   clipKeepEnd: z.boolean().optional(),
 };
 
+// Not validated against the curated list (src/constants/fonts.ts) here —
+// that list can grow over time, and an unrecognized value already falls
+// back safely to DEFAULT_FONT_FAMILY at render time (getCuratedFont).
+const fontFamilyField = z.string().min(1).optional();
+
 export const campaignLayoutSchema = z
   .object({
     canvas: canvasSchema,
@@ -74,6 +79,7 @@ export const campaignLayoutSchema = z
     nameBox: textBoxSchema,
     roleBox: textBoxSchema,
     messageBox: textBoxSchema,
+    fontFamily: fontFamilyField,
   })
   .superRefine((layout, ctx) => {
     checkBoxWithinCanvas(ctx, 'avatarBox', layout.avatarBox, layout.canvas);
@@ -97,6 +103,7 @@ export const campaignLayoutRowSchema = z.object({
   nameBox: textBoxSchema,
   roleBox: textBoxSchema,
   messageBox: textBoxSchema,
+  fontFamily: fontFamilyField,
 });
 
 // Mirrors campaigns_title_length / campaigns_description_length in

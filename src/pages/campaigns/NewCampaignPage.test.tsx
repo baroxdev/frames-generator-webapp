@@ -214,6 +214,7 @@ describe("NewCampaignPage", () => {
               autoFit: true,
               textColor: "#000",
             },
+            fontFamily: "Be Vietnam Pro",
           },
           backgroundImageUrl:
             "https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg",

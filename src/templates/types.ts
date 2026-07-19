@@ -88,6 +88,13 @@ export interface Template {
   nameBox: TextBoxConfig;
   roleBox: TextBoxConfig;
   messageBox: TextBoxConfig;
+  /**
+   * Google Fonts family name applied to name/role/message text (one font for
+   * all three fields — see `src/constants/fonts.ts` for the curated,
+   * Vietnamese-diacritic-supporting list a campaign owner picks from).
+   * Omit to fall back to `DEFAULT_FONT_FAMILY`.
+   */
+  fontFamily?: string;
 }
 
 /** The submission data a template gets rendered with. */
@@ -105,4 +112,4 @@ export interface FrameContent {
  * `background`). A campaign's background lives on the campaign row itself
  * (`background_image_url`), not inside its layout.
  */
-export type CampaignLayout = Pick<Template, 'canvas' | 'avatarBox' | 'nameBox' | 'roleBox' | 'messageBox'>;
+export type CampaignLayout = Pick<Template, 'canvas' | 'avatarBox' | 'nameBox' | 'roleBox' | 'messageBox' | 'fontFamily'>;

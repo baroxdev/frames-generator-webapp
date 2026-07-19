@@ -1,5 +1,8 @@
 import { domToBlob } from 'modern-screenshot';
 
+import { ensureFontReady } from '../utils/loadGoogleFont';
+import { MESSAGE_FONT_WEIGHT, NAME_ROLE_FONT_WEIGHT } from '../utils/textFonts';
+
 // Common social platforms (Facebook, Zalo, etc.) downscale a shared image's
 // long edge to somewhere in this neighborhood server-side regardless of
 // what's uploaded — exporting at a higher resolution than this spends bytes
@@ -50,8 +53,22 @@ export function computeExportScale(node: HTMLElement): number {
  * that component's doc comment for why it stays off-screen rather than
  * `display:none` (a `display:none` node has no layout box for anything to
  * capture).
+ *
+ * `fontFamily` should be the campaign's own `layout.fontFamily` (the font
+ * Name/Role/Message are actually styled with). Explicitly awaiting its
+ * readiness here — not just `document.fonts.ready` — matters because a
+ * campaign owner can pick a font that was only just requested (a `<link>`
+ * added moments earlier by Name/Role/Message's own mount effect); without
+ * this, a visitor submitting quickly enough could get an export rasterized
+ * with a fallback font instead of the one actually selected. See
+ * `ensureFontReady`'s doc comment for why `document.fonts.ready` alone
+ * isn't sufficient.
  */
-export async function compositeFrameToBlob(node: HTMLElement): Promise<Blob> {
+export async function compositeFrameToBlob(node: HTMLElement, fontFamily?: string): Promise<Blob> {
+  await Promise.all([
+    ensureFontReady(fontFamily, NAME_ROLE_FONT_WEIGHT),
+    ensureFontReady(fontFamily, MESSAGE_FONT_WEIGHT),
+  ]);
   if ('fonts' in document) {
     await document.fonts.ready;
   }

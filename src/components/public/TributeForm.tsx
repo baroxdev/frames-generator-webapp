@@ -26,6 +26,7 @@ type TributeFormProps = {
   isSubmitting: boolean;
   form: UseFormReturn<TributeSubmitValues>;
   onSubmit: (values: TributeSubmitValues) => Promise<void>;
+  onResultModalClose?: () => void;
   metadata?: {
     resultImage: string | null;
     campaign: Campaign | null;
@@ -36,6 +37,7 @@ export function TributeForm({
   turnstileSiteKey,
   isSubmitting,
   onSubmit,
+  onResultModalClose,
   form,
   metadata,
 }: TributeFormProps) {
@@ -98,6 +100,16 @@ export function TributeForm({
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const handleCloseResultModal = () => {
+    setIsResultModalOpen(false);
+    form.reset();
+    // Turnstile tokens are single-use — the one already consumed by the
+    // submission that produced this result must not linger in state, or
+    // the next submit attempt silently resends it and gets rejected.
+    turnstileRef.current?.reset();
+    onResultModalClose?.();
   };
 
   const handleSubmit = form.handleSubmit(async (values) => {
@@ -286,7 +298,7 @@ export function TributeForm({
               block
               loading={isSubmitting}
             >
-              Gửi thông điệp
+              Gửi lời tri ân
             </Button>
           </div>
         </div>
@@ -294,7 +306,7 @@ export function TributeForm({
 
       <Modal
         open={isResultModalOpen}
-        onCancel={() => setIsResultModalOpen(false)}
+        onCancel={handleCloseResultModal}
         footer={null}
         title="Ảnh khung tri ân của bạn"
         centered

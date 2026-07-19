@@ -39,7 +39,7 @@ import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 const FULL_NAME_MIN = 2;
 const FULL_NAME_MAX = 25;
 const ROLE_MIN = 3;
-const ROLE_MAX = 36;
+const ROLE_MAX = 50;
 const MESSAGE_MIN = 10;
 const MESSAGE_MAX = 400;
 

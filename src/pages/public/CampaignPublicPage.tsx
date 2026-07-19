@@ -92,6 +92,11 @@ export function CampaignPublicPage({
 
   const isFull = campaignFull || campaign.submissionCount >= SUBMISSION_CAP;
 
+  const handleResultModalClose = () => {
+    setSubmittedContent(null);
+    setResultImage(null);
+  };
+
   const handleSubmit = async (values: TributeSubmitValues) => {
     const avatarFile = values.avatar.file;
     if (!avatarFile) {
@@ -159,9 +164,20 @@ export function CampaignPublicPage({
       <div className="mx-auto max-w-5xl w-full">
         {campaign.headerImageUrl && (
           <div className="rounded-xl border overflow-hidden">
-            <img src={campaign.headerImageUrl} alt="" className="w-full h-auto" />
+            <img
+              src={campaign.headerImageUrl}
+              alt=""
+              className="w-full h-auto"
+            />
           </div>
         )}
+        <div className="mt-6 text-center max-w-3xl  mx-auto">
+          <h1>
+            <span className="text-3xl max-md:text-2xl font-bold text-slate-800 text-center block">
+              {campaign.title}
+            </span>
+          </h1>
+        </div>
         <div className="gap-8 flex-1 h-full max-md:flex-col w-full items-center flex max-md:mb-[100px]">
           <div className="mx-auto mt-8 w-full max-md:max-w-full max-w-md">
             {isFull ? (
@@ -187,6 +203,7 @@ export function CampaignPublicPage({
                   submitTributeMutation.isPending
                 }
                 onSubmit={handleSubmit}
+                onResultModalClose={handleResultModalClose}
               />
             )}
           </div>

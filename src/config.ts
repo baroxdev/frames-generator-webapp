@@ -1,8 +1,8 @@
 export const config = {
   limit: {
     fullName: 25,
-    role: 36,
-    message: 400,
+    role: 50,
+    message: 600,
   },
   text: {
     your_picture: "Ảnh của bạn",

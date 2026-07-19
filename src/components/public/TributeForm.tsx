@@ -13,6 +13,7 @@ import {
   TurnstileWidget,
   type TurnstileWidgetHandle,
 } from "../auth/TurnstileWidget";
+import { config } from "../../config";
 
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const TURNSTILE_ACTION = "submit-tribute";
@@ -189,7 +190,11 @@ export function TributeForm({
             validateStatus={fieldState.invalid ? "error" : ""}
             help={fieldState.error?.message}
           >
-            <Input {...field} maxLength={25} aria-label="Họ và tên" />
+            <Input
+              {...field}
+              maxLength={config.limit.fullName}
+              aria-label="Họ và tên"
+            />
           </Form.Item>
         )}
       />
@@ -203,7 +208,11 @@ export function TributeForm({
             validateStatus={fieldState.invalid ? "error" : ""}
             help={fieldState.error?.message}
           >
-            <Input {...field} maxLength={25} aria-label="Đơn vị / Chức vụ" />
+            <Input
+              {...field}
+              maxLength={config.limit.role}
+              aria-label="Đơn vị / Chức vụ"
+            />
           </Form.Item>
         )}
       />
@@ -220,7 +229,7 @@ export function TributeForm({
             <Input.TextArea
               {...field}
               rows={4}
-              maxLength={400}
+              maxLength={config.limit.message}
               aria-label="Thông điệp"
             />
           </Form.Item>

@@ -54,12 +54,6 @@ export const Route = createRootRoute({
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.ico" },
       { rel: "stylesheet", href: appCss },
-      // No longer a fixed Google Fonts <link> here: every campaign's
-      // name/role/message font is now loaded dynamically per its own
-      // `layout.fontFamily` (see `src/utils/loadGoogleFont.ts`), since a
-      // campaign owner picks from a curated list rather than the whole site
-      // sharing one hardcoded font. These preconnects still pay off since
-      // that dynamic load always hits the same two hosts.
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       {
         rel: "preconnect",

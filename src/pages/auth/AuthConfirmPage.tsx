@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { useAuthSession } from '../../hooks/useAuthSession';
 

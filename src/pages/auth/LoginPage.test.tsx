@@ -9,8 +9,8 @@ const { mockLogIn, mockNavigate, mockReportAuthError } = vi.hoisted(() => ({
   mockReportAuthError: vi.fn(),
 }));
 
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-router-dom')>();
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>();
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
@@ -31,7 +31,7 @@ describe('LoginPage', () => {
 
   it('submits the mutation with the validated credentials and navigates to /account on success', async () => {
     mockLogIn.mockResolvedValue({ user: { id: 'user-1' }, session: { access_token: 'token' } });
-    renderWithProviders(<LoginPage />);
+    await renderWithProviders(<LoginPage />);
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@example.com' } });
     fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'correct-horse-1' } });
@@ -43,11 +43,11 @@ describe('LoginPage', () => {
         expect.anything(),
       ),
     );
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/account'));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: '/account' }));
   });
 
   it('shows a validation error and never calls the mutation for an empty password', async () => {
-    renderWithProviders(<LoginPage />);
+    await renderWithProviders(<LoginPage />);
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
@@ -60,7 +60,7 @@ describe('LoginPage', () => {
   it('reports a friendly error and does not navigate when login fails', async () => {
     const failure = new Error('Invalid login credentials');
     mockLogIn.mockRejectedValue(failure);
-    renderWithProviders(<LoginPage />);
+    await renderWithProviders(<LoginPage />);
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@example.com' } });
     fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'wrong-password' } });

@@ -2,7 +2,7 @@ import { DeleteOutlined, DownloadOutlined, FileExcelOutlined } from '@ant-design
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Image, Popconfirm, Table, Tag, Tooltip, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useParams } from '@tanstack/react-router';
 import { OwnerLayout } from '../../components/owner/OwnerLayout';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import { campaignKeys, campaignsQueryOptions } from '../../queries/campaign.queries';
@@ -102,7 +102,7 @@ function submissionColumns(
  * add a dedicated get-by-id service method.
  */
 export function CampaignSubmissionsPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams({ strict: false }) as { id: string };
   const { user, isLoading: isSessionLoading } = useAuthSession();
   const queryClient = useQueryClient();
 

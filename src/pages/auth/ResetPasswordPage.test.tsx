@@ -10,8 +10,8 @@ const { mockUpdatePassword, mockNavigate, mockReportAuthError, mockUseAuthSessio
   mockUseAuthSession: vi.fn(),
 }));
 
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-router-dom')>();
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>();
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
@@ -37,14 +37,14 @@ describe('ResetPasswordPage', () => {
 
   it('shows a loading state while the recovery session is being verified', () => {
     mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: true, error: null });
-    renderWithProviders(<ResetPasswordPage />);
+    await renderWithProviders(<ResetPasswordPage />);
 
     expect(screen.getByText('Đang xác minh liên kết...')).toBeTruthy();
   });
 
   it('shows an invalid-link message and no form when there is no recovery session', () => {
     mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: false, error: null });
-    renderWithProviders(<ResetPasswordPage />);
+    await renderWithProviders(<ResetPasswordPage />);
 
     expect(screen.getByText(/Liên kết đặt lại mật khẩu không hợp lệ/)).toBeTruthy();
     expect(screen.queryByLabelText('Mật khẩu mới')).toBeNull();
@@ -58,7 +58,7 @@ describe('ResetPasswordPage', () => {
       error: null,
     });
     mockUpdatePassword.mockResolvedValue(undefined);
-    renderWithProviders(<ResetPasswordPage />);
+    await renderWithProviders(<ResetPasswordPage />);
 
     fireEvent.change(screen.getByLabelText('Mật khẩu mới'), { target: { value: 'new-correct-horse-1' } });
     fireEvent.change(screen.getByLabelText('Nhập lại mật khẩu mới'), { target: { value: 'new-correct-horse-1' } });
@@ -67,7 +67,7 @@ describe('ResetPasswordPage', () => {
     await waitFor(() =>
       expect(mockUpdatePassword).toHaveBeenCalledWith({ newPassword: 'new-correct-horse-1' }, expect.anything()),
     );
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/account'));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: '/account' }));
   });
 
   it('shows a validation error and never calls the mutation when the passwords do not match', async () => {
@@ -77,7 +77,7 @@ describe('ResetPasswordPage', () => {
       isLoading: false,
       error: null,
     });
-    renderWithProviders(<ResetPasswordPage />);
+    await renderWithProviders(<ResetPasswordPage />);
 
     fireEvent.change(screen.getByLabelText('Mật khẩu mới'), { target: { value: 'new-correct-horse-1' } });
     fireEvent.change(screen.getByLabelText('Nhập lại mật khẩu mới'), { target: { value: 'different-1' } });
@@ -96,7 +96,7 @@ describe('ResetPasswordPage', () => {
     });
     const failure = new Error('Auth session missing');
     mockUpdatePassword.mockRejectedValue(failure);
-    renderWithProviders(<ResetPasswordPage />);
+    await renderWithProviders(<ResetPasswordPage />);
 
     fireEvent.change(screen.getByLabelText('Mật khẩu mới'), { target: { value: 'new-correct-horse-1' } });
     fireEvent.change(screen.getByLabelText('Nhập lại mật khẩu mới'), { target: { value: 'new-correct-horse-1' } });

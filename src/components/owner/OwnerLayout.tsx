@@ -2,7 +2,7 @@ import { LogoutOutlined, PlusOutlined, ProjectOutlined, UnorderedListOutlined } 
 import { useMutation } from '@tanstack/react-query';
 import { Avatar, Breadcrumb, Button, Layout, Menu, Typography, type MenuProps } from 'antd';
 import type { ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from '@tanstack/react-router';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import { logOutMutationOptions } from '../../queries/auth.queries';
 import { reportAuthError } from '../../utils/report-auth-error';
@@ -40,12 +40,12 @@ export function OwnerLayout({ title, children }: { title: string; children: Reac
   const { user } = useAuthSession();
   const logOutMutation = useMutation(logOutMutationOptions());
 
-  const handleMenuClick: MenuProps['onClick'] = (info) => navigate(info.key);
+  const handleMenuClick: MenuProps['onClick'] = (info) => navigate({ to: info.key });
 
   const handleLogout = async () => {
     try {
       await logOutMutation.mutateAsync();
-      navigate('/login');
+      navigate({ to: '/login' });
     } catch (error) {
       reportAuthError(error, 'Không thể đăng xuất.');
     }

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, message } from 'antd';
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from '@tanstack/react-router';
 import { LayoutEditor } from '../../components/campaigns/LayoutEditor';
 import { OwnerLayout } from '../../components/owner/OwnerLayout';
 import { useAuthSession } from '../../hooks/useAuthSession';
@@ -21,7 +21,7 @@ import { reportCampaignError } from '../../utils/report-campaign-error';
  * every other owner page already works this way.
  */
 export function EditCampaignLayoutPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams({ strict: false }) as { id: string };
   const { user, isLoading: isSessionLoading } = useAuthSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -67,7 +67,7 @@ export function EditCampaignLayoutPage() {
       await queryClient.invalidateQueries({ queryKey: campaignKeys.list() });
       await queryClient.invalidateQueries({ queryKey: campaignBySlugQueryOptions(campaign.slug).queryKey });
       message.success('Đã lưu bố cục.');
-      navigate('/campaigns');
+      navigate({ to: '/campaigns' });
     } catch (error) {
       reportCampaignError(error, 'Không thể lưu bố cục. Vui lòng thử lại.');
     }

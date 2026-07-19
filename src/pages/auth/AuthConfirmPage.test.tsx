@@ -16,14 +16,14 @@ describe('AuthConfirmPage', () => {
 
   it('shows a loading state while the session is being resolved', () => {
     mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: true, error: null });
-    renderWithProviders(<AuthConfirmPage />);
+    await renderWithProviders(<AuthConfirmPage />);
 
     expect(screen.getByText('Đang xác minh...')).toBeTruthy();
   });
 
   it('shows a failure message and a link back to login when no session was established', () => {
     mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: false, error: null });
-    renderWithProviders(<AuthConfirmPage />);
+    await renderWithProviders(<AuthConfirmPage />);
 
     expect(screen.getByText(/Liên kết xác minh không hợp lệ/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Đến trang đăng nhập' })).toBeTruthy();
@@ -36,7 +36,7 @@ describe('AuthConfirmPage', () => {
       isLoading: false,
       error: null,
     });
-    renderWithProviders(<AuthConfirmPage />);
+    await renderWithProviders(<AuthConfirmPage />);
 
     expect(screen.getByText(/Tài khoản của bạn đã được xác minh/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Tiếp tục' })).toBeTruthy();

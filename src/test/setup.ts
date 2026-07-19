@@ -18,15 +18,20 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
-// jsdom doesn't implement URL.createObjectURL/revokeObjectURL; components
-// that preview a locally-chosen file (e.g. NewCampaignPage's background
-// upload) need this polyfill or they throw during the effect phase.
-if (!URL.createObjectURL) {
-  URL.createObjectURL = () => 'blob:mock-object-url';
-}
-if (!URL.revokeObjectURL) {
-  URL.revokeObjectURL = () => undefined;
-}
+// Components that preview a locally-chosen file (e.g. NewCampaignPage's
+// background upload) call URL.createObjectURL and assert on its result.
+// jsdom itself doesn't implement it, but Node's own global URL now does
+// (returns non-deterministic "blob:nodedata:..." URLs) — override
+// unconditionally so tests get the same deterministic value regardless of
+// which runtime under-the-hood already defines it.
+URL.createObjectURL = () => 'blob:mock-object-url';
+URL.revokeObjectURL = () => undefined;
+
+// jsdom defines window.scrollTo but throws "not implemented" when called;
+// TanStack Router's scroll restoration calls it on every route match, so
+// override unconditionally (a presence check isn't enough — see
+// URL.createObjectURL above for the same pattern).
+window.scrollTo = () => undefined;
 
 // jsdom doesn't implement ResizeObserver; antd's <Menu> (overflow
 // calculation) and <Table> both observe their container's size on mount, so

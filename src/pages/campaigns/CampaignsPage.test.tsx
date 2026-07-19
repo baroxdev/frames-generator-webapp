@@ -48,21 +48,17 @@ describe('CampaignsPage', () => {
 
   it('shows a loading state while the session resolves', () => {
     mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: true, error: null });
-    renderWithProviders(<CampaignsPage />);
+    await renderWithProviders(<CampaignsPage />);
 
     expect(screen.getByText('Đang tải...')).toBeTruthy();
   });
 
   it('redirects to /login when there is no session', async () => {
     mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: false, error: null });
-    const { Route, Routes } = await import('react-router-dom');
-    renderWithProviders(
-      <Routes>
-        <Route path="/campaigns" element={<CampaignsPage />} />
-        <Route path="/login" element={<div>login-page-placeholder</div>} />
-      </Routes>,
-      { route: '/campaigns' },
-    );
+    await renderWithProviders(<CampaignsPage />, {
+      route: '/campaigns',
+      additionalRoutes: [{ path: '/login', element: <div>login-page-placeholder</div> }],
+    });
 
     expect(screen.getByText('login-page-placeholder')).toBeTruthy();
   });
@@ -70,7 +66,7 @@ describe('CampaignsPage', () => {
   it('shows an empty state when the owner has no campaigns', async () => {
     mockUseAuthSession.mockReturnValue({ session: {}, user: { id: 'user-1' }, isLoading: false, error: null });
     mockListCampaignsForOwner.mockResolvedValue([]);
-    renderWithProviders(<CampaignsPage />);
+    await renderWithProviders(<CampaignsPage />);
 
     expect(await screen.findByText('Bạn chưa có chiến dịch nào.')).toBeTruthy();
   });
@@ -78,7 +74,7 @@ describe('CampaignsPage', () => {
   it('lists the owner campaigns with their status', async () => {
     mockUseAuthSession.mockReturnValue({ session: {}, user: { id: 'user-1' }, isLoading: false, error: null });
     mockListCampaignsForOwner.mockResolvedValue([CAMPAIGN]);
-    renderWithProviders(<CampaignsPage />);
+    await renderWithProviders(<CampaignsPage />);
 
     expect(await screen.findByText('/dai-hoi-ben-tre')).toBeTruthy();
     expect(screen.getByText('Đang chờ duyệt')).toBeTruthy();
@@ -87,7 +83,7 @@ describe('CampaignsPage', () => {
   it('renders the slug as a link to the public page that opens in a new tab', async () => {
     mockUseAuthSession.mockReturnValue({ session: {}, user: { id: 'user-1' }, isLoading: false, error: null });
     mockListCampaignsForOwner.mockResolvedValue([CAMPAIGN]);
-    renderWithProviders(<CampaignsPage />);
+    await renderWithProviders(<CampaignsPage />);
 
     const link = await screen.findByRole('link', { name: /dai-hoi-ben-tre/ });
     expect(link.getAttribute('href')).toBe('/dai-hoi-ben-tre');
@@ -98,7 +94,7 @@ describe('CampaignsPage', () => {
   it('does not show a Facebook share button for a campaign that is not approved yet', async () => {
     mockUseAuthSession.mockReturnValue({ session: {}, user: { id: 'user-1' }, isLoading: false, error: null });
     mockListCampaignsForOwner.mockResolvedValue([CAMPAIGN]);
-    renderWithProviders(<CampaignsPage />);
+    await renderWithProviders(<CampaignsPage />);
 
     await screen.findByText('/dai-hoi-ben-tre');
     expect(screen.queryByLabelText('Chia sẻ lên Facebook')).toBeNull();
@@ -107,7 +103,7 @@ describe('CampaignsPage', () => {
   it('preloads the Facebook SDK on mount so a later share click can call FB.ui synchronously', async () => {
     mockUseAuthSession.mockReturnValue({ session: {}, user: { id: 'user-1' }, isLoading: false, error: null });
     mockListCampaignsForOwner.mockResolvedValue([CAMPAIGN]);
-    renderWithProviders(<CampaignsPage />);
+    await renderWithProviders(<CampaignsPage />);
 
     await screen.findByText('/dai-hoi-ben-tre');
     expect(mockLoadFacebookSdk).toHaveBeenCalledWith(expect.any(String));
@@ -118,7 +114,7 @@ describe('CampaignsPage', () => {
     mockListCampaignsForOwner.mockResolvedValue([{ ...CAMPAIGN, status: 'approved' as const }]);
     const ui = vi.fn();
     window.FB = { init: vi.fn(), ui };
-    renderWithProviders(<CampaignsPage />);
+    await renderWithProviders(<CampaignsPage />);
 
     fireEvent.click(await screen.findByLabelText('Chia sẻ lên Facebook'));
 
@@ -133,7 +129,7 @@ describe('CampaignsPage', () => {
     mockListCampaignsForOwner.mockResolvedValue([{ ...CAMPAIGN, status: 'approved' as const }]);
     const ui = vi.fn();
     mockLoadFacebookSdk.mockResolvedValue({ init: vi.fn(), ui });
-    renderWithProviders(<CampaignsPage />);
+    await renderWithProviders(<CampaignsPage />);
 
     fireEvent.click(await screen.findByLabelText('Chia sẻ lên Facebook'));
 

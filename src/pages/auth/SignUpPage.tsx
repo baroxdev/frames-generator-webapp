@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { Button, Form, Input } from 'antd';
 import { useRef, useState, type ChangeEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { ConfigErrorNotice } from '../../components/auth/ConfigErrorNotice';
 import { TurnstileWidget, type TurnstileWidgetHandle } from '../../components/auth/TurnstileWidget';

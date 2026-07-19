@@ -1,5 +1,4 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test/render';
 import { CampaignSeoPage } from './CampaignSeoPage';
@@ -20,8 +19,8 @@ const {
   mockReportCampaignError: vi.fn(),
 }));
 
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-router-dom')>();
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>();
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
@@ -59,13 +58,11 @@ const CAMPAIGN = {
 };
 
 function renderAtId(id: string) {
-  return renderWithProviders(
-    <Routes>
-      <Route path="/campaigns/:id/seo" element={<CampaignSeoPage />} />
-      <Route path="/login" element={<div>login-page-placeholder</div>} />
-    </Routes>,
-    { route: `/campaigns/${id}/seo` },
-  );
+  return await renderWithProviders(<CampaignSeoPage />, {
+    route: `/campaigns/${id}/seo`,
+    path: '/campaigns/$id/seo',
+    additionalRoutes: [{ path: '/login', element: <div>login-page-placeholder</div> }],
+  });
 }
 
 describe('CampaignSeoPage', () => {
@@ -123,7 +120,7 @@ describe('CampaignSeoPage', () => {
       ),
     );
     expect(mockUploadCampaignBackground).not.toHaveBeenCalled();
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/campaigns'));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: '/campaigns' }));
   });
 
   it('uploads a new thumbnail before saving when one is chosen', async () => {

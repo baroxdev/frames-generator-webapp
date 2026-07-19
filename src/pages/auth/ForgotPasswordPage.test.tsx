@@ -24,7 +24,7 @@ describe('ForgotPasswordPage', () => {
 
   it('submits the mutation with the email and a reset redirect URL, then shows the confirmation screen', async () => {
     mockRequestPasswordReset.mockResolvedValue(undefined);
-    renderWithProviders(<ForgotPasswordPage />);
+    await renderWithProviders(<ForgotPasswordPage />);
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi liên kết đặt lại mật khẩu' }));
@@ -39,7 +39,7 @@ describe('ForgotPasswordPage', () => {
   });
 
   it('shows a validation error and never calls the mutation for an invalid email', async () => {
-    renderWithProviders(<ForgotPasswordPage />);
+    await renderWithProviders(<ForgotPasswordPage />);
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'not-an-email' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi liên kết đặt lại mật khẩu' }));
@@ -51,7 +51,7 @@ describe('ForgotPasswordPage', () => {
   it('reports a friendly error when the request fails', async () => {
     const failure = new Error('rate limited');
     mockRequestPasswordReset.mockRejectedValue(failure);
-    renderWithProviders(<ForgotPasswordPage />);
+    await renderWithProviders(<ForgotPasswordPage />);
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi liên kết đặt lại mật khẩu' }));

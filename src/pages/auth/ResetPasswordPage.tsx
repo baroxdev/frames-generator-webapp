@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { Button, Form, Input, message } from 'antd';
 import { useState, type ChangeEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import { updatePasswordMutationOptions } from '../../queries/auth.queries';
@@ -42,7 +42,7 @@ export function ResetPasswordPage() {
     try {
       await updatePasswordMutation.mutateAsync({ newPassword: parsed.data.password });
       message.success('Đặt lại mật khẩu thành công.');
-      navigate('/account');
+      navigate({ to: '/account' });
     } catch (error) {
       reportAuthError(error, 'Không thể cập nhật mật khẩu.');
     }

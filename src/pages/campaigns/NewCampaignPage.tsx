@@ -2,7 +2,7 @@ import { InboxOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Form, Input, Upload, message, type UploadFile, type UploadProps } from 'antd';
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from '@tanstack/react-router';
 import { useDebounce } from 'use-debounce';
 import { LayoutEditor } from '../../components/campaigns/LayoutEditor';
 import { OwnerLayout } from '../../components/owner/OwnerLayout';
@@ -198,7 +198,7 @@ export function NewCampaignPage() {
       await createMutation.mutateAsync(createParams);
       await queryClient.invalidateQueries({ queryKey: campaignKeys.list() });
       message.success('Chiến dịch đã được tạo và đang chờ duyệt. Đường dẫn sẽ chưa công khai cho đến khi được duyệt.');
-      navigate('/campaigns');
+      navigate({ to: '/campaigns' });
     } catch (error) {
       reportCampaignError(error, 'Không thể tạo chiến dịch. Vui lòng thử lại.');
     }

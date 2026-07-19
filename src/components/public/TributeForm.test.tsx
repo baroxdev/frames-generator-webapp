@@ -3,7 +3,16 @@ import { forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useForm } from "react-hook-form";
 
-const { mockReset } = vi.hoisted(() => ({ mockReset: vi.fn() }));
+const { mockReset, mockLoadFacebookSdk, mockOpenShareDialog } = vi.hoisted(() => ({
+  mockReset: vi.fn(),
+  mockLoadFacebookSdk: vi.fn(),
+  mockOpenShareDialog: vi.fn(),
+}));
+
+vi.mock("../../lib/facebookSdk", () => ({
+  loadFacebookSdk: mockLoadFacebookSdk,
+  openShareDialog: mockOpenShareDialog,
+}));
 
 vi.mock("../auth/TurnstileWidget", () => ({
   TurnstileWidget: forwardRef(function MockTurnstileWidget(
@@ -31,6 +40,7 @@ import type { TributeSubmitValues } from "./TributeForm";
 
 function renderTributeForm(
   onSubmit: (values: TributeSubmitValues) => Promise<void>,
+  metadata?: { resultImage: string | null },
 ) {
   function Harness() {
     const form = useForm<TributeSubmitValues>({
@@ -46,9 +56,12 @@ function renderTributeForm(
     return (
       <TributeForm
         turnstileSiteKey="test-site-key"
+        facebookAppId="test-fb-app-id"
+        shareUrl="https://example.com/dai-hoi"
         isSubmitting={false}
         onSubmit={onSubmit}
         form={form}
+        metadata={metadata}
       />
     );
   }
@@ -79,6 +92,9 @@ function fillValidForm() {
 describe("TributeForm", () => {
   beforeEach(() => {
     mockReset.mockClear();
+    mockLoadFacebookSdk.mockReset();
+    mockOpenShareDialog.mockReset();
+    mockLoadFacebookSdk.mockResolvedValue({ init: vi.fn(), ui: vi.fn() });
   });
 
   it("shows validation errors and does not submit when required fields are missing", async () => {
@@ -136,5 +152,59 @@ describe("TributeForm", () => {
         "Bằng việc gửi, bạn đồng ý cho phép chiến dịch sử dụng ảnh và thông tin này để tạo khung ảnh tri ân công khai.",
       ),
     ).toBeTruthy();
+  });
+
+  it("disables the footer download button until a result image exists", () => {
+    renderTributeForm(vi.fn());
+
+    const button = screen.getByText("Tải về").closest("button");
+    expect(button?.disabled).toBe(true);
+  });
+
+  it("opens the result dialog automatically once a result image is available", async () => {
+    renderTributeForm(vi.fn(), { resultImage: "https://cdn.example.com/result.jpg" });
+
+    expect(
+      await screen.findByText("Ảnh khung tri ân của bạn"),
+    ).toBeTruthy();
+    expect(screen.getByAltText("Khung ảnh tri ân").getAttribute("src")).toBe(
+      "https://cdn.example.com/result.jpg",
+    );
+  });
+
+  it("downloads the result image as a same-origin blob instead of navigating to the remote URL", async () => {
+    const blob = new Blob(["fake-image-bytes"], { type: "image/jpeg" });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+    vi.stubGlobal("fetch", fetchMock);
+    const createObjectURL = vi.fn().mockReturnValue("blob:mock-url");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
+
+    renderTributeForm(vi.fn(), { resultImage: "https://cdn.example.com/result.jpg" });
+    await screen.findByText("Ảnh khung tri ân của bạn");
+
+    fireEvent.click(screen.getByText("Tải về máy"));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("https://cdn.example.com/result.jpg"),
+    );
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledWith(blob));
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("opens the Facebook share dialog for the campaign's public URL when sharing", async () => {
+    renderTributeForm(vi.fn(), { resultImage: "https://cdn.example.com/result.jpg" });
+    await screen.findByText("Ảnh khung tri ân của bạn");
+
+    fireEvent.click(screen.getByText("Chia sẻ Facebook"));
+
+    expect(mockOpenShareDialog).toHaveBeenCalledWith(
+      "test-fb-app-id",
+      "https://example.com/dai-hoi",
+    );
   });
 });

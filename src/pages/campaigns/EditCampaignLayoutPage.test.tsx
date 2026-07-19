@@ -1,5 +1,4 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test/render';
 import { EditCampaignLayoutPage } from './EditCampaignLayoutPage';
@@ -13,8 +12,8 @@ const { mockUseAuthSession, mockListCampaignsForOwner, mockUpdateCampaignLayout,
     mockReportCampaignError: vi.fn(),
   }));
 
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-router-dom')>();
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>();
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
@@ -59,12 +58,10 @@ const CAMPAIGN = {
 };
 
 function renderAtId(id: string) {
-  return renderWithProviders(
-    <Routes>
-      <Route path="/campaigns/:id/edit" element={<EditCampaignLayoutPage />} />
-    </Routes>,
-    { route: `/campaigns/${id}/edit` },
-  );
+  return await renderWithProviders(<EditCampaignLayoutPage />, {
+    route: `/campaigns/${id}/edit`,
+    path: '/campaigns/$id/edit',
+  });
 }
 
 describe('EditCampaignLayoutPage', () => {
@@ -79,13 +76,11 @@ describe('EditCampaignLayoutPage', () => {
 
   it('redirects to /login when there is no session', async () => {
     mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: false, error: null });
-    renderWithProviders(
-      <Routes>
-        <Route path="/campaigns/:id/edit" element={<EditCampaignLayoutPage />} />
-        <Route path="/login" element={<div>login-page-placeholder</div>} />
-      </Routes>,
-      { route: '/campaigns/campaign-1/edit' },
-    );
+    await renderWithProviders(<EditCampaignLayoutPage />, {
+      route: '/campaigns/campaign-1/edit',
+      path: '/campaigns/$id/edit',
+      additionalRoutes: [{ path: '/login', element: <div>login-page-placeholder</div> }],
+    });
 
     expect(screen.getByText('login-page-placeholder')).toBeTruthy();
   });
@@ -120,7 +115,7 @@ describe('EditCampaignLayoutPage', () => {
         expect.anything(),
       ),
     );
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/campaigns'));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: '/campaigns' }));
   });
 
   it('reports a friendly error and stays on the page when saving fails', async () => {

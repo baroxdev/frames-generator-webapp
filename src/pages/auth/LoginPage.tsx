@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { Button, Form, Input } from 'antd';
 import { useState, type ChangeEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { logInMutationOptions } from '../../queries/auth.queries';
 import { logInSchema, type LogInInput } from '../../schemas/auth.schema';
@@ -30,7 +30,7 @@ export function LoginPage() {
 
     try {
       await logInMutation.mutateAsync(parsed.data);
-      navigate('/account');
+      navigate({ to: '/account' });
     } catch (error) {
       reportAuthError(error, 'Không thể đăng nhập. Vui lòng thử lại.');
     }

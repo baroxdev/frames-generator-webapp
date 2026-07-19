@@ -1,5 +1,5 @@
 import { Button, Result } from 'antd';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 
 /**
  * Shown for any unreachable public URL, most importantly a campaign slug

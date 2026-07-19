@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Form, Input, Upload, message, type UploadFile, type UploadProps } from 'antd';
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from '@tanstack/react-router';
 import { OwnerLayout } from '../../components/owner/OwnerLayout';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import {
@@ -31,7 +31,7 @@ type FieldErrors = Partial<Record<'title' | 'description', string>>;
  * add a dedicated get-by-id service method.
  */
 export function CampaignSeoPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams({ strict: false }) as { id: string };
   const { user, isLoading: isSessionLoading } = useAuthSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -137,7 +137,7 @@ export function CampaignSeoPage() {
       await queryClient.invalidateQueries({ queryKey: campaignKeys.list() });
       await queryClient.invalidateQueries({ queryKey: campaignBySlugQueryOptions(campaign.slug).queryKey });
       message.success('Đã lưu thông tin SEO.');
-      navigate('/campaigns');
+      navigate({ to: '/campaigns' });
     } catch (error) {
       reportCampaignError(error, 'Không thể lưu thông tin SEO. Vui lòng thử lại.');
     }

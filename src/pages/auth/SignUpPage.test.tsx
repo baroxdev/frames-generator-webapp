@@ -63,7 +63,7 @@ describe('SignUpPage', () => {
 
   it('submits the mutation with the validated fields and captcha token, then shows the confirmation screen', async () => {
     mockSignUp.mockResolvedValue({ user: { id: 'user-1' }, requiresEmailConfirmation: true });
-    renderWithProviders(<SignUpPage />);
+    await renderWithProviders(<SignUpPage />);
 
     fillValidForm();
     fireEvent.click(screen.getByRole('button', { name: 'Đăng ký' }));
@@ -82,7 +82,7 @@ describe('SignUpPage', () => {
   });
 
   it('shows a validation error and never calls the mutation when passwords do not match', async () => {
-    renderWithProviders(<SignUpPage />);
+    await renderWithProviders(<SignUpPage />);
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@example.com' } });
     fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'correct-horse-1' } });
@@ -97,7 +97,7 @@ describe('SignUpPage', () => {
   it('resets the captcha and reports a friendly error when signup fails (e.g. duplicate email)', async () => {
     const failure = new Error('User already registered');
     mockSignUp.mockRejectedValue(failure);
-    renderWithProviders(<SignUpPage />);
+    await renderWithProviders(<SignUpPage />);
 
     fillValidForm();
     fireEvent.click(screen.getByRole('button', { name: 'Đăng ký' }));

@@ -1,6 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../../test/render';
 import { AccountPage } from './AccountPage';
 
@@ -11,8 +10,8 @@ const { mockLogOut, mockNavigate, mockReportAuthError, mockUseAuthSession } = vi
   mockUseAuthSession: vi.fn(),
 }));
 
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-router-dom')>();
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>();
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
@@ -38,7 +37,7 @@ describe('AccountPage', () => {
 
   it('shows a loading state while the session resolves', () => {
     mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: true, error: null });
-    renderWithProviders(<AccountPage />);
+    await renderWithProviders(<AccountPage />);
 
     expect(screen.getByText('Đang tải...')).toBeTruthy();
   });
@@ -48,13 +47,10 @@ describe('AccountPage', () => {
     // <Navigate> resolves against the real router (only this test's own
     // `useNavigate()` call inside AccountPage is mocked above), so routing
     // it to a real /login route lets us assert on the outcome directly.
-    renderWithProviders(
-      <Routes>
-        <Route path="/account" element={<AccountPage />} />
-        <Route path="/login" element={<div>login-page-placeholder</div>} />
-      </Routes>,
-      { route: '/account' },
-    );
+    await renderWithProviders(<AccountPage />, {
+      route: '/account',
+      additionalRoutes: [{ path: '/login', element: <div>login-page-placeholder</div> }],
+    });
 
     expect(screen.getByText('login-page-placeholder')).toBeTruthy();
   });
@@ -67,14 +63,14 @@ describe('AccountPage', () => {
       error: null,
     });
     mockLogOut.mockResolvedValue(undefined);
-    renderWithProviders(<AccountPage />);
+    await renderWithProviders(<AccountPage />);
 
     expect(screen.getByText(/owner@example.com/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
 
     await waitFor(() => expect(mockLogOut).toHaveBeenCalled());
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/login'));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: '/login' }));
   });
 
   it('reports a friendly error when logout fails', async () => {
@@ -86,7 +82,7 @@ describe('AccountPage', () => {
     });
     const failure = new Error('network error');
     mockLogOut.mockRejectedValue(failure);
-    renderWithProviders(<AccountPage />);
+    await renderWithProviders(<AccountPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
 

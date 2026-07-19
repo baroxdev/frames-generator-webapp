@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { Button } from 'antd';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from '@tanstack/react-router';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import { logOutMutationOptions } from '../../queries/auth.queries';
@@ -31,7 +31,7 @@ export function AccountPage() {
   const handleLogout = async () => {
     try {
       await logOutMutation.mutateAsync();
-      navigate('/login');
+      navigate({ to: '/login' });
     } catch (error) {
       reportAuthError(error, 'Không thể đăng xuất.');
     }

@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { Button, Form, Input } from 'antd';
 import { useState, type ChangeEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { requestPasswordResetMutationOptions } from '../../queries/auth.queries';
 import { requestPasswordResetSchema, type RequestPasswordResetInput } from '../../schemas/auth.schema';

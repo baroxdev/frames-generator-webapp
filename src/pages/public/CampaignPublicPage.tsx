@@ -1,8 +1,8 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Alert, Button } from "antd";
+import { useMutation } from "@tanstack/react-query";
+import { Alert } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { useParams } from "react-router-dom";
+import { useForm, UseFormReturn, useWatch } from "react-hook-form";
 import { ConfigErrorNotice } from "../../components/auth/ConfigErrorNotice";
 import PrintArea from "../../components/PrintArea";
 import {
@@ -10,20 +10,17 @@ import {
   type TributeSubmitValues,
 } from "../../components/public/TributeForm";
 import { useEnv } from "../../config/useEnv";
-import { campaignBySlugQueryOptions } from "../../queries/campaign.queries";
 import {
   submitTributeMutationOptions,
   uploadSubmissionImageMutationOptions,
 } from "../../queries/submission.queries";
+import { Campaign } from "../../services/campaign.service";
 import { compositeFrameToBlob } from "../../services/frameCompositor.service";
 import { SubmissionServiceError } from "../../services/submission.service";
 import { campaignLayoutToTemplate } from "../../templates";
 import type { CampaignLayout, FrameContent } from "../../templates/types";
 import { reportSubmissionError } from "../../utils/report-submission-error";
 import { NotFoundPage } from "./NotFoundPage";
-import { useForm, UseFormReturn, useWatch } from "react-hook-form";
-import { Campaign } from "../../services/campaign.service";
-import { DownloadOutlined } from "@ant-design/icons";
 
 // Mirrors the `5000` in `create_submission`'s guard
 // (supabase/migrations/0003_submissions.sql) — this copy only drives a
@@ -46,15 +43,17 @@ const SUBMISSION_CAP = 5000;
  * client trying to tell them apart) and render the same not-found page,
  * per #5's "no campaign content, background, or branding is exposed"
  * requirement.
+ *
+ * `campaign` is fetched by the `/$slug` route's server-side loader (see
+ * `routes/$slug.tsx`) rather than by this component — the initial lookup
+ * runs server-side so the SSR response can carry real Open Graph tags.
  */
-export function CampaignPublicPage() {
-  const { slug } = useParams<{ slug: string }>();
-
+export function CampaignPublicPage({
+  campaign,
+}: {
+  campaign: Campaign | null;
+}) {
   const { env, error: envError } = useEnv();
-  const query = useQuery({
-    ...campaignBySlugQueryOptions(slug ?? ""),
-    enabled: Boolean(slug),
-  });
   const form = useForm<TributeSubmitValues>({
     defaultValues: {
       fullName: "",
@@ -72,15 +71,9 @@ export function CampaignPublicPage() {
   );
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [campaignFull, setCampaignFull] = useState(false);
-  // Covers the gap between clicking submit and the upload mutation actually
-  // starting — compositing itself has no TanStack Query `isPending` of its
-  // own to reflect, but the submit button still needs to show busy/disabled
-  // for that whole window, not just once the network calls begin.
+
   const [isCompositing, setIsCompositing] = useState(false);
-  // The off-screen PrintArea instance compositing rasterizes — separate
-  // from the scaled on-screen preview below, mirroring how App.tsx's
-  // off-screen `cardRef` node was always distinct from any display-only
-  // preview.
+
   const compositeRef = useRef<HTMLDivElement>(null);
 
   const uploadImageMutation = useMutation(
@@ -88,26 +81,10 @@ export function CampaignPublicPage() {
   );
   const submitTributeMutation = useMutation(submitTributeMutationOptions());
 
-  const campaign = query.data;
-
-  useEffect(() => {
-    if (!submittedContent?.avatar) return;
-    const avatarObjectUrl = submittedContent.avatar;
-    return () => URL.revokeObjectURL(avatarObjectUrl);
-  }, [submittedContent]);
-
   useEffect(() => {
     if (!resultImage) return;
     return () => URL.revokeObjectURL(resultImage);
   }, [resultImage]);
-
-  if (query.isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-500">Đang tải...</p>
-      </div>
-    );
-  }
 
   if (!campaign) {
     return <NotFoundPage />;
@@ -122,10 +99,7 @@ export function CampaignPublicPage() {
     }
 
     const avatarObjectUrl = URL.createObjectURL(avatarFile);
-    // Render the off-screen PrintArea with the submitted content and force
-    // React to commit it synchronously — compositing right after needs the
-    // DOM node to already reflect these values, and a plain `setState`
-    // wouldn't be flushed yet at this point in an event handler.
+
     flushSync(() => {
       setSubmittedContent({
         avatar: avatarObjectUrl,
@@ -158,8 +132,6 @@ export function CampaignPublicPage() {
       });
       setResultImage(imageUrl);
     } catch (error) {
-      // The avatar object URL is revoked by the cleanup effect above once
-      // `submittedContent` changes — no need to revoke it again here.
       setSubmittedContent(null);
       if (
         error instanceof SubmissionServiceError &&
@@ -179,88 +151,77 @@ export function CampaignPublicPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-10">
-      <div className="relative mx-auto w-full max-w-4xl">
-        <Previewer
-          campaign={campaign}
-          submittedContent={submittedContent}
-          form={form}
-        />
-        {/* {resultImage && ( */}
-        <a
-          href={"https://placehold.co/150x150?text=Avatar"}
-          download="anh.jpg"
-          onClick={(e) => {
-            e.preventDefault();
-            if (resultImage) {
-              const link = document.createElement("a");
-              link.href = resultImage;
-              link.download = "khung-anh-tri-an.jpg";
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }
-          }}
-          className="absolute bottom-3 right-1/2 transform translate-x-1/2"
-        >
-          <Button type="primary" icon={<DownloadOutlined />} className="mt-6">
-            Tải ảnh về máy
-          </Button>
-        </a>
-        {/* )} */}
-      </div>
-
-      <div className="mx-auto mt-8 w-full max-w-md">
-        {isFull ? (
-          <Alert
-            type="warning"
-            showIcon
-            message="Chiến dịch đã đủ số lượng gửi"
-            description="Chiến dịch này đã nhận đủ số lượng thông điệp tối đa. Vui lòng thử lại ở một chiến dịch khác."
-          />
-        ) : envError || !env ? (
-          <ConfigErrorNotice message={envError ?? "Thiếu cấu hình."} />
-        ) : (
-          <TributeForm
-            form={form}
-            turnstileSiteKey={env.VITE_TURNSTILE_SITE_KEY}
-            isSubmitting={
-              isCompositing ||
-              uploadImageMutation.isPending ||
-              submitTributeMutation.isPending
-            }
-            onSubmit={handleSubmit}
-          />
-        )}
-      </div>
-
-      {submittedContent && !resultImage && (
-        <div
-          className="fixed left-[-10000px] top-0 pointer-events-none"
-          aria-hidden
-        >
-          <PrintArea
-            ref={compositeRef}
-            template={campaignLayoutToTemplate(
-              campaign.id,
-              campaign.backgroundImageUrl,
-              campaign.layout,
-            )}
-            content={submittedContent}
+    <div className="min-h-screen flex flex-col bg-gray-50 px-4 py-10">
+      <div className="mx-auto max-w-5xl w-full">
+        <div className="aspect-[1280/300] bg-neutral-200 border rounded-xl overflow-hidden">
+          <img
+            src="https://placehold.co/1280x300?text=Campaign+Header"
+            // src={campaign.headerImage} future
+            alt="Campaign Header"
+            className="w-full h-full object-cover"
           />
         </div>
-      )}
+        <div className="gap-8 flex-1 h-full max-md:flex-col w-full items-center flex max-md:mb-[100px]">
+          <div className="mx-auto mt-8 w-full max-md:max-w-full max-w-md">
+            {isFull ? (
+              <Alert
+                type="warning"
+                showIcon
+                message="Chiến dịch đã đủ số lượng gửi"
+                description="Chiến dịch này đã nhận đủ số lượng thông điệp tối đa. Vui lòng thử lại ở một chiến dịch khác."
+              />
+            ) : envError || !env ? (
+              <ConfigErrorNotice message={envError ?? "Thiếu cấu hình."} />
+            ) : (
+              <TributeForm
+                metadata={{
+                  resultImage,
+                }}
+                form={form}
+                turnstileSiteKey={env.VITE_TURNSTILE_SITE_KEY}
+                facebookAppId={env.VITE_FACEBOOK_APP_ID}
+                shareUrl={`${window.location.origin}/${campaign.slug}`}
+                isSubmitting={
+                  isCompositing ||
+                  uploadImageMutation.isPending ||
+                  submitTributeMutation.isPending
+                }
+                onSubmit={handleSubmit}
+              />
+            )}
+          </div>
+          <div className="relative mx-auto w-full max-w-4xl">
+            <Previewer campaign={campaign} form={form} />
+          </div>
+
+          {submittedContent && !resultImage && (
+            <div
+              className="fixed left-[-10000px] top-0 pointer-events-none"
+              aria-hidden
+            >
+              <PrintArea
+                ref={compositeRef}
+                template={campaignLayoutToTemplate(
+                  campaign.id,
+                  campaign.backgroundImageUrl,
+                  campaign.layout,
+                )}
+                content={submittedContent}
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 type PreviewerProps = {
   campaign: Campaign;
-  submittedContent: FrameContent | null;
   form: UseFormReturn<TributeSubmitValues>;
 };
 
-function Previewer({ campaign, submittedContent, form }: PreviewerProps) {
+function Previewer({ campaign, form }: PreviewerProps) {
   const layout: CampaignLayout = campaign.layout;
   const formValues = useWatch(form);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -345,9 +306,7 @@ function Previewer({ campaign, submittedContent, form }: PreviewerProps) {
             )}
             content={{
               avatar:
-                submittedContent?.avatar ??
-                liveAvatarUrl ??
-                "https://placehold.co/150x150?text=Avatar",
+                liveAvatarUrl ?? "https://placehold.co/150x150?text=Avatar",
               fullName: formValues.fullName ?? "Họ và tên",
               role: formValues.role ?? "Đơn vị / Chức vụ",
               message: formValues.message ?? "Thông điệp gửi đến đại hội",

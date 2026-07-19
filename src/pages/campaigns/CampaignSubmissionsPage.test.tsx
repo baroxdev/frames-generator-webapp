@@ -1,5 +1,4 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test/render';
 import { CampaignSubmissionsPage } from './CampaignSubmissionsPage';
@@ -88,13 +87,11 @@ const SUBMISSIONS = [
 ];
 
 function renderAtId(id: string) {
-  return renderWithProviders(
-    <Routes>
-      <Route path="/campaigns/:id/submissions" element={<CampaignSubmissionsPage />} />
-      <Route path="/login" element={<div>login-page-placeholder</div>} />
-    </Routes>,
-    { route: `/campaigns/${id}/submissions` },
-  );
+  return await renderWithProviders(<CampaignSubmissionsPage />, {
+    route: `/campaigns/${id}/submissions`,
+    path: '/campaigns/$id/submissions',
+    additionalRoutes: [{ path: '/login', element: <div>login-page-placeholder</div> }],
+  });
 }
 
 describe('CampaignSubmissionsPage', () => {

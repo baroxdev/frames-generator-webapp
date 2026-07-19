@@ -21,8 +21,8 @@ const {
   mockGetImageDimensions: vi.fn(),
 }));
 
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-router-dom')>();
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>();
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
@@ -88,27 +88,23 @@ describe('NewCampaignPage', () => {
 
   it('shows a loading state while the session resolves', () => {
     mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: true, error: null });
-    renderWithProviders(<NewCampaignPage />);
+    await renderWithProviders(<NewCampaignPage />);
 
     expect(screen.getByText('Đang tải...')).toBeTruthy();
   });
 
   it('redirects to /login when there is no session', async () => {
     mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: false, error: null });
-    const { Route, Routes } = await import('react-router-dom');
-    renderWithProviders(
-      <Routes>
-        <Route path="/campaigns/new" element={<NewCampaignPage />} />
-        <Route path="/login" element={<div>login-page-placeholder</div>} />
-      </Routes>,
-      { route: '/campaigns/new' },
-    );
+    await renderWithProviders(<NewCampaignPage />, {
+      route: '/campaigns/new',
+      additionalRoutes: [{ path: '/login', element: <div>login-page-placeholder</div> }],
+    });
 
     expect(screen.getByText('login-page-placeholder')).toBeTruthy();
   });
 
   it('shows validation errors and never calls the mutations when the slug is invalid and no background is chosen', async () => {
-    renderWithProviders(<NewCampaignPage />);
+    await renderWithProviders(<NewCampaignPage />);
 
     fireEvent.change(screen.getByLabelText('Đường dẫn'), { target: { value: 'ab' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo chiến dịch' }));
@@ -121,7 +117,7 @@ describe('NewCampaignPage', () => {
 
   it('shows the live availability result once the slug passes format validation', async () => {
     mockIsSlugAvailable.mockResolvedValue(false);
-    renderWithProviders(<NewCampaignPage />);
+    await renderWithProviders(<NewCampaignPage />);
 
     fireEvent.change(screen.getByLabelText('Đường dẫn'), { target: { value: 'dai-hoi-ben-tre' } });
 
@@ -131,7 +127,7 @@ describe('NewCampaignPage', () => {
   it('uploads the background, creates the campaign with the computed default layout, invalidates the list, and navigates to /campaigns', async () => {
     mockUpload.mockResolvedValue('https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg');
     mockCreate.mockResolvedValue({ id: 'campaign-1', slug: 'dai-hoi-ben-tre' });
-    renderWithProviders(<NewCampaignPage />);
+    await renderWithProviders(<NewCampaignPage />);
 
     fillValidForm();
     await screen.findByText('layout-editor-placeholder');
@@ -160,14 +156,14 @@ describe('NewCampaignPage', () => {
         expect.anything(),
       ),
     );
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/campaigns'));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: '/campaigns' }));
   });
 
   it('includes title, description, and an uploaded thumbnail URL in the create payload when filled in', async () => {
     mockUpload.mockResolvedValueOnce('https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg');
     mockUpload.mockResolvedValueOnce('https://cdn.example.com/campaign-backgrounds/user-1/thumb.jpg');
     mockCreate.mockResolvedValue({ id: 'campaign-1', slug: 'dai-hoi-ben-tre' });
-    renderWithProviders(<NewCampaignPage />);
+    await renderWithProviders(<NewCampaignPage />);
 
     fillValidForm();
     await screen.findByText('layout-editor-placeholder');
@@ -194,7 +190,7 @@ describe('NewCampaignPage', () => {
   it('omits title, description, and thumbnailUrl from the create payload when left blank', async () => {
     mockUpload.mockResolvedValue('https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg');
     mockCreate.mockResolvedValue({ id: 'campaign-1', slug: 'dai-hoi-ben-tre' });
-    renderWithProviders(<NewCampaignPage />);
+    await renderWithProviders(<NewCampaignPage />);
 
     fillValidForm();
     await screen.findByText('layout-editor-placeholder');
@@ -210,7 +206,7 @@ describe('NewCampaignPage', () => {
   it('reports a friendly error and stays on the page when the upload fails', async () => {
     const failure = new Error('upload failed');
     mockUpload.mockRejectedValue(failure);
-    renderWithProviders(<NewCampaignPage />);
+    await renderWithProviders(<NewCampaignPage />);
 
     fillValidForm();
     await screen.findByText('layout-editor-placeholder');

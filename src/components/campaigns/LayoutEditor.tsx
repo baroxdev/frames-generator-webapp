@@ -76,7 +76,7 @@ const FONT_WEIGHT: Record<TextBoxKey, number> = {
 // of the box's own size rather than an absolute px value) — however large
 // the message box is, the preview shouldn't suggest text bigger than what
 // production will ever actually render.
-const MAX_MESSAGE_FONT_FACTOR = 0.12;
+const MAX_MESSAGE_FONT_FACTOR = 0.08;
 
 type LayoutEditorProps = {
   layout: CampaignLayout;

@@ -16,7 +16,7 @@ import { buildFontString, MESSAGE_FONT_WEIGHT } from "../utils/textFonts";
 // oversized upload. Smaller than Name/Role's own default factor (0.6) since
 // unlike a name/role, a message wraps across multiple lines and shouldn't
 // blow up to billboard size just because a single short line would fit.
-const MAX_AUTO_FIT_FONT_FACTOR = 0.15;
+const MAX_AUTO_FIT_FONT_FACTOR = 0.08;
 
 /** `autoFit` (opt-in) replaces the length-based two-tier shrink below with a continuous, word-wrap-aware font size fit to this box's own width/height and content length — see Name.tsx/Role.tsx, which use the same mechanism in single-line mode. */
 const Message = ({

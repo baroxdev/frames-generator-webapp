@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SlugRouteImport } from './routes/$slug'
 import { Route as AccountRouteImport } from './routes/account'
+import { Route as DevNewCampaignPreviewRouteImport } from './routes/dev-new-campaign-preview'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -35,6 +36,11 @@ const SlugRoute = SlugRouteImport.update({
 const AccountRoute = AccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevNewCampaignPreviewRoute = DevNewCampaignPreviewRouteImport.update({
+  id: '/dev-new-campaign-preview',
+  path: '/dev-new-campaign-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$slug': typeof SlugRoute
   '/account': typeof AccountRoute
+  '/dev-new-campaign-preview': typeof DevNewCampaignPreviewRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$slug': typeof SlugRoute
   '/account': typeof AccountRoute
+  '/dev-new-campaign-preview': typeof DevNewCampaignPreviewRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$slug': typeof SlugRoute
   '/account': typeof AccountRoute
+  '/dev-new-campaign-preview': typeof DevNewCampaignPreviewRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$slug'
     | '/account'
+    | '/dev-new-campaign-preview'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$slug'
     | '/account'
+    | '/dev-new-campaign-preview'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$slug'
     | '/account'
+    | '/dev-new-campaign-preview'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
@@ -175,6 +187,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SlugRoute: typeof SlugRoute
   AccountRoute: typeof AccountRoute
+  DevNewCampaignPreviewRoute: typeof DevNewCampaignPreviewRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev-new-campaign-preview': {
+      id: '/dev-new-campaign-preview'
+      path: '/dev-new-campaign-preview'
+      fullPath: '/dev-new-campaign-preview'
+      preLoaderRoute: typeof DevNewCampaignPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -279,6 +299,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SlugRoute: SlugRoute,
   AccountRoute: AccountRoute,
+  DevNewCampaignPreviewRoute: DevNewCampaignPreviewRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,

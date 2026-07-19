@@ -73,10 +73,12 @@ function fillValidForm() {
   });
   const file = new File(["background"], "bg.jpg", { type: "image/jpeg" });
   // antd's Upload.Dragger renders a native <input type="file"> under its
-  // drop zone rather than exposing an aria-label on it directly.
-  const fileInput = document.querySelector(
-    'input[type="file"]',
-  ) as HTMLInputElement;
+  // drop zone rather than exposing an aria-label on it directly. The
+  // background dragger lives in the canvas pane, which comes after the
+  // sidebar's thumbnail/header inputs in DOM order — so it's the *last*
+  // file input on the page before any file has been picked, not the first.
+  const fileInputs = document.querySelectorAll('input[type="file"]');
+  const fileInput = fileInputs[fileInputs.length - 1] as HTMLInputElement;
   fireEvent.change(fileInput, { target: { files: [file] } });
 }
 

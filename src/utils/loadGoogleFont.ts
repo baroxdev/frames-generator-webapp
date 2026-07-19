@@ -1,9 +1,11 @@
 import { CuratedFont, getCuratedFont } from "../constants/fonts";
 
-// Tracks stylesheet hrefs already appended so repeated calls (e.g. on every
-// keystroke of a text field, or every font-picker re-render) don't pile up
-// duplicate <link> tags.
-const loadedHrefs = new Set<string>();
+// Caches the in-flight/settled load promise per stylesheet href so repeated
+// calls (fire-and-forget warm-up from Name/Role/Message, the picker's
+// loadAllCuratedFonts, and ensureFontReady) all share one <link> and one
+// "has it actually finished loading" promise, rather than each independently
+// guessing at readiness.
+const stylesheetPromises = new Map<string, Promise<void>>();
 
 // Caches the in-flight/settled readiness promise per family+weight so
 // `ensureFontReady` only ever does the work once per combo, even if called
@@ -11,12 +13,30 @@ const loadedHrefs = new Set<string>();
 const readyPromises = new Map<string, Promise<void>>();
 
 function loadStylesheet(href: string): Promise<void> {
-  if (loadedHrefs.has(href)) return Promise.resolve();
-  if (document.querySelector(`link[href="${href}"]`)) {
-    loadedHrefs.add(href);
-    return Promise.resolve();
-  }
-  return new Promise((resolve) => {
+  const cached = stylesheetPromises.get(href);
+  if (cached) return cached;
+
+  const existingLink = document.querySelector<HTMLLinkElement>(`link[href="${href}"]`);
+  const promise = new Promise<void>((resolve) => {
+    if (existingLink) {
+      // A <link> for this href already exists — e.g. injected moments ago
+      // by a fire-and-forget `loadGoogleFont`/`loadAllCuratedFonts` call —
+      // but that doesn't mean it has actually finished loading yet. `.sheet`
+      // is the reliable synchronous check: it stays null until the browser
+      // has fetched and parsed the stylesheet, whether or not its rules are
+      // readable to JS (that's a separate, CORS-gated concern). Treating
+      // "a <link> element exists in the DOM" as "already loaded" (the
+      // previous bug here) made a font picked shortly after mount resolve
+      // as ready instantly, before its glyph file had actually downloaded.
+      if (existingLink.sheet) {
+        resolve();
+        return;
+      }
+      existingLink.addEventListener("load", () => resolve(), { once: true });
+      existingLink.addEventListener("error", () => resolve(), { once: true });
+      return;
+    }
+
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = href;
@@ -34,16 +54,13 @@ function loadStylesheet(href: string): Promise<void> {
     link.crossOrigin = "anonymous";
     // Resolve on error too — a failed font fetch shouldn't hang the caller
     // forever; the browser just falls back to its default font at draw time.
-    link.onload = () => {
-      loadedHrefs.add(href);
-      resolve();
-    };
-    link.onerror = () => {
-      loadedHrefs.add(href);
-      resolve();
-    };
+    link.onload = () => resolve();
+    link.onerror = () => resolve();
     document.head.appendChild(link);
   });
+
+  stylesheetPromises.set(href, promise);
+  return promise;
 }
 
 /**

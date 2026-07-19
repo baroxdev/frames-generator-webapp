@@ -94,16 +94,20 @@ describe('LayoutEditor', () => {
     render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />);
 
     expect(screen.getByTestId('konva-background').getAttribute('src')).toBe('https://cdn.example.com/bg.jpg');
-    expect(screen.getByText('Ảnh đại diện')).toBeTruthy();
-    expect(screen.getByText('Nguyễn Văn A')).toBeTruthy();
-    expect(screen.getByText('Đơn vị / Chức vụ')).toBeTruthy();
-    expect(screen.getByText('Thông điệp gửi đến đại hội')).toBeTruthy();
+    // Some placeholder labels (e.g. avatarBox's "Ảnh đại diện") match a
+    // BOX_TITLE used again in the sidebar's layers list below, so these
+    // are scoped to the Konva-rendered labels specifically rather than
+    // `getByText`, which would otherwise find both.
+    const labels = screen.getAllByTestId('konva-text').map((node) => node.textContent);
+    expect(labels).toEqual(
+      expect.arrayContaining(['Ảnh đại diện', 'Nguyễn Văn A', 'Đơn vị / Chức vụ', 'Thông điệp gửi đến đại hội']),
+    );
   });
 
   it('shows a placeholder hint in the properties sidebar until a box is selected', () => {
     render(<LayoutEditor layout={LAYOUT} backgroundImageUrl="https://cdn.example.com/bg.jpg" onChange={vi.fn()} />);
 
-    expect(screen.getByText('Chọn một ô trên ảnh để chỉnh sửa.')).toBeTruthy();
+    expect(screen.getByText('Chọn một lớp bên dưới, hoặc chọn trực tiếp trên ảnh.')).toBeTruthy();
     expect(screen.queryByText('Hình dạng')).toBeNull();
     expect(screen.queryByText('Màu chữ')).toBeNull();
   });
@@ -134,7 +138,7 @@ describe('LayoutEditor', () => {
 
     fireEvent.click(screen.getByTestId('konva-stage'));
     expect(screen.queryByText('Hình dạng')).toBeNull();
-    expect(screen.getByText('Chọn một ô trên ảnh để chỉnh sửa.')).toBeTruthy();
+    expect(screen.getByText('Chọn một lớp bên dưới, hoặc chọn trực tiếp trên ảnh.')).toBeTruthy();
   });
 
   it('dragging a box emits an onChange with the new (clamped) position, merged into the full layout', () => {

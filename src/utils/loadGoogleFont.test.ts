@@ -100,4 +100,32 @@ describe('ensureFontReady', () => {
 
     await expect(promise).resolves.toBeUndefined();
   });
+
+  it('does not resolve early just because a <link> for the font already exists in the DOM (e.g. from loadAllCuratedFonts moments earlier) — waits for it to actually finish loading', async () => {
+    const loadSpy = vi.fn().mockResolvedValue([]);
+    Object.defineProperty(document, 'fonts', { value: { load: loadSpy }, configurable: true });
+
+    // Simulates the LayoutEditor picker's warm-up effect already having
+    // injected this font's <link> before the user picks it — the exact
+    // sequence that caused a font to render wrong the first time it was
+    // selected, because the old code treated "a <link> element exists" as
+    // "already loaded".
+    loadGoogleFont('Comfortaa');
+
+    let resolved = false;
+    const promise = ensureFontReady('Comfortaa', 700).then(() => {
+      resolved = true;
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+    expect(loadSpy).not.toHaveBeenCalled();
+
+    resolveStylesheetLoad('Comfortaa');
+    await promise;
+
+    expect(resolved).toBe(true);
+    expect(loadSpy).toHaveBeenCalledWith('700 16px "Comfortaa"');
+  });
 });

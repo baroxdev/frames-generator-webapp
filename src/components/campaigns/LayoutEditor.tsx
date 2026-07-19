@@ -35,7 +35,14 @@ import {
 import type { AvatarShape, Box, CampaignLayout } from "../../templates/types";
 import { clampBoxToCanvas } from "./layoutBoxMath";
 
-const CROP_BAR_THICKNESS = 14;
+// Below this, canvas + properties panel side by side would squeeze the
+// canvas too small to usefully drag/resize boxes in — stack them instead.
+// A plain pixel threshold on the editor's own measured width, not a
+// Tailwind `lg:` breakpoint: this component's available width is whatever
+// its parent gives it (e.g. NewCampaignPage's canvas pane, already reduced
+// by a left sidebar), which can be well under 1024px even on a wide
+// viewport.
+const STACK_BELOW_WIDTH = 640;
 
 type BoxKey = "avatarBox" | "nameBox" | "roleBox" | "messageBox";
 type TextBoxKey = Exclude<BoxKey, "avatarBox">;
@@ -105,7 +112,9 @@ export function LayoutEditor({
   const transformerRef = useRef<Konva.Transformer>(null);
   const layerRef = useRef<Konva.Layer>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [stacked, setStacked] = useState(false);
 
   // Ephemeral, preview-only sample text per text box — double-click a box
   // to edit it, purely to see how auto-fit sizing behaves for a shorter or
@@ -120,6 +129,29 @@ export function LayoutEditor({
 
   const backgroundImage = useHtmlImage(backgroundImageUrl);
   const resolvedFontFamily = cssFontFamily(layout.fontFamily);
+
+  // Shared chord-clip geometry for the avatar's circular crop — computed
+  // once here (rather than inline where it's drawn) since the Transformer's
+  // `boundBoxFunc` below also needs `radius`/`centerX`/`centerY` to turn a
+  // top-center/bottom-center (or middle-left/middle-right) anchor drag into
+  // a `clipRatio` update.
+  const avatarClipAxis =
+    layout.avatarBox.shape === "circle" ? layout.avatarBox.clipAxis : undefined;
+  const avatarChordSegment = avatarClipAxis
+    ? buildChordSegment(
+        layout.avatarBox.width,
+        layout.avatarBox.height,
+        avatarClipAxis,
+        layout.avatarBox.clipRatio ?? 0.5,
+        layout.avatarBox.clipKeepEnd ?? false,
+      )
+    : null;
+  const avatarCropAnchors: string[] =
+    avatarClipAxis === "horizontal"
+      ? ["top-center", "bottom-center"]
+      : avatarClipAxis === "vertical"
+        ? ["middle-left", "middle-right"]
+        : [];
 
   // Every curated option needs its own stylesheet loaded so the font
   // picker below can live-preview each one (fire-and-forget: those options
@@ -159,6 +191,18 @@ export function LayoutEditor({
     observer.observe(container);
     return () => observer.disconnect();
   }, [layout.canvas.width]);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) setStacked(width < STACK_BELOW_WIDTH);
+    });
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const transformer = transformerRef.current;
@@ -238,7 +282,10 @@ export function LayoutEditor({
   const cancelEditing = () => setEditingKey(null);
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+    <div
+      ref={wrapperRef}
+      className={`flex gap-4 ${stacked ? "flex-col" : "flex-row items-start"}`}
+    >
       <div ref={containerRef} className="relative min-w-0 flex-1">
         <Stage
           width={layout.canvas.width * scale}
@@ -326,6 +373,25 @@ export function LayoutEditor({
                     // and a width/height change on the next render.
                     node.scaleX(1);
                     node.scaleY(1);
+
+                    // The top-center/bottom-center (or middle-left/-right)
+                    // anchors double as the crop-line drag when a clip axis
+                    // is active (see the Transformer's boundBoxFunc below,
+                    // which already turned this same drag into a
+                    // `clipRatio` update): the node's own width/height was
+                    // only ever moved for live visual feedback, not to be
+                    // kept, so skip persisting it here — react re-renders
+                    // this Rect from the (unchanged) real box on the next
+                    // render, snapping it back.
+                    const activeAnchor = transformerRef.current?.getActiveAnchor();
+                    if (
+                      isAvatar &&
+                      activeAnchor &&
+                      avatarCropAnchors.includes(activeAnchor)
+                    ) {
+                      return;
+                    }
+
                     updateBox(key, {
                       left: node.x(),
                       top: node.y(),
@@ -392,141 +458,92 @@ export function LayoutEditor({
               );
             })}
 
+            {/* Kept-region overlay: the arc between the two chord endpoints,
+              closed back to the start with a straight line (the cut
+              itself) — a true half-moon/segment, never a wedge through the
+              center. The crop line itself is dragged via the box's own
+              Transformer anchors (top-center/bottom-center or
+              middle-left/-right, see the Transformer below), not a
+              separate control here. */}
             {selected === "avatarBox" &&
-              layout.avatarBox.shape === "circle" &&
-              layout.avatarBox.clipAxis &&
+              avatarChordSegment &&
               (() => {
                 const box = layout.avatarBox;
-                const axis = box.clipAxis!;
-                const ratio = box.clipRatio ?? 0.5;
-                const keepEnd = box.clipKeepEnd ?? false;
-                const segment = buildChordSegment(
-                  box.width,
-                  box.height,
-                  axis,
-                  ratio,
-                  keepEnd,
-                );
+                const segment = avatarChordSegment;
                 const steps = Math.max(2, Math.round(segment.sweep / 4));
-                const { radius } = segment;
-                const centerX = box.width / 2;
-                const centerY = box.height / 2;
-
-                // The bar's own center line — for a horizontal cut this is the
-                // (shared) y of both chord endpoints; for a vertical cut, the
-                // shared x. Dragging the bar only ever moves along this one
-                // axis, and only across the circle's own diameter — not the
-                // full box, which can be non-square (the circle is inscribed
-                // in the smaller dimension).
-                const lineY = segment.start.y;
-                const lineX = segment.start.x;
 
                 return (
-                  <>
-                    {/* Kept-region overlay: the arc between the two chord
-                      endpoints, closed back to the start with a straight
-                      line (the cut itself) — a true half-moon/segment, never
-                      a wedge through the center. */}
-                    <Shape
-                      x={box.left}
-                      y={box.top}
-                      listening={false}
-                      fill="rgba(37, 99, 235, 0.35)"
-                      sceneFunc={(context, shape) => {
-                        context.beginPath();
-                        context.moveTo(segment.start.x, segment.start.y);
-                        for (let i = 1; i <= steps; i += 1) {
-                          const angle =
-                            segment.startAngle + (segment.sweep * i) / steps;
-                          const point = pointOnCircle(
-                            box.width,
-                            box.height,
-                            angle,
-                          );
-                          context.lineTo(point.x, point.y);
-                        }
-                        context.closePath();
-                        context.fillStrokeShape(shape);
-                      }}
-                    />
-
-                    {/* Draggable crop bar — a full-width (horizontal cut) or
-                      full-height (vertical cut) strip constrained to move
-                      along only that one axis; its position maps directly
-                      to `clipRatio`. */}
-                    {axis === "horizontal" ? (
-                      <Rect
-                        x={box.left}
-                        y={box.top + lineY - CROP_BAR_THICKNESS / 2}
-                        width={box.width}
-                        height={CROP_BAR_THICKNESS}
-                        fill="rgba(37, 99, 235, 0.25)"
-                        stroke="#2563eb"
-                        strokeWidth={2}
-                        draggable
-                        dragBoundFunc={(pos) => {
-                          const minY =
-                            box.top + centerY - radius - CROP_BAR_THICKNESS / 2;
-                          const maxY =
-                            box.top + centerY + radius - CROP_BAR_THICKNESS / 2;
-                          return {
-                            x: box.left,
-                            y: Math.max(minY, Math.min(maxY, pos.y)),
-                          };
-                        }}
-                        onDragMove={(event) => {
-                          const newLineY =
-                            event.target.y() + CROP_BAR_THICKNESS / 2 - box.top;
-                          const newRatio =
-                            (newLineY - centerY) / (2 * radius) + 0.5;
-                          setClipRatio(Math.max(0, Math.min(1, newRatio)));
-                        }}
-                      />
-                    ) : (
-                      <Rect
-                        x={box.left + lineX - CROP_BAR_THICKNESS / 2}
-                        y={box.top}
-                        width={CROP_BAR_THICKNESS}
-                        height={box.height}
-                        fill="rgba(37, 99, 235, 0.25)"
-                        stroke="#2563eb"
-                        strokeWidth={2}
-                        draggable
-                        dragBoundFunc={(pos) => {
-                          const minX =
-                            box.left +
-                            centerX -
-                            radius -
-                            CROP_BAR_THICKNESS / 2;
-                          const maxX =
-                            box.left +
-                            centerX +
-                            radius -
-                            CROP_BAR_THICKNESS / 2;
-                          return {
-                            x: Math.max(minX, Math.min(maxX, pos.x)),
-                            y: box.top,
-                          };
-                        }}
-                        onDragMove={(event) => {
-                          const newLineX =
-                            event.target.x() +
-                            CROP_BAR_THICKNESS / 2 -
-                            box.left;
-                          const newRatio =
-                            (newLineX - centerX) / (2 * radius) + 0.5;
-                          setClipRatio(Math.max(0, Math.min(1, newRatio)));
-                        }}
-                      />
-                    )}
-                  </>
+                  <Shape
+                    x={box.left}
+                    y={box.top}
+                    listening={false}
+                    fill="rgba(37, 99, 235, 0.35)"
+                    sceneFunc={(context, shape) => {
+                      context.beginPath();
+                      context.moveTo(segment.start.x, segment.start.y);
+                      for (let i = 1; i <= steps; i += 1) {
+                        const angle =
+                          segment.startAngle + (segment.sweep * i) / steps;
+                        const point = pointOnCircle(
+                          box.width,
+                          box.height,
+                          angle,
+                        );
+                        context.lineTo(point.x, point.y);
+                      }
+                      context.closePath();
+                      context.fillStrokeShape(shape);
+                    }}
+                  />
                 );
               })()}
 
             <Transformer
               ref={transformerRef}
               rotateEnabled={false}
-              boundBoxFunc={(_oldBox, newBox) => {
+              boundBoxFunc={(oldBox, newBox) => {
+                // When a clip axis is active, the top-center/bottom-center
+                // (or middle-left/-right) anchor doubles as the crop-line
+                // drag instead of a resize: derive a new `clipRatio` from
+                // how far that edge moved and leave the box itself alone
+                // (the matching `onTransform` above skips persisting the
+                // resize this produced) — the other anchors keep resizing
+                // the box exactly as before.
+                const activeAnchor = transformerRef.current?.getActiveAnchor();
+                if (
+                  selected === "avatarBox" &&
+                  avatarChordSegment &&
+                  activeAnchor &&
+                  avatarCropAnchors.includes(activeAnchor)
+                ) {
+                  const centerX = layout.avatarBox.width / 2;
+                  const centerY = layout.avatarBox.height / 2;
+                  const radius = avatarChordSegment.radius;
+
+                  if (avatarClipAxis === "horizontal") {
+                    const edgeY =
+                      activeAnchor === "top-center"
+                        ? newBox.y
+                        : newBox.y + newBox.height;
+                    const lineY = edgeY - oldBox.y;
+                    const newRatio = (lineY - centerY) / (2 * radius) + 0.5;
+                    setClipRatio(Math.max(0, Math.min(1, newRatio)));
+                  } else {
+                    const edgeX =
+                      activeAnchor === "middle-left"
+                        ? newBox.x
+                        : newBox.x + newBox.width;
+                    const lineX = edgeX - oldBox.x;
+                    const newRatio = (lineX - centerX) / (2 * radius) + 0.5;
+                    setClipRatio(Math.max(0, Math.min(1, newRatio)));
+                  }
+
+                  // Still return `newBox` (not `oldBox`) so the anchor
+                  // visually tracks the cursor during the drag — it just
+                  // never gets committed to the real box, see onTransform.
+                  return newBox;
+                }
+
                 const clamped = clampBoxToCanvas(
                   {
                     top: newBox.y,
@@ -583,15 +600,32 @@ export function LayoutEditor({
       {/* Properties sidebar, mirroring how design tools (Figma, etc.) show
           contextual controls for whatever's currently selected, rather than
           inline controls that shift the canvas around as selection changes. */}
-      <div className="w-full shrink-0 rounded-md border border-slate-200 p-4 lg:w-56">
+      <div
+        className={`shrink-0 rounded-md border border-slate-200 bg-white h-full p-4 ${stacked ? "w-full" : "w-56"}`}
+      >
         <h4 className="mb-3 text-sm font-semibold text-slate-700">
           Thuộc tính
         </h4>
 
         {!selected && (
-          <p className="text-sm text-slate-400">
-            Chọn một ô trên ảnh để chỉnh sửa.
-          </p>
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-slate-400">
+              Chọn một lớp bên dưới, hoặc chọn trực tiếp trên ảnh.
+            </p>
+            <div className="flex flex-col gap-1">
+              {BOX_KEYS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSelected(key)}
+                  className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-slate-600 hover:bg-slate-50"
+                >
+                  <span className="h-2 w-2 shrink-0 rounded-sm bg-slate-300" />
+                  {BOX_TITLE[key]}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {selected && (
@@ -661,25 +695,6 @@ export function LayoutEditor({
                     }
                   />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <span className="text-xs text-slate-500">
-                    Phông chữ (áp dụng cho tên, chức vụ, thông điệp)
-                  </span>
-                  <Select
-                    value={layout.fontFamily ?? DEFAULT_FONT_FAMILY}
-                    onChange={setFontFamily}
-                    options={CURATED_FONTS.map((font) => ({
-                      value: font.family,
-                      label: (
-                        <span
-                          style={{ fontFamily: cssFontFamily(font.family) }}
-                        >
-                          {font.family}
-                        </span>
-                      ),
-                    }))}
-                  />
-                </div>
                 <p className="text-xs text-slate-400">
                   Cỡ chữ tự động vừa khít theo kích thước ô. Nhấp đúp vào ô trên
                   ảnh để thử với nội dung mẫu khác.
@@ -688,6 +703,27 @@ export function LayoutEditor({
             )}
           </div>
         )}
+
+        {/* Applies to all three text layers at once, so it stays visible
+            regardless of selection rather than being gated behind picking
+            a specific box first. */}
+        <div className="mt-4 flex flex-col gap-2 border-t border-slate-200 pt-4">
+          <span className="text-xs text-slate-500">
+            Phông chữ (áp dụng cho tên, chức vụ, thông điệp)
+          </span>
+          <Select
+            value={layout.fontFamily ?? DEFAULT_FONT_FAMILY}
+            onChange={setFontFamily}
+            options={CURATED_FONTS.map((font) => ({
+              value: font.family,
+              label: (
+                <span style={{ fontFamily: cssFontFamily(font.family) }}>
+                  {font.family}
+                </span>
+              ),
+            }))}
+          />
+        </div>
       </div>
     </div>
   );

@@ -1,13 +1,12 @@
 import {
+  ArrowLeftOutlined,
   LogoutOutlined,
   PlusOutlined,
-  ProjectOutlined,
   UnorderedListOutlined,
 } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import {
   Avatar,
-  Breadcrumb,
   Button,
   Layout,
   Menu,
@@ -39,17 +38,17 @@ const NAV_ITEMS: MenuProps["items"] = [
   },
 ];
 
-const BREADCRUMB_LEAF: Record<string, string> = {
-  "/campaigns": "Danh sách",
-  "/campaigns/new": "Tạo mới",
-};
-
 export function OwnerLayout({
   title,
   children,
+  hideSider = false,
 }: {
   title: string;
   children: ReactNode;
+  /** Collapses the global nav sider for full-screen editor-style pages
+   * (e.g. NewCampaignPage) — a "← Back" button in the header takes over
+   * getting back to the campaign list in its place. */
+  hideSider?: boolean;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -69,29 +68,44 @@ export function OwnerLayout({
   };
 
   const emailInitial = user?.email?.[0]?.toUpperCase() ?? "?";
-  const breadcrumbItems = [
-    { title: <ProjectOutlined /> },
-    { title: "Chiến dịch" },
-    { title: BREADCRUMB_LEAF[location.pathname] ?? title },
-  ];
 
   return (
-    <Layout className="min-h-screen">
-      <Sider theme="light" width={240} className="!border-r !border-slate-100">
-        <div className="px-6 py-5 text-base font-semibold text-slate-800">
-          Frame Generator
-        </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          defaultOpenKeys={["campaigns-group"]}
-          items={NAV_ITEMS}
-          onClick={handleMenuClick}
-          className="!border-none"
-        />
-      </Sider>
+    <Layout className="h-screen overflow-hidden">
+      {!hideSider && (
+        <Sider
+          theme="light"
+          width={240}
+          className="!border-r !border-slate-100"
+        >
+          <div className="px-6 py-5 text-base font-semibold text-slate-800">
+            Frame Generator
+          </div>
+          <Menu
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            defaultOpenKeys={["campaigns-group"]}
+            items={NAV_ITEMS}
+            onClick={handleMenuClick}
+            className="!border-none"
+          />
+        </Sider>
+      )}
       <Layout>
-        <Header className="!flex !items-center !justify-end !bg-white !px-6 shadow-sm">
+        <Header className="!flex !items-center !justify-between !bg-white !px-6 border-b">
+          <div className="flex items-center gap-3">
+            {hideSider && (
+              <Button
+                type="text"
+                aria-label="Quay lại"
+                title="Quay lại"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate({ to: "/campaigns" })}
+              />
+            )}
+            <Title level={5} className="!mb-0">
+              {title}
+            </Title>
+          </div>
           <div className="flex items-center gap-3">
             <Avatar>{emailInitial}</Avatar>
             <Text className="hidden sm:inline">{user?.email}</Text>
@@ -104,12 +118,8 @@ export function OwnerLayout({
             />
           </div>
         </Header>
-        <Content className="p-8">
-          <Breadcrumb items={breadcrumbItems} className="!mb-3" />
-          <Title level={4} className="!mb-4">
-            {title}
-          </Title>
-          <div className="rounded-lg bg-white p-8 shadow">{children}</div>
+        <Content className="min-h-0 flex-1 overflow-y-auto rounded-none">
+          {children}
         </Content>
       </Layout>
     </Layout>

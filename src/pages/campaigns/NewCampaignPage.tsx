@@ -1,46 +1,70 @@
-import { InboxOutlined } from '@ant-design/icons';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Form, Input, Upload, message, type UploadFile, type UploadProps } from 'antd';
-import { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from '@tanstack/react-router';
-import { useDebounce } from 'use-debounce';
-import { LayoutEditor } from '../../components/campaigns/LayoutEditor';
-import { OwnerLayout } from '../../components/owner/OwnerLayout';
-import { useAuthSession } from '../../hooks/useAuthSession';
+import {
+  DeleteOutlined,
+  InboxOutlined,
+  PictureOutlined,
+} from "@ant-design/icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Button,
+  Form,
+  Input,
+  Upload,
+  message,
+  type UploadFile,
+  type UploadProps,
+} from "antd";
+import { useEffect, useState } from "react";
+import { Navigate, useNavigate } from "@tanstack/react-router";
+import { useDebounce } from "use-debounce";
+import { LayoutEditor } from "../../components/campaigns/LayoutEditor";
+import { OwnerLayout } from "../../components/owner/OwnerLayout";
+import { useAuthSession } from "../../hooks/useAuthSession";
 import {
   campaignKeys,
   createCampaignMutationOptions,
   slugAvailabilityQueryOptions,
   uploadCampaignBackgroundMutationOptions,
   uploadCampaignHeaderMutationOptions,
-} from '../../queries/campaign.queries';
-import type { CreateCampaignParams } from '../../services/campaign.service';
-import { createCampaignSchema, slugField, type CreateCampaignInput } from '../../schemas/campaign.schema';
-import { getDefaultCampaignLayout, type CampaignLayout } from '../../templates';
-import { getImageDimensions } from '../../utils/get-image-dimensions';
-import { reportCampaignError } from '../../utils/report-campaign-error';
-import { fieldErrorsFromZod } from '../../utils/zod-errors';
+} from "../../queries/campaign.queries";
+import type { CreateCampaignParams } from "../../services/campaign.service";
+import {
+  createCampaignSchema,
+  slugField,
+  type CreateCampaignInput,
+} from "../../schemas/campaign.schema";
+import { getDefaultCampaignLayout, type CampaignLayout } from "../../templates";
+import { getImageDimensions } from "../../utils/get-image-dimensions";
+import { reportCampaignError } from "../../utils/report-campaign-error";
+import { fieldErrorsFromZod } from "../../utils/zod-errors";
 
-const ALLOWED_BACKGROUND_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_BACKGROUND_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const SLUG_DEBOUNCE_MS = 400;
 
-type FieldErrors = Partial<Record<keyof CreateCampaignInput, string>> & { backgroundImage?: string };
+type FieldErrors = Partial<Record<keyof CreateCampaignInput, string>> & {
+  backgroundImage?: string;
+};
 
 export function NewCampaignPage() {
   const { user, isLoading } = useAuthSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [slug, setSlug] = useState('');
+  const [slug, setSlug] = useState("");
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
-  const [backgroundFileList, setBackgroundFileList] = useState<UploadFile[]>([]);
-  const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState<string | null>(null);
+  const [backgroundFileList, setBackgroundFileList] = useState<UploadFile[]>(
+    [],
+  );
+  const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState<
+    string | null
+  >(null);
   const [layout, setLayout] = useState<CampaignLayout | null>(null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailFileList, setThumbnailFileList] = useState<UploadFile[]>([]);
-  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState<string | null>(null);
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState<string | null>(
+    null,
+  );
   const [headerFile, setHeaderFile] = useState<File | null>(null);
   const [headerFileList, setHeaderFileList] = useState<UploadFile[]>([]);
   const [headerPreviewUrl, setHeaderPreviewUrl] = useState<string | null>(null);
@@ -51,8 +75,12 @@ export function NewCampaignPage() {
   // Same underlying upload (a generic "put this image in R2" call) as the
   // background — a thumbnail is just another campaign image, no need for a
   // dedicated service method.
-  const thumbnailUploadMutation = useMutation(uploadCampaignBackgroundMutationOptions());
-  const headerUploadMutation = useMutation(uploadCampaignHeaderMutationOptions());
+  const thumbnailUploadMutation = useMutation(
+    uploadCampaignBackgroundMutationOptions(),
+  );
+  const headerUploadMutation = useMutation(
+    uploadCampaignHeaderMutationOptions(),
+  );
   const createMutation = useMutation(createCampaignMutationOptions());
 
   const slugFormatValid = slugField.safeParse(debouncedSlug).success;
@@ -84,7 +112,10 @@ export function NewCampaignPage() {
         if (!cancelled) setLayout(getDefaultCampaignLayout(canvas));
       } catch {
         if (!cancelled) {
-          setErrors((previous) => ({ ...previous, backgroundImage: 'Không thể đọc kích thước ảnh nền.' }));
+          setErrors((previous) => ({
+            ...previous,
+            backgroundImage: "Không thể đọc kích thước ảnh nền.",
+          }));
         }
       }
     })();
@@ -117,7 +148,7 @@ export function NewCampaignPage() {
 
   if (isLoading) {
     return (
-      <OwnerLayout title="Tạo chiến dịch mới">
+      <OwnerLayout title="Tạo chiến dịch mới" hideSider>
         <p className="text-center text-gray-500">Đang tải...</p>
       </OwnerLayout>
     );
@@ -127,7 +158,7 @@ export function NewCampaignPage() {
     return <Navigate to="/login" replace />;
   }
 
-  const handleBackgroundChange: UploadProps['onChange'] = (info) => {
+  const handleBackgroundChange: UploadProps["onChange"] = (info) => {
     // maxCount={1} already keeps antd's own list to one entry, but guard
     // here too since onChange fires with the full list on every event.
     const latest = info.fileList.slice(-1);
@@ -139,7 +170,10 @@ export function NewCampaignPage() {
       return;
     }
     if (!ALLOWED_BACKGROUND_TYPES.includes(file.type)) {
-      setErrors((previous) => ({ ...previous, backgroundImage: 'Chỉ chấp nhận ảnh JPEG, PNG hoặc WEBP' }));
+      setErrors((previous) => ({
+        ...previous,
+        backgroundImage: "Chỉ chấp nhận ảnh JPEG, PNG hoặc WEBP",
+      }));
       setBackgroundFileList([]);
       setBackgroundFile(null);
       return;
@@ -149,12 +183,7 @@ export function NewCampaignPage() {
     setBackgroundFile(file);
   };
 
-  const handleBackgroundRemove = () => {
-    setBackgroundFileList([]);
-    setBackgroundFile(null);
-  };
-
-  const handleThumbnailChange: UploadProps['onChange'] = (info) => {
+  const handleThumbnailChange: UploadProps["onChange"] = (info) => {
     const latest = info.fileList.slice(-1);
     const file = latest[0]?.originFileObj as File | undefined;
 
@@ -172,7 +201,7 @@ export function NewCampaignPage() {
     setThumbnailFile(null);
   };
 
-  const handleHeaderChange: UploadProps['onChange'] = (info) => {
+  const handleHeaderChange: UploadProps["onChange"] = (info) => {
     const latest = info.fileList.slice(-1);
     const file = latest[0]?.originFileObj as File | undefined;
 
@@ -203,23 +232,39 @@ export function NewCampaignPage() {
       title: title.trim(),
       description: description.trim(),
     });
-    const fieldErrors: FieldErrors = parsed.success ? {} : fieldErrorsFromZod<keyof CreateCampaignInput>(parsed.error);
+    const fieldErrors: FieldErrors = parsed.success
+      ? {}
+      : fieldErrorsFromZod<keyof CreateCampaignInput>(parsed.error);
     if (!backgroundFile) {
-      fieldErrors.backgroundImage = 'Vui lòng tải ảnh nền lên';
+      fieldErrors.backgroundImage = "Vui lòng tải ảnh nền lên";
     }
-    if (parsed.success && slugFormatValid && slugAvailabilityQuery.data === false) {
-      fieldErrors.slug = 'Đường dẫn này đã được sử dụng. Vui lòng chọn đường dẫn khác.';
+    if (
+      parsed.success &&
+      slugFormatValid &&
+      slugAvailabilityQuery.data === false
+    ) {
+      fieldErrors.slug =
+        "Đường dẫn này đã được sử dụng. Vui lòng chọn đường dẫn khác.";
     }
-    if (!parsed.success || !backgroundFile || Object.keys(fieldErrors).length > 0) {
+    if (
+      !parsed.success ||
+      !backgroundFile ||
+      Object.keys(fieldErrors).length > 0
+    ) {
       setErrors(fieldErrors);
       return;
     }
     setErrors({});
 
     try {
-      const backgroundImageUrl = await uploadMutation.mutateAsync(backgroundFile);
-      const thumbnailUrl = thumbnailFile ? await thumbnailUploadMutation.mutateAsync(thumbnailFile) : undefined;
-      const headerImageUrl = headerFile ? await headerUploadMutation.mutateAsync(headerFile) : undefined;
+      const backgroundImageUrl =
+        await uploadMutation.mutateAsync(backgroundFile);
+      const thumbnailUrl = thumbnailFile
+        ? await thumbnailUploadMutation.mutateAsync(thumbnailFile)
+        : undefined;
+      const headerImageUrl = headerFile
+        ? await headerUploadMutation.mutateAsync(headerFile)
+        : undefined;
 
       const createParams: CreateCampaignParams = {
         slug: parsed.data.slug,
@@ -230,109 +275,81 @@ export function NewCampaignPage() {
         // (falls back at read time via resolveCampaignSeo.ts), so there's
         // no reason to send an empty string over the wire.
         ...(parsed.data.title && { title: parsed.data.title }),
-        ...(parsed.data.description && { description: parsed.data.description }),
+        ...(parsed.data.description && {
+          description: parsed.data.description,
+        }),
         ...(thumbnailUrl && { thumbnailUrl }),
         ...(headerImageUrl && { headerImageUrl }),
       };
       await createMutation.mutateAsync(createParams);
       await queryClient.invalidateQueries({ queryKey: campaignKeys.list() });
-      message.success('Chiến dịch đã được tạo và đang chờ duyệt. Đường dẫn sẽ chưa công khai cho đến khi được duyệt.');
-      navigate({ to: '/campaigns' });
+      message.success(
+        "Chiến dịch đã được tạo và đang chờ duyệt. Đường dẫn sẽ chưa công khai cho đến khi được duyệt.",
+      );
+      navigate({ to: "/campaigns" });
     } catch (error) {
-      reportCampaignError(error, 'Không thể tạo chiến dịch. Vui lòng thử lại.');
+      reportCampaignError(error, "Không thể tạo chiến dịch. Vui lòng thử lại.");
     }
   };
 
   return (
-    <OwnerLayout title="Tạo chiến dịch mới">
-      <Form layout="vertical" onFinish={handleSubmit} noValidate className="flex flex-col gap-4">
-        {/* Top bar: slug (top-left) + submit action (top-right). */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="w-full max-w-xs">
-            <Form.Item
-              label="Đường dẫn"
-              validateStatus={errors.slug ? 'error' : ''}
-              help={errors.slug}
-              className="!mb-1"
-            >
-              <Input
-                value={slug}
-                onChange={(event) => setSlug(event.target.value)}
-                placeholder="dai-hoi-ben-tre"
-                aria-label="Đường dẫn"
-              />
-            </Form.Item>
-            {!errors.slug && slugFormatValid && slugAvailabilityQuery.data === true && (
-              <p className="text-xs text-green-600">Đường dẫn khả dụng</p>
-            )}
-            {!errors.slug && slugFormatValid && slugAvailabilityQuery.data === false && (
-              <p className="text-xs text-red-600">Đường dẫn này đã được sử dụng</p>
-            )}
-          </div>
-
-          <Button type="primary" htmlType="submit" loading={isSubmitting} className="shrink-0">
-            Tạo chiến dịch
-          </Button>
-        </div>
-
-        {/* Left sidebar (background upload) + canvas/properties. */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-          <div className="w-full shrink-0 rounded-md border border-slate-200 p-4 lg:w-64">
-            <h4 className="mb-3 text-sm font-semibold text-slate-700">Ảnh nền</h4>
-
-            {backgroundPreviewUrl ? (
-              <div className="flex flex-col gap-3">
-                <img
-                  src={backgroundPreviewUrl}
-                  alt=""
-                  className="aspect-video w-full rounded border border-slate-200 object-cover"
-                />
-                <Button block onClick={handleBackgroundRemove}>
-                  Thay ảnh nền
-                </Button>
-              </div>
-            ) : (
-              <Upload.Dragger
-                accept={ALLOWED_BACKGROUND_TYPES.join(',')}
-                listType="picture"
-                maxCount={1}
-                fileList={backgroundFileList}
-                beforeUpload={() => false}
-                onChange={handleBackgroundChange}
-                onRemove={handleBackgroundRemove}
+    <OwnerLayout title="Tạo chiến dịch mới" hideSider>
+      <Form
+        layout="vertical"
+        onFinish={handleSubmit}
+        noValidate
+        className="flex h-full w-full flex-col gap-4"
+      >
+        <div className="flex h-full overflow-hidden">
+          <div
+            data-slot="left-panel"
+            className="w-[260px] bg-white h-full shrink-0 overflow-y-auto border-r p-4 flex flex-col gap-6"
+          >
+            {/* Đường dẫn — the only "settings" field that isn't a layer on
+                the canvas itself (unlike the background, see the canvas
+                pane below). */}
+            <div>
+              <Form.Item
+                label="Đường dẫn"
+                validateStatus={errors.slug ? "error" : ""}
+                help={errors.slug}
+                className="!mb-1"
               >
-                <p className="ant-upload-drag-icon">
-                  <InboxOutlined />
-                </p>
-                <p className="ant-upload-text">Kéo thả ảnh vào đây, hoặc bấm để chọn ảnh</p>
-                <p className="ant-upload-hint">Chấp nhận JPEG, PNG hoặc WEBP</p>
-              </Upload.Dragger>
-            )}
+                <Input
+                  value={slug}
+                  onChange={(event) => setSlug(event.target.value)}
+                  placeholder="dai-hoi-ben-tre"
+                  aria-label="Đường dẫn"
+                />
+              </Form.Item>
+              {!errors.slug &&
+                slugFormatValid &&
+                slugAvailabilityQuery.data === true && (
+                  <p className="text-xs text-green-600">Đường dẫn khả dụng</p>
+                )}
+              {!errors.slug &&
+                slugFormatValid &&
+                slugAvailabilityQuery.data === false && (
+                  <p className="text-xs text-red-600">
+                    Đường dẫn này đã được sử dụng
+                  </p>
+                )}
+            </div>
 
-            {errors.backgroundImage && <p className="mt-2 text-xs text-red-600">{errors.backgroundImage}</p>}
-          </div>
+            {/* Trang chiến dịch — page-level metadata (SEO title/description,
+                thumbnail, public-page header banner). None of it affects the
+                canvas above, so it's grouped as its own layer rather than
+                mixed into the background/slug controls. */}
+            <div className="flex flex-col gap-4 border-t border-slate-200 pt-4">
+              <h4 className="text-sm font-semibold text-slate-700">
+                Trang chiến dịch (không bắt buộc)
+              </h4>
 
-          <div className="min-w-0 flex-1">
-            {backgroundPreviewUrl && layout ? (
-              <LayoutEditor layout={layout} backgroundImageUrl={backgroundPreviewUrl} onChange={setLayout} />
-            ) : (
-              <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-400">
-                Tải ảnh nền lên để bắt đầu bố trí khung ảnh
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* SEO / social-share metadata — all optional, see resolveCampaignSeo.ts for the fallbacks used when left blank. Editable again later from EditCampaignPage. */}
-        <div className="rounded-md border border-slate-200 p-4">
-          <h4 className="mb-3 text-sm font-semibold text-slate-700">SEO & chia sẻ (không bắt buộc)</h4>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-            <div className="flex-1">
               <Form.Item
                 label="Tiêu đề"
-                validateStatus={errors.title ? 'error' : ''}
+                validateStatus={errors.title ? "error" : ""}
                 help={errors.title}
-                className="!mb-3"
+                className="!mb-0"
               >
                 <Input
                   value={title}
@@ -344,7 +361,7 @@ export function NewCampaignPage() {
               </Form.Item>
               <Form.Item
                 label="Mô tả"
-                validateStatus={errors.description ? 'error' : ''}
+                validateStatus={errors.description ? "error" : ""}
                 help={errors.description}
                 className="!mb-0"
               >
@@ -357,65 +374,154 @@ export function NewCampaignPage() {
                   rows={3}
                 />
               </Form.Item>
-            </div>
 
-            <div className="w-full shrink-0 lg:w-48">
-              <p className="mb-2 text-sm font-medium text-slate-700">Ảnh thu nhỏ</p>
-              {thumbnailPreviewUrl ? (
-                <div className="flex flex-col gap-2">
-                  <img
-                    src={thumbnailPreviewUrl}
-                    alt=""
-                    className="aspect-square w-full rounded border border-slate-200 object-cover"
-                  />
-                  <Button block size="small" onClick={handleThumbnailRemove}>
-                    Xoá ảnh
-                  </Button>
-                </div>
-              ) : (
-                <Upload
-                  accept={ALLOWED_BACKGROUND_TYPES.join(',')}
-                  listType="picture"
-                  maxCount={1}
-                  fileList={thumbnailFileList}
-                  beforeUpload={() => false}
-                  onChange={handleThumbnailChange}
-                  onRemove={handleThumbnailRemove}
-                >
-                  <Button block>Chọn ảnh</Button>
-                </Upload>
-              )}
-              <p className="mt-1 text-xs text-slate-400">Mặc định dùng ảnh nền nếu không chọn.</p>
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-700">
+                  Ảnh thu nhỏ
+                </p>
+                {thumbnailPreviewUrl ? (
+                  <div className="relative">
+                    <img
+                      src={thumbnailPreviewUrl}
+                      alt=""
+                      className="aspect-square w-full rounded border border-slate-200 object-cover"
+                    />
+                    <Button
+                      shape="circle"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      aria-label="Xoá ảnh thu nhỏ"
+                      onClick={handleThumbnailRemove}
+                      className="!absolute !right-1.5 !top-1.5 !bg-white shadow"
+                    />
+                  </div>
+                ) : (
+                  <Upload
+                    accept={ALLOWED_BACKGROUND_TYPES.join(",")}
+                    showUploadList={false}
+                    maxCount={1}
+                    fileList={thumbnailFileList}
+                    beforeUpload={() => false}
+                    onChange={handleThumbnailChange}
+                    onRemove={handleThumbnailRemove}
+                  >
+                    <Button block>Chọn ảnh</Button>
+                  </Upload>
+                )}
+                <p className="mt-1 text-xs text-slate-400">
+                  Mặc định dùng ảnh nền nếu không chọn.
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-1 text-sm font-medium text-slate-700">
+                  Ảnh bìa trang chiến dịch
+                </p>
+                <p className="mb-2 text-xs text-slate-500">
+                  Hiển thị ở đầu trang công khai. Chấp nhận mọi tỷ lệ ảnh.
+                </p>
+                {headerPreviewUrl ? (
+                  <div className="relative">
+                    <img
+                      src={headerPreviewUrl}
+                      alt=""
+                      className="w-full rounded border border-slate-200"
+                    />
+                    <Button
+                      shape="circle"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      aria-label="Xoá ảnh bìa"
+                      onClick={handleHeaderRemove}
+                      className="!absolute !right-1.5 !top-1.5 !bg-white shadow"
+                    />
+                  </div>
+                ) : (
+                  <Upload
+                    accept={ALLOWED_BACKGROUND_TYPES.join(",")}
+                    showUploadList={false}
+                    maxCount={1}
+                    fileList={headerFileList}
+                    beforeUpload={() => false}
+                    onChange={handleHeaderChange}
+                    onRemove={handleHeaderRemove}
+                  >
+                    <Button block>Tải ảnh bìa lên</Button>
+                  </Upload>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Public-page header banner — optional, any aspect ratio accepted (no crop step); see CampaignPublicPage.tsx for how it's rendered. */}
-        <div className="rounded-md border border-slate-200 p-4">
-          <h4 className="mb-1 text-sm font-semibold text-slate-700">Ảnh bìa trang chiến dịch (không bắt buộc)</h4>
-          <p className="mb-3 text-xs text-slate-500">
-            Hiển thị ở đầu trang công khai của chiến dịch. Có thể tải lên ảnh với bất kỳ tỷ lệ nào.
-          </p>
-          {headerPreviewUrl ? (
-            <div className="flex flex-col gap-2">
-              <img src={headerPreviewUrl} alt="" className="w-full max-w-2xl rounded border border-slate-200" />
-              <Button size="small" onClick={handleHeaderRemove} className="self-start">
-                Xoá ảnh
+          <div
+            data-slot="canvas"
+            className="relative h-full min-w-0 flex-1 overflow-auto p-4"
+          >
+            {backgroundPreviewUrl && layout ? (
+              <>
+                <LayoutEditor
+                  layout={layout}
+                  backgroundImageUrl={backgroundPreviewUrl}
+                  onChange={setLayout}
+                />
+                {/* Background is a canvas layer, not a sidebar setting — so
+                    "change it" lives as a floating control over the canvas
+                    itself, same as Figma/Canva's image-fill controls. */}
+                <Upload
+                  accept={ALLOWED_BACKGROUND_TYPES.join(",")}
+                  maxCount={1}
+                  showUploadList={false}
+                  fileList={backgroundFileList}
+                  beforeUpload={() => false}
+                  onChange={handleBackgroundChange}
+                  className="absolute left-8 top-8"
+                >
+                  <Button icon={<PictureOutlined />} className="shadow">
+                    Đổi ảnh nền
+                  </Button>
+                </Upload>
+              </>
+            ) : (
+              <Upload.Dragger
+                accept={ALLOWED_BACKGROUND_TYPES.join(",")}
+                maxCount={1}
+                showUploadList={false}
+                fileList={backgroundFileList}
+                beforeUpload={() => false}
+                onChange={handleBackgroundChange}
+                className="!h-64 !bg-white"
+              >
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined />
+                </p>
+                <p className="ant-upload-text">
+                  Kéo thả ảnh vào đây, hoặc bấm để chọn ảnh nền
+                </p>
+                <p className="ant-upload-hint">
+                  Chấp nhận JPEG, PNG hoặc WEBP
+                </p>
+              </Upload.Dragger>
+            )}
+            {errors.backgroundImage && (
+              <p className="absolute left-1/2 top-4 -translate-x-1/2 rounded bg-red-50 px-3 py-1 text-xs text-red-600 shadow">
+                {errors.backgroundImage}
+              </p>
+            )}
+            <div
+              data-slot="bottom-bar"
+              className="absolute bottom-8 left-1/2 w-[min(90%,800px)] -translate-x-1/2 rounded-xl bg-white p-1 shadow"
+            >
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={isSubmitting}
+                className="shrink-0"
+              >
+                Tạo chiến dịch
               </Button>
             </div>
-          ) : (
-            <Upload
-              accept={ALLOWED_BACKGROUND_TYPES.join(',')}
-              listType="picture"
-              maxCount={1}
-              fileList={headerFileList}
-              beforeUpload={() => false}
-              onChange={handleHeaderChange}
-              onRemove={handleHeaderRemove}
-            >
-              <Button>Tải ảnh bìa lên</Button>
-            </Upload>
-          )}
+          </div>
         </div>
       </Form>
     </OwnerLayout>

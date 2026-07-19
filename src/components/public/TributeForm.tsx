@@ -192,6 +192,7 @@ export function TributeForm({
           >
             <Input
               {...field}
+              showCount
               maxLength={config.limit.fullName}
               aria-label="Họ và tên"
             />
@@ -212,6 +213,7 @@ export function TributeForm({
               {...field}
               maxLength={config.limit.role}
               aria-label="Đơn vị / Chức vụ"
+              showCount
             />
           </Form.Item>
         )}
@@ -228,6 +230,7 @@ export function TributeForm({
           >
             <Input.TextArea
               {...field}
+              showCount
               rows={4}
               maxLength={config.limit.message}
               aria-label="Thông điệp"

@@ -1,4 +1,5 @@
 import { CuratedFont, getCuratedFont } from "../constants/fonts";
+import type { CustomFont } from "../templates/types";
 
 // Tracks stylesheet hrefs already appended so repeated calls (e.g. on every
 // keystroke of a text field, or every font-picker re-render) don't pile up
@@ -59,6 +60,75 @@ export function loadGoogleFont(family: string | undefined): void {
   void loadStylesheet(font.googleFontsHref);
 }
 
+// Tracks which custom fonts (by family+url) already have an injected
+// @font-face <style> tag, same purpose as `loadedHrefs` above for curated
+// fonts' <link> tags.
+const loadedCustomFontKeys = new Set<string>();
+
+function customFontStyleElementId(family: string): string {
+  return `custom-font-face-${family}`;
+}
+
+/**
+ * Injects an inline `<style>` tag declaring an `@font-face` rule for a
+ * campaign owner's own uploaded font, pointing at its R2-hosted file.
+ *
+ * Deliberately a `<style>` element with the rule's CSS text inlined, not a
+ * `<link>` to the font file itself: `modern-screenshot`'s export-time font
+ * auto-discovery (see `frameCompositor.service.ts`) works by reading
+ * `@font-face` rules off `document.styleSheets[i].cssRules` — an inline
+ * `<style>` is same-origin by construction, so those rules are always
+ * readable, without needing the `crossOrigin="anonymous"` trick
+ * `loadStylesheet` above relies on for cross-origin Google Fonts `<link>`s.
+ * The browser still fetches the actual font file lazily (cross-origin, from
+ * R2) once something on the page requests that family/weight — same as any
+ * other `@font-face` `src: url(...)`.
+ *
+ * `font-weight: 100 900` (a range, not a single value) is intentional: an
+ * uploaded font is typically one static weight, but Name/Role/Message
+ * request specific weights (400/500/700) that a single-weight `@font-face`
+ * would otherwise force the browser to synthesize (fake-bold) instead of
+ * reusing the one file it has — declaring the full range tells the browser
+ * this file *is* whatever weight was asked for, so it's used as-is.
+ */
+function injectCustomFontFace(font: CustomFont): void {
+  if (typeof document === "undefined") return;
+  const key = `${font.family}:${font.url}`;
+  if (loadedCustomFontKeys.has(key)) return;
+
+  const elementId = customFontStyleElementId(font.family);
+  if (document.getElementById(elementId)) {
+    loadedCustomFontKeys.add(key);
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = elementId;
+  style.textContent = `@font-face {
+    font-family: '${font.family.replace(/'/g, "")}';
+    src: url('${encodeURI(font.url)}') format('${font.format}');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+  }`;
+  document.head.appendChild(style);
+  loadedCustomFontKeys.add(key);
+}
+
+/**
+ * Loads whichever font a box should render with — a campaign owner's own
+ * uploaded font (`customFont`, takes priority when set) or a curated Google
+ * Font (`family`). Mirrors `loadGoogleFont`'s fire-and-forget contract; see
+ * `ensureFontReady` for a version that waits for actual usability.
+ */
+export function loadFont(family: string | undefined, customFont?: CustomFont): void {
+  if (customFont) {
+    injectCustomFontFace(customFont);
+    return;
+  }
+  loadGoogleFont(family);
+}
+
 /**
  * Loads every curated font at once — used by the font picker dropdown so
  * each option can render a live preview in its own font as soon as the
@@ -88,8 +158,31 @@ export function loadAllCuratedFonts(fonts: CuratedFont[]): void {
  *     the wrong font when a campaign's font was just requested moments
  *     before compositing.
  */
-export async function ensureFontReady(family: string | undefined, weight: number): Promise<void> {
+export async function ensureFontReady(
+  family: string | undefined,
+  weight: number,
+  customFont?: CustomFont,
+): Promise<void> {
   if (typeof document === "undefined" || !("fonts" in document)) return;
+
+  if (customFont) {
+    const cacheKey = `custom:${customFont.family}:${customFont.url}:${weight}`;
+    let customPromise = readyPromises.get(cacheKey);
+    if (!customPromise) {
+      customPromise = (async () => {
+        injectCustomFontFace(customFont);
+        try {
+          await document.fonts.load(`${weight} 16px "${customFont.family}"`);
+        } catch {
+          // Network or font-parsing failure — proceed anyway; the browser
+          // falls back to its default font rather than this hanging forever.
+        }
+      })();
+      readyPromises.set(cacheKey, customPromise);
+    }
+    return customPromise;
+  }
+
   const font = getCuratedFont(family);
   const cacheKey = `${font.family}:${weight}`;
   let promise = readyPromises.get(cacheKey);

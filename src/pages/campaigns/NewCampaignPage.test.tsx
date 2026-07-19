@@ -44,6 +44,7 @@ vi.mock("../../queries/campaign.queries", () => ({
   campaignKeys: { list: () => ["campaigns", "list"] },
   uploadCampaignBackgroundMutationOptions: () => ({ mutationFn: mockUpload }),
   uploadCampaignHeaderMutationOptions: () => ({ mutationFn: mockUploadHeader }),
+  uploadCampaignFontMutationOptions: () => ({ mutationFn: vi.fn() }),
   createCampaignMutationOptions: () => ({ mutationFn: mockCreate }),
   slugAvailabilityQueryOptions: (slug: string) => ({
     queryKey: ["campaigns", "slug-availability", slug],
@@ -57,6 +58,15 @@ vi.mock("../../utils/report-campaign-error", () => ({
 
 vi.mock("../../utils/get-image-dimensions", () => ({
   getImageDimensions: mockGetImageDimensions,
+}));
+
+// The real implementation draws to a <canvas> via a loaded <img> — neither
+// of which jsdom actually renders, so it would hang forever waiting for an
+// `onload` that never fires. These tests aren't about the resize behavior
+// itself (see resizeImageIfOversized.test.ts for that); a pass-through
+// keeps the upload -> layout -> submit flow exercised without it.
+vi.mock("../../utils/resizeImageIfOversized", () => ({
+  resizeImageIfOversized: (file: File) => Promise.resolve(file),
 }));
 
 // LayoutEditor's own interaction (drag/resize/shape/color) is covered by its

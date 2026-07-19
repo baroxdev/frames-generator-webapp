@@ -12,6 +12,7 @@ import {
   createCampaignMutationOptions,
   slugAvailabilityQueryOptions,
   uploadCampaignBackgroundMutationOptions,
+  uploadCampaignFontMutationOptions,
   uploadCampaignHeaderMutationOptions,
 } from '../../queries/campaign.queries';
 import type { CreateCampaignParams } from '../../services/campaign.service';
@@ -19,6 +20,7 @@ import { createCampaignSchema, slugField, type CreateCampaignInput } from '../..
 import { getDefaultCampaignLayout, type CampaignLayout } from '../../templates';
 import { getImageDimensions } from '../../utils/get-image-dimensions';
 import { reportCampaignError } from '../../utils/report-campaign-error';
+import { resizeImageIfOversized } from '../../utils/resizeImageIfOversized';
 import { fieldErrorsFromZod } from '../../utils/zod-errors';
 
 const ALLOWED_BACKGROUND_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -53,6 +55,7 @@ export function NewCampaignPage() {
   // dedicated service method.
   const thumbnailUploadMutation = useMutation(uploadCampaignBackgroundMutationOptions());
   const headerUploadMutation = useMutation(uploadCampaignHeaderMutationOptions());
+  const fontUploadMutation = useMutation(uploadCampaignFontMutationOptions());
   const createMutation = useMutation(createCampaignMutationOptions());
 
   const slugFormatValid = slugField.safeParse(debouncedSlug).success;
@@ -146,7 +149,17 @@ export function NewCampaignPage() {
     }
     setErrors((previous) => ({ ...previous, backgroundImage: undefined }));
     setBackgroundFileList(latest);
-    setBackgroundFile(file);
+    // A background this large (owners have uploaded up to 13334x7500) both
+    // skews the message auto-fit math (see MAX_AUTO_FIT_FONT_FACTOR in
+    // Message.tsx) and forces PrintArea.tsx to rasterize a DOM at that same
+    // huge resolution for the final export — downscale it client-side
+    // before it ever becomes `backgroundFile` (and so before
+    // getImageDimensions derives the canvas size from it below).
+    resizeImageIfOversized(file)
+      .then(setBackgroundFile)
+      .catch(() =>
+        setErrors((previous) => ({ ...previous, backgroundImage: 'Không thể xử lý ảnh nền. Vui lòng thử ảnh khác.' })),
+      );
   };
 
   const handleBackgroundRemove = () => {
@@ -164,7 +177,7 @@ export function NewCampaignPage() {
       return;
     }
     setThumbnailFileList(latest);
-    setThumbnailFile(file);
+    resizeImageIfOversized(file).then(setThumbnailFile);
   };
 
   const handleThumbnailRemove = () => {
@@ -182,7 +195,7 @@ export function NewCampaignPage() {
       return;
     }
     setHeaderFileList(latest);
-    setHeaderFile(file);
+    resizeImageIfOversized(file).then(setHeaderFile);
   };
 
   const handleHeaderRemove = () => {
@@ -314,7 +327,12 @@ export function NewCampaignPage() {
 
           <div className="min-w-0 flex-1">
             {backgroundPreviewUrl && layout ? (
-              <LayoutEditor layout={layout} backgroundImageUrl={backgroundPreviewUrl} onChange={setLayout} />
+              <LayoutEditor
+                layout={layout}
+                backgroundImageUrl={backgroundPreviewUrl}
+                onChange={setLayout}
+                onUploadFont={(file) => fontUploadMutation.mutateAsync(file)}
+              />
             ) : (
               <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-400">
                 Tải ảnh nền lên để bắt đầu bố trí khung ảnh

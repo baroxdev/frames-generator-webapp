@@ -154,6 +154,7 @@ describe('campaign.queries', () => {
       description: 'Gửi lời chúc mừng.',
       thumbnailUrl: 'https://cdn.example.com/thumb.jpg',
       headerImageUrl: 'https://cdn.example.com/header.jpg',
+      backgroundImageUrl: 'https://cdn.example.com/bg.jpg',
       layout: LAYOUT,
     };
     const mutationFn = updateCampaignDetailsMutationOptions().mutationFn;

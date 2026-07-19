@@ -1,5 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  CUSTOM_FONT_CONTENT_TYPE,
+  customFontFormatForFileName,
+  MAX_CUSTOM_FONT_FILE_SIZE_BYTES,
+} from '../utils/customFont';
+import type { CustomFontFormat } from '../templates/types';
 import imageService from './image.service';
+
+export interface UploadedCustomFont {
+  url: string;
+  format: CustomFontFormat;
+}
 
 export interface StorageService {
   uploadCampaignBackground(file: File): Promise<string>;
@@ -10,6 +21,14 @@ export interface StorageService {
    * `campaign-headers/` R2 prefix, see r2-presigned-upload's `folder` param.
    */
   uploadCampaignHeader(file: File): Promise<string>;
+  /**
+   * Uploads a campaign owner's own font file (.woff2/.ttf/.otf) to its own
+   * `campaign-fonts/` R2 prefix — no compression step (unlike images), the
+   * file is uploaded as-is. Rejects client-side for an unsupported extension
+   * or a file over `MAX_CUSTOM_FONT_FILE_SIZE_BYTES` before ever calling the
+   * presign function.
+   */
+  uploadCampaignFont(file: File): Promise<UploadedCustomFont>;
 }
 
 export class StorageServiceError extends Error {
@@ -25,6 +44,7 @@ export class StorageServiceError extends Error {
 type PresignedUploadResponse = { uploadUrl: string; publicUrl: string };
 
 const FALLBACK_MESSAGE = 'Không thể tải ảnh lên. Vui lòng thử lại.';
+const FONT_FALLBACK_MESSAGE = 'Không thể tải phông chữ lên. Vui lòng thử lại.';
 
 async function uploadViaPresignedUrl(
   client: SupabaseClient,
@@ -69,6 +89,25 @@ export function createStorageService(client: SupabaseClient): StorageService {
         contentType: compressed.type,
         folder: 'campaign-headers',
       });
+    },
+    async uploadCampaignFont(file) {
+      const format = customFontFormatForFileName(file.name);
+      if (!format) {
+        throw new StorageServiceError('Chỉ chấp nhận phông chữ định dạng WOFF2, TTF hoặc OTF.');
+      }
+      if (file.size > MAX_CUSTOM_FONT_FILE_SIZE_BYTES) {
+        throw new StorageServiceError(
+          `Tệp phông chữ tối đa ${Math.floor(MAX_CUSTOM_FONT_FILE_SIZE_BYTES / (1024 * 1024))}MB.`,
+        );
+      }
+      const contentType = CUSTOM_FONT_CONTENT_TYPE[format];
+      const url = await uploadViaPresignedUrl(client, 'r2-presigned-upload', file, contentType, {
+        contentType,
+        folder: 'campaign-fonts',
+      }).catch((error) => {
+        throw new StorageServiceError(FONT_FALLBACK_MESSAGE, { cause: error });
+      });
+      return { url, format };
     },
   };
 }

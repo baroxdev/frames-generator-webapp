@@ -279,6 +279,7 @@ describe('campaign.service', () => {
         description: 'Gửi lời chúc mừng của bạn.',
         thumbnailUrl: 'https://cdn.example.com/thumb.jpg',
         headerImageUrl: 'https://cdn.example.com/header.jpg',
+        backgroundImageUrl: 'https://cdn.example.com/background.jpg',
         layout: LAYOUT,
       });
 
@@ -288,6 +289,7 @@ describe('campaign.service', () => {
         description_input: 'Gửi lời chúc mừng của bạn.',
         thumbnail_url_input: 'https://cdn.example.com/thumb.jpg',
         header_image_url_input: 'https://cdn.example.com/header.jpg',
+        background_image_url_input: 'https://cdn.example.com/background.jpg',
         layout_input: LAYOUT,
       });
       expect(result.headerImageUrl).toBe('https://cdn.example.com/header.jpg');
@@ -303,6 +305,7 @@ describe('campaign.service', () => {
           description: null,
           thumbnailUrl: null,
           headerImageUrl: null,
+          backgroundImageUrl: CAMPAIGN_ROW.background_image_url,
           layout: LAYOUT,
         }),
       ).rejects.toBeInstanceOf(CampaignServiceError);

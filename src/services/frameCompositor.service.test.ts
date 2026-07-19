@@ -97,7 +97,7 @@ describe('compositeFrameToBlob', () => {
 
     await compositeFrameToBlob(nodeWithSize(1500, 843), 'Lobster');
 
-    expect(mockEnsureFontReady).toHaveBeenCalledWith('Lobster', 700);
-    expect(mockEnsureFontReady).toHaveBeenCalledWith('Lobster', 500);
+    expect(mockEnsureFontReady).toHaveBeenCalledWith('Lobster', 700, undefined);
+    expect(mockEnsureFontReady).toHaveBeenCalledWith('Lobster', 500, undefined);
   });
 });

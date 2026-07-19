@@ -1,5 +1,5 @@
 import { DEFAULT_FONT_FAMILY } from '../constants/fonts';
-import { AvatarShape, CanvasSize, FrameContent, Template } from './types';
+import { AvatarShape, CanvasSize, CustomFont, FrameContent, Template } from './types';
 
 /**
  * Props shape the existing box-rendering components (Avatar/Name/Role/
@@ -17,6 +17,8 @@ export interface ResolvedBoxProps {
   textColor?: string;
   autoFit?: boolean;
   fontFamily?: string;
+  customFont?: CustomFont;
+  showPrefix?: boolean;
 }
 
 export interface ResolvedAvatarProps extends ResolvedBoxProps {
@@ -47,6 +49,7 @@ export function resolveTemplateLayout(
   content: FrameContent
 ): ResolvedFrameLayout {
   const fontFamily = template.fontFamily ?? DEFAULT_FONT_FAMILY;
+  const customFont = template.customFont;
 
   return {
     canvas: template.canvas,
@@ -72,6 +75,8 @@ export function resolveTemplateLayout(
       textColor: template.nameBox.textColor,
       autoFit: template.nameBox.autoFit,
       fontFamily,
+      customFont,
+      showPrefix: template.showFieldPrefix,
     },
     role: {
       content: content.role,
@@ -83,6 +88,8 @@ export function resolveTemplateLayout(
       textColor: template.roleBox.textColor,
       autoFit: template.roleBox.autoFit,
       fontFamily,
+      customFont,
+      showPrefix: template.showFieldPrefix,
     },
     message: {
       content: content.message,
@@ -93,6 +100,7 @@ export function resolveTemplateLayout(
       textColor: template.messageBox.textColor,
       autoFit: template.messageBox.autoFit,
       fontFamily,
+      customFont,
     },
   };
 }

@@ -127,4 +127,47 @@ describe('resolveTemplateLayout', () => {
     expect(layout.role.fontFamily).toBe('Playfair Display');
     expect(layout.message.fontFamily).toBe('Playfair Display');
   });
+
+  it("carries the template's own customFont through to name/role/message, the same one for all three", () => {
+    const customFont = {
+      family: 'custom-brand-font-ab12',
+      url: 'https://cdn.example.com/campaign-fonts/owner/brand-font.woff2',
+      format: 'woff2' as const,
+      originalFileName: 'brand-font.woff2',
+    };
+    const layout = resolveTemplateLayout(
+      { ...fixtureTemplate, fontFamily: customFont.family, customFont },
+      content,
+    );
+
+    expect(layout.name.customFont).toEqual(customFont);
+    expect(layout.role.customFont).toEqual(customFont);
+    expect(layout.message.customFont).toEqual(customFont);
+  });
+
+  it('leaves customFont undefined when the template has no uploaded font', () => {
+    const layout = resolveTemplateLayout(fixtureTemplate, content);
+
+    expect(layout.name.customFont).toBeUndefined();
+    expect(layout.role.customFont).toBeUndefined();
+    expect(layout.message.customFont).toBeUndefined();
+  });
+
+  it("carries the template's showFieldPrefix through to name/role only, not message", () => {
+    const layout = resolveTemplateLayout(
+      { ...fixtureTemplate, showFieldPrefix: true },
+      content,
+    );
+
+    expect(layout.name.showPrefix).toBe(true);
+    expect(layout.role.showPrefix).toBe(true);
+    expect(layout.message.showPrefix).toBeUndefined();
+  });
+
+  it('leaves showPrefix undefined when the template has no showFieldPrefix set', () => {
+    const layout = resolveTemplateLayout(fixtureTemplate, content);
+
+    expect(layout.name.showPrefix).toBeUndefined();
+    expect(layout.role.showPrefix).toBeUndefined();
+  });
 });

@@ -45,6 +45,7 @@ export type CampaignSeo = {
 /** Everything the unified edit page (EditCampaignPage.tsx) saves in one go. */
 export type CampaignDetails = CampaignSeo & {
   headerImageUrl: string | null;
+  backgroundImageUrl: string;
   layout: CampaignLayout;
 };
 
@@ -83,11 +84,12 @@ export interface CampaignService {
   updateCampaignSeo(campaignId: string, seo: CampaignSeo): Promise<Campaign>;
   /**
    * Persists everything the unified edit page saves in one action (SEO
-   * fields, header image, layout) via the `set_campaign_details` RPC —
-   * see 0007_campaign_header_image.sql for why this replaced separate
-   * `updateCampaignLayout`/`updateCampaignSeo` calls from that page (those
-   * two methods and their RPCs stay, unused by this page, since other
-   * callers may still exist).
+   * fields, header image, background image, layout) via the
+   * `set_campaign_details` RPC — see 0007_campaign_header_image.sql and
+   * 0008_campaign_details_background_image.sql for why this replaced
+   * separate `updateCampaignLayout`/`updateCampaignSeo` calls from that
+   * page (those two methods and their RPCs stay, unused by this page,
+   * since other callers may still exist).
    */
   updateCampaignDetails(campaignId: string, details: CampaignDetails): Promise<Campaign>;
 }
@@ -278,6 +280,7 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
         description_input: details.description,
         thumbnail_url_input: details.thumbnailUrl,
         header_image_url_input: details.headerImageUrl,
+        background_image_url_input: details.backgroundImageUrl,
         layout_input: details.layout,
       });
 

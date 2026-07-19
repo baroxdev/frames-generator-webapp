@@ -44,13 +44,25 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 
-const ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+// Font content types are sent by the client derived from the file
+// *extension* (see src/utils/customFont.ts), not `File.type` — browsers
+// report inconsistent or empty MIME types for .ttf/.otf uploads, so trusting
+// `File.type` here would reject legitimate uploads.
+const ALLOWED_CONTENT_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'font/woff2',
+  'font/ttf',
+  'font/otf',
+]);
 // Object-key prefix a caller may request via `folder` in the body — keeps
-// the bucket organized by purpose (backgrounds/thumbnails vs. the public
-// page's header banner) without needing a separate edge function per
-// prefix. Defaults to the original prefix so existing callers that don't
-// send `folder` keep writing to the same place as before this was added.
-const ALLOWED_FOLDERS = new Set(['campaign-backgrounds', 'campaign-headers']);
+// the bucket organized by purpose (backgrounds/thumbnails, the public
+// page's header banner, campaign owners' own uploaded fonts) without
+// needing a separate edge function per prefix. Defaults to the original
+// prefix so existing callers that don't send `folder` keep writing to the
+// same place as before this was added.
+const ALLOWED_FOLDERS = new Set(['campaign-backgrounds', 'campaign-headers', 'campaign-fonts']);
 const DEFAULT_FOLDER = 'campaign-backgrounds';
 const PRESIGNED_URL_TTL_SECONDS = 60 * 5;
 
@@ -81,6 +93,12 @@ function extensionFor(contentType: string): string {
       return 'png';
     case 'image/webp':
       return 'webp';
+    case 'font/woff2':
+      return 'woff2';
+    case 'font/ttf':
+      return 'ttf';
+    case 'font/otf':
+      return 'otf';
     default:
       return 'bin';
   }
@@ -140,7 +158,7 @@ Deno.serve(async (req) => {
 
   const contentType = body.contentType;
   if (typeof contentType !== 'string' || !ALLOWED_CONTENT_TYPES.has(contentType)) {
-    return jsonResponse({ error: 'contentType must be one of image/jpeg, image/png, image/webp' }, 400);
+    return jsonResponse({ error: `contentType must be one of ${[...ALLOWED_CONTENT_TYPES].join(', ')}` }, 400);
   }
 
   const folder = body.folder ?? DEFAULT_FOLDER;

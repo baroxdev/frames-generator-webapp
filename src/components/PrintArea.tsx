@@ -58,6 +58,8 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             textColor={layout.name.textColor}
             autoFit={layout.name.autoFit}
             fontFamily={layout.name.fontFamily}
+            customFont={layout.name.customFont}
+            showPrefix={layout.name.showPrefix}
             isDev={isDevMod}
           />
           <Role
@@ -70,6 +72,8 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             textColor={layout.role.textColor}
             autoFit={layout.role.autoFit}
             fontFamily={layout.role.fontFamily}
+            customFont={layout.role.customFont}
+            showPrefix={layout.role.showPrefix}
             isDev={isDevMod}
           />
           <Message
@@ -81,6 +85,7 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             textColor={layout.message.textColor}
             autoFit={layout.message.autoFit}
             fontFamily={layout.message.fontFamily}
+            customFont={layout.message.customFont}
             isDev={isDevMod}
           />
         </div>

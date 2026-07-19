@@ -117,7 +117,11 @@ export function CampaignPublicPage({
       // Composite first, before any network call: it's local and free, so a
       // failure here (e.g. a font/rendering issue) is caught before
       // spending the single-use Turnstile token or any R2/DB round-trip.
-      const imageBlob = await compositeFrameToBlob(compositeRef.current, campaign.layout.fontFamily);
+      const imageBlob = await compositeFrameToBlob(
+        compositeRef.current,
+        campaign.layout.fontFamily,
+        campaign.layout.customFont,
+      );
       const imageUrl = await uploadImageMutation.mutateAsync({
         campaignId: campaign.id,
         image: imageBlob,

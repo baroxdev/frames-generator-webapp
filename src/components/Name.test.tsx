@@ -17,4 +17,17 @@ describe('Name', () => {
     const nameEl = screen.getByText('Nguyễn Văn A');
     expect(nameEl.style.fontFamily).toBe('"Be Vietnam Pro", sans-serif');
   });
+
+  it('renders the raw name unchanged when showPrefix is not set', () => {
+    render(<Name content="Phan Quốc Bảo" width={200} height={40} x={0} y={0} />);
+
+    expect(screen.queryByText('Họ và tên: Phan Quốc Bảo')).toBeNull();
+    expect(screen.getByText('Phan Quốc Bảo')).not.toBeNull();
+  });
+
+  it('prepends the fixed "Họ và tên: " prefix when showPrefix is set', () => {
+    render(<Name content="Phan Quốc Bảo" width={200} height={40} x={0} y={0} showPrefix />);
+
+    expect(screen.getByText('Họ và tên: Phan Quốc Bảo')).not.toBeNull();
+  });
 });

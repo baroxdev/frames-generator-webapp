@@ -1,5 +1,6 @@
 import { domToBlob } from 'modern-screenshot';
 
+import type { CustomFont } from '../templates/types';
 import { ensureFontReady } from '../utils/loadGoogleFont';
 import { MESSAGE_FONT_WEIGHT, NAME_ROLE_FONT_WEIGHT } from '../utils/textFonts';
 
@@ -63,11 +64,19 @@ export function computeExportScale(node: HTMLElement): number {
  * with a fallback font instead of the one actually selected. See
  * `ensureFontReady`'s doc comment for why `document.fonts.ready` alone
  * isn't sufficient.
+ *
+ * `customFont`, when set, is the campaign's own uploaded font (see
+ * `CustomFont` in `src/templates/types.ts`) — takes priority over
+ * `fontFamily` for loading purposes, same as `Name`/`Role`/`Message`.
  */
-export async function compositeFrameToBlob(node: HTMLElement, fontFamily?: string): Promise<Blob> {
+export async function compositeFrameToBlob(
+  node: HTMLElement,
+  fontFamily?: string,
+  customFont?: CustomFont,
+): Promise<Blob> {
   await Promise.all([
-    ensureFontReady(fontFamily, NAME_ROLE_FONT_WEIGHT),
-    ensureFontReady(fontFamily, MESSAGE_FONT_WEIGHT),
+    ensureFontReady(fontFamily, NAME_ROLE_FONT_WEIGHT, customFont),
+    ensureFontReady(fontFamily, MESSAGE_FONT_WEIGHT, customFont),
   ]);
   if ('fonts' in document) {
     await document.fonts.ready;

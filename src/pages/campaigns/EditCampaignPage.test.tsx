@@ -52,6 +52,9 @@ vi.mock("../../queries/campaign.queries", () => ({
   uploadCampaignHeaderMutationOptions: () => ({
     mutationFn: mockUploadCampaignHeader,
   }),
+  uploadCampaignFontMutationOptions: () => ({
+    mutationFn: vi.fn(),
+  }),
 }));
 
 vi.mock("../../utils/report-campaign-error", () => ({
@@ -207,6 +210,7 @@ describe("EditCampaignPage", () => {
             description: "Gửi lời chúc mừng của bạn.",
             thumbnailUrl: null,
             headerImageUrl: "https://cdn.example.com/new-header.jpg",
+            backgroundImageUrl: CAMPAIGN.backgroundImageUrl,
             layout: { edited: true },
           },
         },
@@ -239,6 +243,7 @@ describe("EditCampaignPage", () => {
           details: expect.objectContaining({
             thumbnailUrl: "https://cdn.example.com/thumb.jpg",
             headerImageUrl: "https://cdn.example.com/header.jpg",
+            backgroundImageUrl: CAMPAIGN.backgroundImageUrl,
           }),
         }),
         expect.anything(),
@@ -246,6 +251,52 @@ describe("EditCampaignPage", () => {
     );
     expect(mockUploadCampaignHeader).not.toHaveBeenCalled();
     expect(mockUploadCampaignBackground).not.toHaveBeenCalled();
+  });
+
+  it("uploads a new background image and includes it in the saved details when chosen", async () => {
+    mockUploadCampaignBackground.mockResolvedValue(
+      "https://cdn.example.com/new-bg.jpg",
+    );
+    mockUpdateCampaignDetails.mockResolvedValue(CAMPAIGN);
+    await renderAtId("campaign-1");
+
+    await screen.findByText("/dai-hoi-ben-tre");
+    fireEvent.click(screen.getByText("edit-layout-placeholder"));
+
+    const backgroundFile = new File(["bg"], "bg.jpg", { type: "image/jpeg" });
+    const backgroundButtons = screen.getAllByRole("button", { name: "Đổi ảnh nền" });
+    console.log("DEBUG backgroundButtons count", backgroundButtons.length);
+    const backgroundInput = backgroundButtons[0]
+      .closest(".ant-upload")
+      ?.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(backgroundInput, { target: { files: [backgroundFile] } });
+
+    await waitFor(() => {
+      const imgs = document.querySelectorAll("img");
+      console.log(
+        "DEBUG imgs",
+        Array.from(imgs).map((i) => i.getAttribute("src")),
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
+
+    await waitFor(() =>
+      expect(mockUploadCampaignBackground).toHaveBeenCalledWith(
+        backgroundFile,
+        expect.anything(),
+      ),
+    );
+    await waitFor(() =>
+      expect(mockUpdateCampaignDetails).toHaveBeenCalledWith(
+        expect.objectContaining({
+          details: expect.objectContaining({
+            backgroundImageUrl: "https://cdn.example.com/new-bg.jpg",
+          }),
+        }),
+        expect.anything(),
+      ),
+    );
   });
 
   it("reports a friendly error and stays on the page when saving fails", async () => {

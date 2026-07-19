@@ -2,9 +2,10 @@ import clsx from "clsx";
 import { useEffect, useMemo } from "react";
 
 import { cssFontFamily } from "../constants/fonts";
+import { NAME_FIELD_PREFIX } from "../constants/fieldPrefixes";
 import { ObjectLayer } from "../types";
 import { fitTextFontSize } from "../utils/fitTextToBox";
-import { loadGoogleFont } from "../utils/loadGoogleFont";
+import { loadFont } from "../utils/loadGoogleFont";
 import { measureTextWidth } from "../utils/measureText";
 import { buildFontString, NAME_ROLE_FONT_WEIGHT } from "../utils/textFonts";
 
@@ -19,14 +20,16 @@ const Name = ({
   textColor,
   autoFit,
   fontFamily,
+  customFont,
+  showPrefix,
 }: ObjectLayer) => {
   const defaultName = "Tên của bạn";
-  const name = content || defaultName;
-  const resolvedFontFamily = cssFontFamily(fontFamily);
+  const name = showPrefix ? `${NAME_FIELD_PREFIX}${content || defaultName}` : content || defaultName;
+  const resolvedFontFamily = cssFontFamily(fontFamily, Boolean(customFont));
 
   useEffect(() => {
-    loadGoogleFont(fontFamily);
-  }, [fontFamily]);
+    loadFont(fontFamily, customFont);
+  }, [fontFamily, customFont]);
 
   const autoFitSize = useMemo(() => {
     if (!autoFit) return null;

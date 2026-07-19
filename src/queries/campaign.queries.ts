@@ -2,6 +2,7 @@ import { queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 import { getCampaignService } from '../services/campaign.service.instance';
 import { getStorageService } from '../services/storage.service.instance';
 import type { Campaign, CampaignDetails, CampaignSeo, CreateCampaignParams } from '../services/campaign.service';
+import type { UploadedCustomFont } from '../services/storage.service';
 import type { CampaignLayout } from '../templates';
 
 /**
@@ -66,6 +67,13 @@ export function uploadCampaignBackgroundMutationOptions(): UseMutationOptions<st
 export function uploadCampaignHeaderMutationOptions(): UseMutationOptions<string, Error, File> {
   return {
     mutationFn: (file) => getStorageService().uploadCampaignHeader(file),
+  };
+}
+
+/** Powers the layout editor's custom font upload (paid feature). */
+export function uploadCampaignFontMutationOptions(): UseMutationOptions<UploadedCustomFont, Error, File> {
+  return {
+    mutationFn: (file) => getStorageService().uploadCampaignFont(file),
   };
 }
 

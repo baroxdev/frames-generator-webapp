@@ -69,6 +69,21 @@ const clipFields = {
 // back safely to DEFAULT_FONT_FAMILY at render time (getCuratedFont).
 const fontFamilyField = z.string().min(1).optional();
 
+// Mirrors `CustomFont` in src/templates/types.ts — an owner's own uploaded
+// font file (R2-hosted), as opposed to a curated Google Font.
+const customFontField = z
+  .object({
+    family: z.string().min(1),
+    url: z.string().url(),
+    format: z.enum(['woff2', 'truetype', 'opentype']),
+    originalFileName: z.string().min(1),
+  })
+  .optional();
+
+// See Template.showFieldPrefix in src/templates/types.ts — one shared
+// toggle for the name/role prefixes, not per-box.
+const showFieldPrefixField = z.boolean().optional();
+
 export const campaignLayoutSchema = z
   .object({
     canvas: canvasSchema,
@@ -80,6 +95,8 @@ export const campaignLayoutSchema = z
     roleBox: textBoxSchema,
     messageBox: textBoxSchema,
     fontFamily: fontFamilyField,
+    customFont: customFontField,
+    showFieldPrefix: showFieldPrefixField,
   })
   .superRefine((layout, ctx) => {
     checkBoxWithinCanvas(ctx, 'avatarBox', layout.avatarBox, layout.canvas);
@@ -104,6 +121,8 @@ export const campaignLayoutRowSchema = z.object({
   roleBox: textBoxSchema,
   messageBox: textBoxSchema,
   fontFamily: fontFamilyField,
+  customFont: customFontField,
+  showFieldPrefix: showFieldPrefixField,
 });
 
 // Mirrors campaigns_title_length / campaigns_description_length in

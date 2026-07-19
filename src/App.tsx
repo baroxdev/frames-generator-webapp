@@ -204,7 +204,7 @@ function App() {
         setAvatar(compressedImage as RcFile);
       }
 
-      return await compositeFrameToBlob(cardRef.current, selectedTemplate.fontFamily);
+      return await compositeFrameToBlob(cardRef.current, selectedTemplate.fontFamily, selectedTemplate.customFont);
     } catch (error) {
       console.error("Compression error:", error);
       messageApi.open({

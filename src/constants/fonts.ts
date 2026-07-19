@@ -99,8 +99,18 @@ export function getCuratedFont(family: string | undefined): CuratedFont {
   return found ?? DEFAULT_FONT;
 }
 
-/** Builds the quoted CSS `font-family` value (with generic fallback) for a given family name. */
-export function cssFontFamily(family: string | undefined): string {
+/**
+ * Builds the quoted CSS `font-family` value (with generic fallback) for a
+ * given family name. `isCustomFont` should be true whenever the caller has a
+ * `CustomFont` (see `src/templates/types.ts`) for this box — `family` is then
+ * used verbatim (a synthetic per-upload name, not one of `CURATED_FONTS`)
+ * instead of being looked up and silently falling back to
+ * `DEFAULT_FONT_FAMILY` for not being recognized.
+ */
+export function cssFontFamily(family: string | undefined, isCustomFont?: boolean): string {
+  if (isCustomFont && family) {
+    return `'${family}', sans-serif`;
+  }
   const font = getCuratedFont(family);
   return `'${font.family}', ${font.fallback}`;
 }

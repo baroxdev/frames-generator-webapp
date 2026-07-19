@@ -53,4 +53,12 @@ describe('cssFontFamily', () => {
   it('falls back to the house default for an unrecognized family', () => {
     expect(cssFontFamily('Not A Real Font')).toBe(cssFontFamily(DEFAULT_FONT_FAMILY));
   });
+
+  it('uses the family verbatim (with a generic fallback) when isCustomFont is true, instead of looking it up in the curated list', () => {
+    expect(cssFontFamily('custom-my-font-ab12cd', true)).toBe("'custom-my-font-ab12cd', sans-serif");
+  });
+
+  it('ignores isCustomFont when family is undefined, falling back to the house default like normal', () => {
+    expect(cssFontFamily(undefined, true)).toBe(cssFontFamily(DEFAULT_FONT_FAMILY));
+  });
 });

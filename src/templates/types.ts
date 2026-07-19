@@ -75,6 +75,31 @@ export interface TextBoxConfig extends Box {
   autoFit?: boolean;
 }
 
+/** Font file formats accepted for a campaign owner's own uploaded font (see `CustomFont`). */
+export type CustomFontFormat = 'woff2' | 'truetype' | 'opentype';
+
+/**
+ * A campaign owner's own uploaded font file (paid feature — see
+ * docs/specs or the campaign schema for gating, if/when added), as opposed
+ * to picking one of the curated Google Fonts in `src/constants/fonts.ts`.
+ *
+ * `family` is a synthetic, per-upload CSS `font-family` name (never
+ * user-supplied raw text — see `src/utils/customFont.ts`) and is always
+ * kept equal to the owning `Template`/`CampaignLayout`'s own `fontFamily`
+ * field, so every other seam that already reads `fontFamily` (rendering,
+ * resolveTemplate, the export pipeline) keeps working unchanged; `customFont`
+ * only adds the extra information (`url`/`format`) needed to actually load
+ * that family's glyphs, since it isn't a Google Fonts family Google's CSS2
+ * endpoint can resolve.
+ */
+export interface CustomFont {
+  family: string;
+  url: string;
+  format: CustomFontFormat;
+  /** Original uploaded filename, shown back to the owner in the layout editor. */
+  originalFileName: string;
+}
+
 export interface Template {
   id: string;
   /** Human-readable name shown in the template gallery. */
@@ -92,9 +117,22 @@ export interface Template {
    * Google Fonts family name applied to name/role/message text (one font for
    * all three fields — see `src/constants/fonts.ts` for the curated,
    * Vietnamese-diacritic-supporting list a campaign owner picks from).
-   * Omit to fall back to `DEFAULT_FONT_FAMILY`.
+   * Omit to fall back to `DEFAULT_FONT_FAMILY`. When `customFont` is set,
+   * this holds `customFont.family` instead of a curated family name.
    */
   fontFamily?: string;
+  /** Set when `fontFamily` is the owner's own uploaded font rather than a curated Google Font. */
+  customFont?: CustomFont;
+  /**
+   * When true, the visitor-submitted name/role render with a fixed prefix
+   * prepended — "Họ và tên: " for name, "Đơn vị: " for role (see
+   * `src/constants/fieldPrefixes.ts`). One shared toggle for both fields
+   * rather than a separate flag per box, matching how the layout editor
+   * exposes it: a single switch, not per-box text a caller could set to
+   * anything. Omit (falsy) to render the raw submitted text unchanged —
+   * the pre-existing behavior every template/campaign had before this.
+   */
+  showFieldPrefix?: boolean;
 }
 
 /** The submission data a template gets rendered with. */
@@ -112,4 +150,14 @@ export interface FrameContent {
  * `background`). A campaign's background lives on the campaign row itself
  * (`background_image_url`), not inside its layout.
  */
-export type CampaignLayout = Pick<Template, 'canvas' | 'avatarBox' | 'nameBox' | 'roleBox' | 'messageBox' | 'fontFamily'>;
+export type CampaignLayout = Pick<
+  Template,
+  | 'canvas'
+  | 'avatarBox'
+  | 'nameBox'
+  | 'roleBox'
+  | 'messageBox'
+  | 'fontFamily'
+  | 'customFont'
+  | 'showFieldPrefix'
+>;

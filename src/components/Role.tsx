@@ -2,9 +2,10 @@ import clsx from "clsx";
 import { useEffect, useMemo } from "react";
 
 import { cssFontFamily } from "../constants/fonts";
+import { ROLE_FIELD_PREFIX } from "../constants/fieldPrefixes";
 import { ObjectLayer } from "../types";
 import { fitTextFontSize } from "../utils/fitTextToBox";
-import { loadGoogleFont } from "../utils/loadGoogleFont";
+import { loadFont } from "../utils/loadGoogleFont";
 import { measureTextWidth } from "../utils/measureText";
 import { buildFontString, NAME_ROLE_FONT_WEIGHT } from "../utils/textFonts";
 
@@ -20,14 +21,16 @@ const Role = ({
   textColor,
   autoFit,
   fontFamily,
+  customFont,
+  showPrefix,
 }: ObjectLayer) => {
   const defaultRole = "Chức vụ của bạn";
-  const role = content || defaultRole;
-  const resolvedFontFamily = cssFontFamily(fontFamily);
+  const role = showPrefix ? `${ROLE_FIELD_PREFIX}${content || defaultRole}` : content || defaultRole;
+  const resolvedFontFamily = cssFontFamily(fontFamily, Boolean(customFont));
 
   useEffect(() => {
-    loadGoogleFont(fontFamily);
-  }, [fontFamily]);
+    loadFont(fontFamily, customFont);
+  }, [fontFamily, customFont]);
 
   const autoFitSize = useMemo(() => {
     if (!autoFit) return null;

@@ -11,6 +11,7 @@ import {
   campaignsQueryOptions,
   updateCampaignDetailsMutationOptions,
   uploadCampaignBackgroundMutationOptions,
+  uploadCampaignFontMutationOptions,
   uploadCampaignHeaderMutationOptions,
 } from '../../queries/campaign.queries';
 import { campaignSeoSchema } from '../../schemas/campaign.schema';
@@ -24,11 +25,11 @@ type FieldErrors = Partial<Record<'title' | 'description', string>>;
 
 /**
  * Single owner-facing page for everything about an already-created campaign:
- * SEO/social-share metadata, the public-page header banner, and the
- * free-form box layout — merged from what used to be CampaignSeoPage and
- * EditCampaignLayoutPage into one page with one Save action (see
- * set_campaign_details / 0007_campaign_header_image.sql). The background
- * image itself still isn't editable here, only these three concerns.
+ * SEO/social-share metadata, the public-page header banner, the frame
+ * template background image, and the free-form box layout — merged from
+ * what used to be CampaignSeoPage and EditCampaignLayoutPage into one page
+ * with one Save action (see set_campaign_details /
+ * 0008_campaign_details_background_image.sql).
  *
  * Reuses `campaignsQueryOptions()` to resolve `:id` -> campaign, same as
  * the pages this replaces — this console's campaign counts are small, and
@@ -51,12 +52,17 @@ export function EditCampaignPage() {
   const [headerFile, setHeaderFile] = useState<File | null>(null);
   const [headerFileList, setHeaderFileList] = useState<UploadFile[]>([]);
   const [headerPreviewUrl, setHeaderPreviewUrl] = useState<string | null>(null);
+  const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
+  const [backgroundFileList, setBackgroundFileList] = useState<UploadFile[]>([]);
+  const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState<string | null>(null);
   const [layout, setLayout] = useState<CampaignLayout | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [seeded, setSeeded] = useState(false);
 
   const thumbnailUploadMutation = useMutation(uploadCampaignBackgroundMutationOptions());
   const headerUploadMutation = useMutation(uploadCampaignHeaderMutationOptions());
+  const backgroundUploadMutation = useMutation(uploadCampaignBackgroundMutationOptions());
+  const fontUploadMutation = useMutation(uploadCampaignFontMutationOptions());
   const updateDetailsMutation = useMutation(updateCampaignDetailsMutationOptions());
 
   // Seeds the form from the campaign's *current* saved values exactly once
@@ -90,6 +96,16 @@ export function EditCampaignPage() {
     setHeaderPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [headerFile]);
+
+  useEffect(() => {
+    if (!backgroundFile) {
+      setBackgroundPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(backgroundFile);
+    setBackgroundPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [backgroundFile]);
 
   if (isSessionLoading || campaignsQuery.isLoading) {
     return (
@@ -147,10 +163,32 @@ export function EditCampaignPage() {
     setHeaderFile(null);
   };
 
+  const handleBackgroundChange: UploadProps['onChange'] = (info) => {
+    const latest = info.fileList.slice(-1);
+    const file = latest[0]?.originFileObj as File | undefined;
+
+    if (!file || !ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setBackgroundFileList([]);
+      setBackgroundFile(null);
+      return;
+    }
+    setBackgroundFileList(latest);
+    setBackgroundFile(file);
+  };
+
+  const handleBackgroundRemove = () => {
+    setBackgroundFileList([]);
+    setBackgroundFile(null);
+  };
+
   const isSubmitting =
-    thumbnailUploadMutation.isPending || headerUploadMutation.isPending || updateDetailsMutation.isPending;
+    thumbnailUploadMutation.isPending ||
+    headerUploadMutation.isPending ||
+    backgroundUploadMutation.isPending ||
+    updateDetailsMutation.isPending;
   const currentThumbnailUrl = thumbnailPreviewUrl ?? campaign.thumbnailUrl ?? campaign.backgroundImageUrl;
   const currentHeaderUrl = headerPreviewUrl ?? campaign.headerImageUrl;
+  const currentBackgroundUrl = backgroundPreviewUrl ?? campaign.backgroundImageUrl;
 
   const handleSave = async () => {
     const parsed = campaignSeoSchema.safeParse({ title, description });
@@ -168,6 +206,9 @@ export function EditCampaignPage() {
       const headerImageUrl = headerFile
         ? await headerUploadMutation.mutateAsync(headerFile)
         : campaign.headerImageUrl;
+      const backgroundImageUrl = backgroundFile
+        ? await backgroundUploadMutation.mutateAsync(backgroundFile)
+        : campaign.backgroundImageUrl;
 
       await updateDetailsMutation.mutateAsync({
         campaignId: campaign.id,
@@ -176,6 +217,7 @@ export function EditCampaignPage() {
           description: parsed.data.description || null,
           thumbnailUrl: thumbnailUrl || null,
           headerImageUrl: headerImageUrl || null,
+          backgroundImageUrl,
           layout,
         },
       });
@@ -286,13 +328,45 @@ export function EditCampaignPage() {
 
         <section className="flex flex-col gap-4">
           <div>
+            <h4 className="text-sm font-semibold text-slate-700">Ảnh nền khung</h4>
+            <p className="text-xs text-slate-500">
+              Ảnh nền của khung hình, dùng làm nền cho bố cục bên dưới. Đổi ảnh nền có thể làm lệch vị trí các ô đã
+              bố trí — kiểm tra lại bố cục sau khi đổi.
+            </p>
+          </div>
+          <img
+            src={currentBackgroundUrl}
+            alt=""
+            className="aspect-video w-full max-w-2xl rounded border border-slate-200 object-cover"
+          />
+          <Upload
+            accept={ALLOWED_IMAGE_TYPES.join(',')}
+            listType="picture"
+            maxCount={1}
+            fileList={backgroundFileList}
+            beforeUpload={() => false}
+            onChange={handleBackgroundChange}
+            onRemove={handleBackgroundRemove}
+            showUploadList={false}
+          >
+            <Button>Đổi ảnh nền</Button>
+          </Upload>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <div>
             <h4 className="text-sm font-semibold text-slate-700">Bố cục</h4>
             <p className="text-xs text-slate-500">
               Kéo và thay đổi kích thước các ô để tùy chỉnh vị trí ảnh đại diện, tên, chức vụ và thông điệp.
             </p>
           </div>
           {layout && (
-            <LayoutEditor layout={layout} backgroundImageUrl={campaign.backgroundImageUrl} onChange={setLayout} />
+            <LayoutEditor
+              layout={layout}
+              backgroundImageUrl={currentBackgroundUrl}
+              onChange={setLayout}
+              onUploadFont={(file) => fontUploadMutation.mutateAsync(file)}
+            />
           )}
         </section>
       </div>

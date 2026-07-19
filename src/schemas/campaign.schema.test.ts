@@ -115,6 +115,46 @@ describe('campaignLayoutSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('accepts a valid customFont alongside fontFamily', () => {
+    const result = campaignLayoutSchema.safeParse({
+      ...VALID_LAYOUT,
+      fontFamily: 'custom-brand-font-ab12',
+      customFont: {
+        family: 'custom-brand-font-ab12',
+        url: 'https://cdn.example.com/campaign-fonts/owner/brand-font.woff2',
+        format: 'woff2',
+        originalFileName: 'brand-font.woff2',
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a customFont with an invalid url', () => {
+    const result = campaignLayoutSchema.safeParse({
+      ...VALID_LAYOUT,
+      customFont: {
+        family: 'custom-brand-font-ab12',
+        url: 'not-a-url',
+        format: 'woff2',
+        originalFileName: 'brand-font.woff2',
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a customFont with an unsupported format', () => {
+    const result = campaignLayoutSchema.safeParse({
+      ...VALID_LAYOUT,
+      customFont: {
+        family: 'custom-brand-font-ab12',
+        url: 'https://cdn.example.com/campaign-fonts/owner/brand-font.eot',
+        format: 'eot',
+        originalFileName: 'brand-font.eot',
+      },
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('campaignLayoutRowSchema', () => {

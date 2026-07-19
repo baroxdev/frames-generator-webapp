@@ -1,4 +1,4 @@
-import { ColorPicker, Segmented, Select } from "antd";
+import { ColorPicker, Segmented, Select, Switch, Upload, message } from "antd";
 import Konva from "konva";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -15,12 +15,21 @@ import {
   cssFontFamily,
   DEFAULT_FONT_FAMILY,
 } from "../../constants/fonts";
+import {
+  NAME_FIELD_PREFIX,
+  ROLE_FIELD_PREFIX,
+} from "../../constants/fieldPrefixes";
 import { useHtmlImage } from "../../hooks/useHtmlImage";
 import {
   buildChordSegment,
   pointOnCircle,
   type ChordClipAxis,
 } from "../../utils/circleClip";
+import {
+  buildCustomFontFamilyName,
+  CUSTOM_FONT_ACCEPT,
+  MAX_CUSTOM_FONT_FILE_SIZE_BYTES,
+} from "../../utils/customFont";
 import { fitTextFontSize } from "../../utils/fitTextToBox";
 import {
   ensureFontReady,
@@ -33,6 +42,7 @@ import {
   NAME_ROLE_FONT_WEIGHT,
 } from "../../utils/textFonts";
 import type { AvatarShape, Box, CampaignLayout } from "../../templates/types";
+import type { UploadedCustomFont } from "../../services/storage.service";
 import { clampBoxToCanvas } from "./layoutBoxMath";
 
 const CROP_BAR_THICKNESS = 14;
@@ -62,15 +72,25 @@ const FONT_WEIGHT: Record<TextBoxKey, number> = {
   messageBox: MESSAGE_FONT_WEIGHT,
 };
 
-// Mirrors Message.tsx's own cap — however large the message box is, the
-// preview shouldn't suggest text bigger than what production will ever
-// actually render.
-const MAX_MESSAGE_FONT_SIZE = 150;
+// Mirrors Message.tsx's own cap (see that file for why this is a fraction
+// of the box's own size rather than an absolute px value) — however large
+// the message box is, the preview shouldn't suggest text bigger than what
+// production will ever actually render.
+const MAX_MESSAGE_FONT_FACTOR = 0.12;
 
 type LayoutEditorProps = {
   layout: CampaignLayout;
   backgroundImageUrl: string;
   onChange: (layout: CampaignLayout) => void;
+  /**
+   * Uploads a font file to R2 and resolves its public URL/format — owned by
+   * the parent page (NewCampaignPage/EditCampaignPage), same boundary as
+   * `backgroundImageUrl` itself: this component stays presentation/layout-math
+   * only and never talks to storage directly. The custom-font upload control
+   * is hidden entirely when omitted (e.g. existing tests that only exercise
+   * layout/drag behavior, unrelated to fonts).
+   */
+  onUploadFont?: (file: File) => Promise<UploadedCustomFont>;
 };
 
 /**
@@ -99,6 +119,7 @@ export function LayoutEditor({
   layout,
   backgroundImageUrl,
   onChange,
+  onUploadFont,
 }: LayoutEditorProps) {
   const [selected, setSelected] = useState<BoxKey | null>(null);
   const shapeRefs = useRef<Partial<Record<BoxKey, Konva.Rect>>>({});
@@ -106,6 +127,7 @@ export function LayoutEditor({
   const layerRef = useRef<Konva.Layer>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [uploadingFont, setUploadingFont] = useState(false);
 
   // Ephemeral, preview-only sample text per text box — double-click a box
   // to edit it, purely to see how auto-fit sizing behaves for a shorter or
@@ -119,7 +141,10 @@ export function LayoutEditor({
   const [draftText, setDraftText] = useState("");
 
   const backgroundImage = useHtmlImage(backgroundImageUrl);
-  const resolvedFontFamily = cssFontFamily(layout.fontFamily);
+  const resolvedFontFamily = cssFontFamily(
+    layout.fontFamily,
+    Boolean(layout.customFont),
+  );
 
   // Every curated option needs its own stylesheet loaded so the font
   // picker below can live-preview each one (fire-and-forget: those options
@@ -138,15 +163,23 @@ export function LayoutEditor({
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      ensureFontReady(layout.fontFamily, NAME_ROLE_FONT_WEIGHT),
-      ensureFontReady(layout.fontFamily, MESSAGE_FONT_WEIGHT),
+      ensureFontReady(
+        layout.fontFamily,
+        NAME_ROLE_FONT_WEIGHT,
+        layout.customFont,
+      ),
+      ensureFontReady(
+        layout.fontFamily,
+        MESSAGE_FONT_WEIGHT,
+        layout.customFont,
+      ),
     ]).then(() => {
       if (!cancelled) layerRef.current?.batchDraw();
     });
     return () => {
       cancelled = true;
     };
-  }, [layout.fontFamily]);
+  }, [layout.fontFamily, layout.customFont]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -215,8 +248,54 @@ export function LayoutEditor({
 
   // One font applies to all three text fields (name/role/message), stored
   // once at the top level of the layout rather than duplicated per box.
+  // Picking a curated font always clears any previously uploaded custom
+  // font — the two are mutually exclusive (see CustomFont in
+  // src/templates/types.ts).
   const setFontFamily = (fontFamily: string) => {
-    onChange({ ...layout, fontFamily });
+    onChange({ ...layout, fontFamily, customFont: undefined });
+  };
+
+  const handleFontUpload = async (file: File) => {
+    if (!onUploadFont) return false;
+    setUploadingFont(true);
+    try {
+      const uploaded = await onUploadFont(file);
+      const family = buildCustomFontFamilyName(file.name);
+      onChange({
+        ...layout,
+        fontFamily: family,
+        customFont: {
+          family,
+          url: uploaded.url,
+          format: uploaded.format,
+          originalFileName: file.name,
+        },
+      });
+    } catch (error) {
+      message.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể tải phông chữ lên. Vui lòng thử lại.",
+      );
+    } finally {
+      setUploadingFont(false);
+    }
+    return false; // antd Upload: never let it attempt its own auto-upload.
+  };
+
+  const removeCustomFont = () => {
+    onChange({
+      ...layout,
+      fontFamily: DEFAULT_FONT_FAMILY,
+      customFont: undefined,
+    });
+  };
+
+  // One shared toggle for both fields (see Template.showFieldPrefix in
+  // src/templates/types.ts) rather than a switch per box — matches how
+  // fontFamily above is also one setting applied across boxes.
+  const setShowFieldPrefix = (showFieldPrefix: boolean) => {
+    onChange({ ...layout, showFieldPrefix });
   };
 
   const startEditing = (key: TextBoxKey) => {
@@ -345,9 +424,15 @@ export function LayoutEditor({
               // the (semi-transparent) box while typing.
               if (editingKey === key) return null;
 
-              const text = isAvatar
+              const rawText = isAvatar
                 ? PLACEHOLDER_LABEL[key]
                 : (previewText[key as TextBoxKey] ?? PLACEHOLDER_LABEL[key]);
+              const text =
+                layout.showFieldPrefix && key === "nameBox"
+                  ? `${NAME_FIELD_PREFIX}${rawText}`
+                  : layout.showFieldPrefix && key === "roleBox"
+                    ? `${ROLE_FIELD_PREFIX}${rawText}`
+                    : rawText;
               const fontSize = isAvatar
                 ? Math.max(12, Math.min(box.height * 0.3, 32))
                 : fitTextFontSize({
@@ -355,7 +440,10 @@ export function LayoutEditor({
                     box,
                     multiline: key === "messageBox",
                     maxFontSize:
-                      key === "messageBox" ? MAX_MESSAGE_FONT_SIZE : undefined,
+                      key === "messageBox"
+                        ? Math.min(box.width, box.height) *
+                          MAX_MESSAGE_FONT_FACTOR
+                        : undefined,
                     measure: (measuredText, sizePx) =>
                       measureTextWidth(
                         measuredText,
@@ -383,7 +471,7 @@ export function LayoutEditor({
                       : ((layout[key] as { textColor?: string }).textColor ??
                         "#334155")
                   }
-                  align="center"
+                  align={key === "messageBox" ? "justify" : "center"}
                   verticalAlign="middle"
                   padding={4}
                   wrap="word"
@@ -665,20 +753,83 @@ export function LayoutEditor({
                   <span className="text-xs text-slate-500">
                     Phông chữ (áp dụng cho tên, chức vụ, thông điệp)
                   </span>
-                  <Select
-                    value={layout.fontFamily ?? DEFAULT_FONT_FAMILY}
-                    onChange={setFontFamily}
-                    options={CURATED_FONTS.map((font) => ({
-                      value: font.family,
-                      label: (
-                        <span
-                          style={{ fontFamily: cssFontFamily(font.family) }}
-                        >
-                          {font.family}
-                        </span>
-                      ),
-                    }))}
-                  />
+                  {layout.customFont ? (
+                    <div className="flex items-center justify-between gap-2 rounded border border-slate-200 px-3 py-2">
+                      <span
+                        className="truncate text-sm"
+                        style={{ fontFamily: resolvedFontFamily }}
+                      >
+                        {layout.customFont.originalFileName}
+                      </span>
+                      <button
+                        type="button"
+                        className="shrink-0 text-xs text-red-600 underline"
+                        onClick={removeCustomFont}
+                      >
+                        Xoá
+                      </button>
+                    </div>
+                  ) : (
+                    <Select
+                      value={layout.fontFamily ?? DEFAULT_FONT_FAMILY}
+                      onChange={setFontFamily}
+                      options={CURATED_FONTS.map((font) => ({
+                        value: font.family,
+                        label: (
+                          <span
+                            style={{ fontFamily: cssFontFamily(font.family) }}
+                          >
+                            {font.family}
+                          </span>
+                        ),
+                      }))}
+                    />
+                  )}
+                  {onUploadFont && (
+                    <Upload
+                      accept={CUSTOM_FONT_ACCEPT}
+                      showUploadList={false}
+                      disabled={uploadingFont}
+                      beforeUpload={(file) => {
+                        if (file.size > MAX_CUSTOM_FONT_FILE_SIZE_BYTES) {
+                          message.error(
+                            `Tệp phông chữ tối đa ${Math.floor(MAX_CUSTOM_FONT_FILE_SIZE_BYTES / (1024 * 1024))}MB.`,
+                          );
+                          return false;
+                        }
+                        void handleFontUpload(file);
+                        return false;
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="self-start text-xs text-blue-600 underline disabled:text-slate-400"
+                        disabled={uploadingFont}
+                      >
+                        {uploadingFont
+                          ? "Đang tải phông chữ lên..."
+                          : layout.customFont
+                            ? "Đổi phông chữ riêng"
+                            : "Hoặc tải phông chữ riêng (.woff2/.ttf/.otf)"}
+                      </button>
+                    </Upload>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2 border-t border-slate-200 pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-slate-500">
+                      Thêm tiền tố "Họ và tên:" / "Đơn vị:"
+                    </span>
+                    <Switch
+                      size="small"
+                      checked={Boolean(layout.showFieldPrefix)}
+                      onChange={setShowFieldPrefix}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Áp dụng cho cả họ tên và chức vụ của người gửi, ví dụ: "
+                    {NAME_FIELD_PREFIX}Phan Quốc Bảo".
+                  </p>
                 </div>
                 <p className="text-xs text-slate-400">
                   Cỡ chữ tự động vừa khít theo kích thước ô. Nhấp đúp vào ô trên

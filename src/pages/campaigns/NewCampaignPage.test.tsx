@@ -163,6 +163,50 @@ describe('NewCampaignPage', () => {
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/campaigns'));
   });
 
+  it('includes title, description, and an uploaded thumbnail URL in the create payload when filled in', async () => {
+    mockUpload.mockResolvedValueOnce('https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg');
+    mockUpload.mockResolvedValueOnce('https://cdn.example.com/campaign-backgrounds/user-1/thumb.jpg');
+    mockCreate.mockResolvedValue({ id: 'campaign-1', slug: 'dai-hoi-ben-tre' });
+    renderWithProviders(<NewCampaignPage />);
+
+    fillValidForm();
+    await screen.findByText('layout-editor-placeholder');
+    fireEvent.change(screen.getByLabelText('Tiêu đề'), { target: { value: 'Đại hội Bến Tre' } });
+    fireEvent.change(screen.getByLabelText('Mô tả'), { target: { value: 'Gửi lời chúc mừng của bạn.' } });
+    const thumbnailFile = new File(['thumb'], 'thumb.jpg', { type: 'image/jpeg' });
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(fileInputs[fileInputs.length - 1], { target: { files: [thumbnailFile] } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo chiến dịch' }));
+
+    await waitFor(() =>
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Đại hội Bến Tre',
+          description: 'Gửi lời chúc mừng của bạn.',
+          thumbnailUrl: 'https://cdn.example.com/campaign-backgrounds/user-1/thumb.jpg',
+        }),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it('omits title, description, and thumbnailUrl from the create payload when left blank', async () => {
+    mockUpload.mockResolvedValue('https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg');
+    mockCreate.mockResolvedValue({ id: 'campaign-1', slug: 'dai-hoi-ben-tre' });
+    renderWithProviders(<NewCampaignPage />);
+
+    fillValidForm();
+    await screen.findByText('layout-editor-placeholder');
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo chiến dịch' }));
+
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+    const payload = mockCreate.mock.calls[0][0];
+    expect(payload).not.toHaveProperty('title');
+    expect(payload).not.toHaveProperty('description');
+    expect(payload).not.toHaveProperty('thumbnailUrl');
+  });
+
   it('reports a friendly error and stays on the page when the upload fails', async () => {
     const failure = new Error('upload failed');
     mockUpload.mockRejectedValue(failure);

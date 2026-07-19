@@ -15,6 +15,7 @@ import {
   createCampaignMutationOptions,
   slugAvailabilityQueryOptions,
   updateCampaignLayoutMutationOptions,
+  updateCampaignSeoMutationOptions,
   uploadCampaignBackgroundMutationOptions,
 } from './campaign.queries';
 
@@ -38,6 +39,9 @@ const CAMPAIGN = {
   status: 'pending' as const,
   submissionCount: 0,
   createdAt: '2026-07-18T00:00:00.000Z',
+  title: null,
+  description: null,
+  thumbnailUrl: null,
 };
 
 describe('campaign.queries', () => {
@@ -103,6 +107,17 @@ describe('campaign.queries', () => {
     );
 
     expect(updateCampaignLayout).toHaveBeenCalledWith('campaign-1', LAYOUT);
+  });
+
+  it('updateCampaignSeoMutationOptions wraps campaign.service.updateCampaignSeo without adding its own logic', async () => {
+    const updateCampaignSeo = vi.fn().mockResolvedValue(CAMPAIGN);
+    vi.mocked(getCampaignService).mockReturnValue({ updateCampaignSeo } as unknown as CampaignService);
+
+    const seo = { title: 'Đại hội Bến Tre', description: 'Gửi lời chúc mừng.', thumbnailUrl: 'https://cdn.example.com/thumb.jpg' };
+    const mutationFn = updateCampaignSeoMutationOptions().mutationFn;
+    await mutationFn?.({ campaignId: 'campaign-1', seo }, { client: new QueryClient(), meta: undefined });
+
+    expect(updateCampaignSeo).toHaveBeenCalledWith('campaign-1', seo);
   });
 
   it('uploadCampaignBackgroundMutationOptions wraps storage.service.uploadCampaignBackground without adding its own logic', async () => {

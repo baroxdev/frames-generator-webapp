@@ -1,7 +1,7 @@
 import { queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 import { getCampaignService } from '../services/campaign.service.instance';
 import { getStorageService } from '../services/storage.service.instance';
-import type { Campaign, CreateCampaignParams } from '../services/campaign.service';
+import type { Campaign, CampaignSeo, CreateCampaignParams } from '../services/campaign.service';
 import type { CampaignLayout } from '../templates';
 
 /**
@@ -70,5 +70,16 @@ export function updateCampaignLayoutMutationOptions(): UseMutationOptions<
 > {
   return {
     mutationFn: ({ campaignId, layout }) => getCampaignService().updateCampaignLayout(campaignId, layout),
+  };
+}
+
+/** Powers the SEO/social-share settings page (title, description, thumbnail). */
+export function updateCampaignSeoMutationOptions(): UseMutationOptions<
+  Campaign,
+  Error,
+  { campaignId: string; seo: CampaignSeo }
+> {
+  return {
+    mutationFn: ({ campaignId, seo }) => getCampaignService().updateCampaignSeo(campaignId, seo),
   };
 }

@@ -13,6 +13,7 @@ import {
   slugAvailabilityQueryOptions,
   uploadCampaignBackgroundMutationOptions,
 } from '../../queries/campaign.queries';
+import type { CreateCampaignParams } from '../../services/campaign.service';
 import { createCampaignSchema, slugField, type CreateCampaignInput } from '../../schemas/campaign.schema';
 import { getDefaultCampaignLayout, type CampaignLayout } from '../../templates';
 import { getImageDimensions } from '../../utils/get-image-dimensions';
@@ -34,10 +35,19 @@ export function NewCampaignPage() {
   const [backgroundFileList, setBackgroundFileList] = useState<UploadFile[]>([]);
   const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState<string | null>(null);
   const [layout, setLayout] = useState<CampaignLayout | null>(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailFileList, setThumbnailFileList] = useState<UploadFile[]>([]);
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [debouncedSlug] = useDebounce(slug.trim(), SLUG_DEBOUNCE_MS);
 
   const uploadMutation = useMutation(uploadCampaignBackgroundMutationOptions());
+  // Same underlying upload (a generic "put this image in R2" call) as the
+  // background — a thumbnail is just another campaign image, no need for a
+  // dedicated service method.
+  const thumbnailUploadMutation = useMutation(uploadCampaignBackgroundMutationOptions());
   const createMutation = useMutation(createCampaignMutationOptions());
 
   const slugFormatValid = slugField.safeParse(debouncedSlug).success;
@@ -80,6 +90,16 @@ export function NewCampaignPage() {
     };
   }, [backgroundFile]);
 
+  useEffect(() => {
+    if (!thumbnailFile) {
+      setThumbnailPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(thumbnailFile);
+    setThumbnailPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [thumbnailFile]);
+
   if (isLoading) {
     return (
       <OwnerLayout title="Tạo chiến dịch mới">
@@ -119,10 +139,33 @@ export function NewCampaignPage() {
     setBackgroundFile(null);
   };
 
-  const isSubmitting = uploadMutation.isPending || createMutation.isPending;
+  const handleThumbnailChange: UploadProps['onChange'] = (info) => {
+    const latest = info.fileList.slice(-1);
+    const file = latest[0]?.originFileObj as File | undefined;
+
+    if (!file || !ALLOWED_BACKGROUND_TYPES.includes(file.type)) {
+      setThumbnailFileList([]);
+      setThumbnailFile(null);
+      return;
+    }
+    setThumbnailFileList(latest);
+    setThumbnailFile(file);
+  };
+
+  const handleThumbnailRemove = () => {
+    setThumbnailFileList([]);
+    setThumbnailFile(null);
+  };
+
+  const isSubmitting = uploadMutation.isPending || thumbnailUploadMutation.isPending || createMutation.isPending;
 
   const handleSubmit = async () => {
-    const parsed = createCampaignSchema.safeParse({ slug: slug.trim(), layout });
+    const parsed = createCampaignSchema.safeParse({
+      slug: slug.trim(),
+      layout,
+      title: title.trim(),
+      description: description.trim(),
+    });
     const fieldErrors: FieldErrors = parsed.success ? {} : fieldErrorsFromZod<keyof CreateCampaignInput>(parsed.error);
     if (!backgroundFile) {
       fieldErrors.backgroundImage = 'Vui lòng tải ảnh nền lên';
@@ -138,11 +181,21 @@ export function NewCampaignPage() {
 
     try {
       const backgroundImageUrl = await uploadMutation.mutateAsync(backgroundFile);
-      await createMutation.mutateAsync({
+      const thumbnailUrl = thumbnailFile ? await thumbnailUploadMutation.mutateAsync(thumbnailFile) : undefined;
+
+      const createParams: CreateCampaignParams = {
         slug: parsed.data.slug,
         layout: parsed.data.layout,
         backgroundImageUrl,
-      });
+        // Omitted entirely when blank rather than sent as an empty string —
+        // campaign.service.ts treats a missing key the same as `null`
+        // (falls back at read time via resolveCampaignSeo.ts), so there's
+        // no reason to send an empty string over the wire.
+        ...(parsed.data.title && { title: parsed.data.title }),
+        ...(parsed.data.description && { description: parsed.data.description }),
+        ...(thumbnailUrl && { thumbnailUrl }),
+      };
+      await createMutation.mutateAsync(createParams);
       await queryClient.invalidateQueries({ queryKey: campaignKeys.list() });
       message.success('Chiến dịch đã được tạo và đang chờ duyệt. Đường dẫn sẽ chưa công khai cho đến khi được duyệt.');
       navigate('/campaigns');
@@ -228,6 +281,73 @@ export function NewCampaignPage() {
                 Tải ảnh nền lên để bắt đầu bố trí khung ảnh
               </div>
             )}
+          </div>
+        </div>
+
+        {/* SEO / social-share metadata — all optional, see resolveCampaignSeo.ts for the fallbacks used when left blank. Editable again later from CampaignSeoPage. */}
+        <div className="rounded-md border border-slate-200 p-4">
+          <h4 className="mb-3 text-sm font-semibold text-slate-700">SEO & chia sẻ (không bắt buộc)</h4>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+            <div className="flex-1">
+              <Form.Item
+                label="Tiêu đề"
+                validateStatus={errors.title ? 'error' : ''}
+                help={errors.title}
+                className="!mb-3"
+              >
+                <Input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="Đại hội Cháu ngoan Bác Hồ tỉnh Bến Tre lần thứ XIII 2025"
+                  aria-label="Tiêu đề"
+                  maxLength={100}
+                />
+              </Form.Item>
+              <Form.Item
+                label="Mô tả"
+                validateStatus={errors.description ? 'error' : ''}
+                help={errors.description}
+                className="!mb-0"
+              >
+                <Input.TextArea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="Xem và gửi lời chúc mừng của bạn."
+                  aria-label="Mô tả"
+                  maxLength={300}
+                  rows={3}
+                />
+              </Form.Item>
+            </div>
+
+            <div className="w-full shrink-0 lg:w-48">
+              <p className="mb-2 text-sm font-medium text-slate-700">Ảnh thu nhỏ</p>
+              {thumbnailPreviewUrl ? (
+                <div className="flex flex-col gap-2">
+                  <img
+                    src={thumbnailPreviewUrl}
+                    alt=""
+                    className="aspect-square w-full rounded border border-slate-200 object-cover"
+                  />
+                  <Button block size="small" onClick={handleThumbnailRemove}>
+                    Xoá ảnh
+                  </Button>
+                </div>
+              ) : (
+                <Upload
+                  accept={ALLOWED_BACKGROUND_TYPES.join(',')}
+                  listType="picture"
+                  maxCount={1}
+                  fileList={thumbnailFileList}
+                  beforeUpload={() => false}
+                  onChange={handleThumbnailChange}
+                  onRemove={handleThumbnailRemove}
+                >
+                  <Button block>Chọn ảnh</Button>
+                </Upload>
+              )}
+              <p className="mt-1 text-xs text-slate-400">Mặc định dùng ảnh nền nếu không chọn.</p>
+            </div>
           </div>
         </div>
       </Form>

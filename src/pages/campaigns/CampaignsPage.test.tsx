@@ -32,6 +32,9 @@ const CAMPAIGN = {
   status: 'pending' as const,
   submissionCount: 0,
   createdAt: '2026-07-18T00:00:00.000Z',
+  title: null,
+  description: null,
+  thumbnailUrl: null,
 };
 
 describe('CampaignsPage', () => {

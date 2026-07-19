@@ -23,13 +23,23 @@ export interface Campaign {
   status: CampaignStatus;
   submissionCount: number;
   createdAt: string;
+  /** SEO/social-share metadata (title, description, thumbnail) — all optional, see resolveCampaignSeo.ts for the fallbacks used when unset. */
+  title: string | null;
+  description: string | null;
+  thumbnailUrl: string | null;
 }
+
+export type CampaignSeo = {
+  title: string | null;
+  description: string | null;
+  thumbnailUrl: string | null;
+};
 
 export type CreateCampaignParams = {
   slug: string;
   layout: CampaignLayout;
   backgroundImageUrl: string;
-};
+} & Partial<CampaignSeo>;
 
 export interface CampaignService {
   isSlugAvailable(slug: string): Promise<boolean>;
@@ -52,6 +62,12 @@ export interface CampaignService {
    * an owner rewrite their own `status`, bypassing admin approval).
    */
   updateCampaignLayout(campaignId: string, layout: CampaignLayout): Promise<Campaign>;
+  /**
+   * Persists the owner's SEO/social-share metadata (title, description,
+   * thumbnail). Goes through the `set_campaign_seo` RPC for the same
+   * reason `updateCampaignLayout` does — see that method's comment.
+   */
+  updateCampaignSeo(campaignId: string, seo: CampaignSeo): Promise<Campaign>;
 }
 
 /** Thrown by every campaign.service method; `message` is always safe to show a user. */
@@ -88,6 +104,9 @@ type CampaignRow = {
   status: CampaignStatus;
   submission_count: number;
   created_at: string;
+  title: string | null;
+  description: string | null;
+  thumbnail_url: string | null;
 };
 
 function toCampaign(row: CampaignRow): Campaign {
@@ -108,6 +127,9 @@ function toCampaign(row: CampaignRow): Campaign {
     status: row.status,
     submissionCount: row.submission_count,
     createdAt: row.created_at,
+    title: row.title,
+    description: row.description,
+    thumbnailUrl: row.thumbnail_url,
   };
 }
 
@@ -139,7 +161,7 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
       return Boolean(data);
     },
 
-    async createCampaign({ slug, layout, backgroundImageUrl }) {
+    async createCampaign({ slug, layout, backgroundImageUrl, title, description, thumbnailUrl }) {
       const user = await requireUser(client);
 
       const { data, error } = await client
@@ -149,6 +171,9 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
           slug,
           layout,
           background_image_url: backgroundImageUrl,
+          title: title ?? null,
+          description: description ?? null,
+          thumbnail_url: thumbnailUrl ?? null,
           visibility: 'private',
           status: 'pending',
         })
@@ -201,6 +226,21 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
 
       if (error) {
         throw new CampaignServiceError('Không thể lưu bố cục. Vui lòng thử lại.', { cause: error });
+      }
+
+      return toCampaign(data as CampaignRow);
+    },
+
+    async updateCampaignSeo(campaignId, seo) {
+      const { data, error } = await client.rpc('set_campaign_seo', {
+        campaign_id_input: campaignId,
+        title_input: seo.title,
+        description_input: seo.description,
+        thumbnail_url_input: seo.thumbnailUrl,
+      });
+
+      if (error) {
+        throw new CampaignServiceError('Không thể lưu thông tin SEO. Vui lòng thử lại.', { cause: error });
       }
 
       return toCampaign(data as CampaignRow);

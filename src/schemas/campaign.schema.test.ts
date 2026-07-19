@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { campaignLayoutRowSchema, campaignLayoutSchema, createCampaignSchema, slugField } from './campaign.schema';
+import {
+  campaignLayoutRowSchema,
+  campaignLayoutSchema,
+  campaignSeoSchema,
+  createCampaignSchema,
+  slugField,
+} from './campaign.schema';
 
 const VALID_LAYOUT = {
   canvas: { width: 1500, height: 843 },
@@ -36,6 +42,32 @@ describe('createCampaignSchema', () => {
 
   it('rejects a missing layout', () => {
     const result = createCampaignSchema.safeParse({ slug: 'dai-hoi-ben-tre' });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts title and description', () => {
+    const result = createCampaignSchema.safeParse({
+      slug: 'dai-hoi-ben-tre',
+      layout: VALID_LAYOUT,
+      title: 'Đại hội Bến Tre',
+      description: 'Gửi lời chúc mừng của bạn.',
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('campaignSeoSchema', () => {
+  it('accepts an empty title and description (both optional)', () => {
+    expect(campaignSeoSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('rejects a title over 100 characters', () => {
+    const result = campaignSeoSchema.safeParse({ title: 'a'.repeat(101) });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a description over 300 characters', () => {
+    const result = campaignSeoSchema.safeParse({ description: 'a'.repeat(301) });
     expect(result.success).toBe(false);
   });
 });

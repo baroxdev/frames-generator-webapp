@@ -113,6 +113,7 @@ function buildColumns(facebookAppId: string): ColumnsType<Campaign> {
         <span className="flex items-center gap-3">
           <Link to={`/campaigns/${campaign.id}/edit`}>Chỉnh sửa bố cục</Link>
           <Link to={`/campaigns/${campaign.id}/submissions`}>Lượt gửi</Link>
+          <Link to={`/campaigns/${campaign.id}/seo`}>SEO & chia sẻ</Link>
           {isPubliclyReachable(campaign) && (
             <Button
               type="text"

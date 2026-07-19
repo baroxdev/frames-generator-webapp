@@ -85,10 +85,20 @@ export const campaignLayoutRowSchema = z.object({
   messageBox: textBoxSchema,
 });
 
+// Mirrors campaigns_title_length / campaigns_description_length in
+// 0006_campaign_seo_fields.sql — kept in sync by hand, same pattern as
+// SLUG_PATTERN above. Both optional: an owner who skips them gets the
+// fallbacks in resolveCampaignSeo.ts instead.
+export const campaignSeoSchema = z.object({
+  title: z.string().trim().max(100, 'Tiêu đề tối đa 100 ký tự').optional().or(z.literal('')),
+  description: z.string().trim().max(300, 'Mô tả tối đa 300 ký tự').optional().or(z.literal('')),
+});
+
 export const createCampaignSchema = z.object({
   slug: slugField,
   layout: campaignLayoutSchema,
-});
+}).merge(campaignSeoSchema);
 
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
 export type CampaignLayoutInput = z.infer<typeof campaignLayoutSchema>;
+export type CampaignSeoInput = z.infer<typeof campaignSeoSchema>;

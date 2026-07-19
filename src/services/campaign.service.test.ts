@@ -22,6 +22,9 @@ const CAMPAIGN_ROW = {
   status: 'pending',
   submission_count: 0,
   created_at: '2026-07-18T00:00:00.000Z',
+  title: null,
+  description: null,
+  thumbnail_url: null,
 };
 
 type MockQueryBuilder = {
@@ -116,8 +119,43 @@ describe('campaign.service', () => {
         status: 'pending',
         submissionCount: 0,
         createdAt: '2026-07-18T00:00:00.000Z',
+        title: null,
+        description: null,
+        thumbnailUrl: null,
       });
       expect(client.from).toHaveBeenCalledWith('campaigns');
+    });
+
+    it('inserts the optional SEO fields when provided, and null when omitted', async () => {
+      const { client, builder } = createMockSupabaseClient({ queryResult: { data: CAMPAIGN_ROW, error: null } });
+      const service = createCampaignService(client);
+
+      await service.createCampaign({
+        slug: 'dai-hoi-ben-tre',
+        layout: LAYOUT,
+        backgroundImageUrl: CAMPAIGN_ROW.background_image_url,
+        title: 'Đại hội Bến Tre',
+        description: 'Gửi lời chúc mừng của bạn.',
+        thumbnailUrl: 'https://cdn.example.com/thumb.jpg',
+      });
+
+      expect(builder.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Đại hội Bến Tre',
+          description: 'Gửi lời chúc mừng của bạn.',
+          thumbnail_url: 'https://cdn.example.com/thumb.jpg',
+        }),
+      );
+
+      await service.createCampaign({
+        slug: 'dai-hoi-ben-tre',
+        layout: LAYOUT,
+        backgroundImageUrl: CAMPAIGN_ROW.background_image_url,
+      });
+
+      expect(builder.insert).toHaveBeenLastCalledWith(
+        expect.objectContaining({ title: null, description: null, thumbnail_url: null }),
+      );
     });
 
     it('inserts with visibility=private and status=pending regardless of caller input', async () => {
@@ -175,6 +213,43 @@ describe('campaign.service', () => {
       const service = createCampaignService(client);
 
       await expect(service.updateCampaignLayout('campaign-1', LAYOUT)).rejects.toBeInstanceOf(CampaignServiceError);
+    });
+  });
+
+  describe('updateCampaignSeo', () => {
+    it('calls the set_campaign_seo RPC and returns the updated campaign mapped to camelCase', async () => {
+      const updatedRow = {
+        ...CAMPAIGN_ROW,
+        title: 'Đại hội Bến Tre',
+        description: 'Gửi lời chúc mừng của bạn.',
+        thumbnail_url: 'https://cdn.example.com/thumb.jpg',
+      };
+      const { client } = createMockSupabaseClient({ rpc: { data: updatedRow, error: null } });
+      const service = createCampaignService(client);
+
+      const result = await service.updateCampaignSeo('campaign-1', {
+        title: 'Đại hội Bến Tre',
+        description: 'Gửi lời chúc mừng của bạn.',
+        thumbnailUrl: 'https://cdn.example.com/thumb.jpg',
+      });
+
+      expect(client.rpc).toHaveBeenCalledWith('set_campaign_seo', {
+        campaign_id_input: 'campaign-1',
+        title_input: 'Đại hội Bến Tre',
+        description_input: 'Gửi lời chúc mừng của bạn.',
+        thumbnail_url_input: 'https://cdn.example.com/thumb.jpg',
+      });
+      expect(result.title).toBe('Đại hội Bến Tre');
+      expect(result.thumbnailUrl).toBe('https://cdn.example.com/thumb.jpg');
+    });
+
+    it('throws a friendly CampaignServiceError when the RPC fails', async () => {
+      const { client } = createMockSupabaseClient({ rpc: { data: null, error: { message: 'not found' } } });
+      const service = createCampaignService(client);
+
+      await expect(
+        service.updateCampaignSeo('campaign-1', { title: null, description: null, thumbnailUrl: null }),
+      ).rejects.toBeInstanceOf(CampaignServiceError);
     });
   });
 

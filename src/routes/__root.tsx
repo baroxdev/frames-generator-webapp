@@ -16,7 +16,8 @@ import appCss from "../index.css?url";
 const queryClient = new QueryClient();
 
 const SITE_TITLE = "Đại hội Cháu ngoan Bác Hồ tỉnh Bến Tre lần thứ XIII 2025";
-const SITE_DESCRIPTION = "Đại hội Cháu ngoan Bác Hồ tỉnh Bến Tre lần thứ XIII 2025";
+const SITE_DESCRIPTION =
+  "Đại hội Cháu ngoan Bác Hồ tỉnh Bến Tre lần thứ XIII 2025";
 
 /**
  * Default, site-wide head tags — ported from the old index.html. Any route
@@ -28,11 +29,18 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1.0" },
+      // <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1.0, maximum-scale=1.0",
+      },
       { title: SITE_TITLE },
       { name: "description", content: SITE_DESCRIPTION },
       { name: "robots", content: "index, follow" },
-      { name: "google-site-verification", content: "ViW66F_6uEM15INfe6GVCPL5xCu501iu-rxooatADL0" },
+      {
+        name: "google-site-verification",
+        content: "ViW66F_6uEM15INfe6GVCPL5xCu501iu-rxooatADL0",
+      },
       { property: "og:title", content: SITE_TITLE },
       { property: "og:description", content: SITE_DESCRIPTION },
       { property: "og:image", content: "/welcome.png" },
@@ -53,7 +61,11 @@ export const Route = createRootRoute({
       // sharing one hardcoded font. These preconnects still pay off since
       // that dynamic load always hits the same two hosts.
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
     ],
   }),
   component: RootComponent,

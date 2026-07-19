@@ -3,11 +3,13 @@ import { forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useForm } from "react-hook-form";
 
-const { mockReset, mockLoadFacebookSdk, mockOpenShareDialog } = vi.hoisted(() => ({
-  mockReset: vi.fn(),
-  mockLoadFacebookSdk: vi.fn(),
-  mockOpenShareDialog: vi.fn(),
-}));
+const { mockReset, mockLoadFacebookSdk, mockOpenShareDialog } = vi.hoisted(
+  () => ({
+    mockReset: vi.fn(),
+    mockLoadFacebookSdk: vi.fn(),
+    mockOpenShareDialog: vi.fn(),
+  }),
+);
 
 vi.mock("../../lib/facebookSdk", () => ({
   loadFacebookSdk: mockLoadFacebookSdk,
@@ -37,10 +39,11 @@ vi.mock("antd-img-crop", () => ({
 
 import { TributeForm } from "./TributeForm";
 import type { TributeSubmitValues } from "./TributeForm";
+import { Campaign } from "../../services/campaign.service";
 
 function renderTributeForm(
   onSubmit: (values: TributeSubmitValues) => Promise<void>,
-  metadata?: { resultImage: string | null },
+  metadata?: { resultImage: string | null; campaign: Campaign | null },
 ) {
   function Harness() {
     const form = useForm<TributeSubmitValues>({
@@ -162,11 +165,61 @@ describe("TributeForm", () => {
   });
 
   it("opens the result dialog automatically once a result image is available", async () => {
-    renderTributeForm(vi.fn(), { resultImage: "https://cdn.example.com/result.jpg" });
+    const campaign: Campaign = {
+      id: "test-campaign",
+      ownerId: "owner-1",
+      templateId: "template-1",
+      slug: "test-campaign",
+      backgroundImageUrl: "https://cdn.example.com/background.jpg",
+      layout: {
+        avatarBox: {
+          top: 50,
+          left: 50,
+          width: 100,
+          height: 100,
+          shape: "circle",
+        },
+        nameBox: {
+          top: 200,
+          left: 50,
+          width: 300,
+          height: 50,
+          textColor: "#000000",
+        },
+        roleBox: {
+          top: 260,
+          left: 50,
+          width: 300,
+          height: 50,
+          textColor: "#000000",
+        },
+        messageBox: {
+          top: 320,
+          left: 50,
+          width: 300,
+          height: 100,
+          textColor: "#000000",
+        },
+        canvas: {
+          width: 400,
+          height: 400,
+        },
+      },
+      musicUrl: null,
+      visibility: "public",
+      status: "approved",
+      submissionCount: 0,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      title: "Test Campaign",
+      description: "This is a test campaign.",
+      thumbnailUrl: null,
+    };
+    renderTributeForm(vi.fn(), {
+      resultImage: "https://cdn.example.com/result.jpg",
+      campaign,
+    });
 
-    expect(
-      await screen.findByText("Ảnh khung tri ân của bạn"),
-    ).toBeTruthy();
+    expect(await screen.findByText("Ảnh khung tri ân của bạn")).toBeTruthy();
     expect(screen.getByAltText("Khung ảnh tri ân").getAttribute("src")).toBe(
       "https://cdn.example.com/result.jpg",
     );
@@ -182,13 +235,67 @@ describe("TributeForm", () => {
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
 
-    renderTributeForm(vi.fn(), { resultImage: "https://cdn.example.com/result.jpg" });
+    const campaign: Campaign = {
+      id: "test-campaign",
+      ownerId: "owner-1",
+      templateId: "template-1",
+      slug: "test-campaign",
+      backgroundImageUrl: "https://cdn.example.com/background.jpg",
+      layout: {
+        avatarBox: {
+          top: 50,
+          left: 50,
+          width: 100,
+          height: 100,
+          shape: "circle",
+        },
+        nameBox: {
+          top: 200,
+          left: 50,
+          width: 300,
+          height: 50,
+          textColor: "#000000",
+        },
+        roleBox: {
+          top: 260,
+          left: 50,
+          width: 300,
+          height: 50,
+          textColor: "#000000",
+        },
+        messageBox: {
+          top: 320,
+          left: 50,
+          width: 300,
+          height: 100,
+          textColor: "#000000",
+        },
+        canvas: {
+          width: 400,
+          height: 400,
+        },
+      },
+      musicUrl: null,
+      visibility: "public",
+      status: "approved",
+      submissionCount: 0,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      title: "Test Campaign",
+      description: "This is a test campaign.",
+      thumbnailUrl: null,
+    };
+    renderTributeForm(vi.fn(), {
+      resultImage: "https://cdn.example.com/result.jpg",
+      campaign,
+    });
     await screen.findByText("Ảnh khung tri ân của bạn");
 
     fireEvent.click(screen.getByText("Tải về máy"));
 
     await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith("https://cdn.example.com/result.jpg"),
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://cdn.example.com/result.jpg",
+      ),
     );
     await waitFor(() => expect(createObjectURL).toHaveBeenCalledWith(blob));
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
@@ -197,7 +304,60 @@ describe("TributeForm", () => {
   });
 
   it("opens the Facebook share dialog for the campaign's public URL when sharing", async () => {
-    renderTributeForm(vi.fn(), { resultImage: "https://cdn.example.com/result.jpg" });
+    const campaign: Campaign = {
+      id: "test-campaign",
+      ownerId: "owner-1",
+      templateId: "template-1",
+      slug: "test-campaign",
+      backgroundImageUrl: "https://cdn.example.com/background.jpg",
+      layout: {
+        avatarBox: {
+          top: 50,
+          left: 50,
+          width: 100,
+          height: 100,
+          shape: "circle",
+        },
+        nameBox: {
+          top: 200,
+          left: 50,
+          width: 300,
+          height: 50,
+          textColor: "#000000",
+        },
+        roleBox: {
+          top: 260,
+          left: 50,
+          width: 300,
+          height: 50,
+          textColor: "#000000",
+        },
+        messageBox: {
+          top: 320,
+          left: 50,
+          width: 300,
+          height: 100,
+          textColor: "#000000",
+        },
+        canvas: {
+          width: 400,
+          height: 400,
+        },
+      },
+      musicUrl: null,
+      visibility: "public",
+      status: "approved",
+      submissionCount: 0,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      title: "Test Campaign",
+      description: "This is a test campaign.",
+      thumbnailUrl: null,
+    };
+
+    renderTributeForm(vi.fn(), {
+      resultImage: "https://cdn.example.com/result.jpg",
+      campaign,
+    });
     await screen.findByText("Ảnh khung tri ân của bạn");
 
     fireEvent.click(screen.getByText("Chia sẻ Facebook"));

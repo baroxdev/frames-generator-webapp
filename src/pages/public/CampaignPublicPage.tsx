@@ -176,6 +176,7 @@ export function CampaignPublicPage({
               <TributeForm
                 metadata={{
                   resultImage,
+                  campaign,
                 }}
                 form={form}
                 turnstileSiteKey={env.VITE_TURNSTILE_SITE_KEY}

@@ -67,10 +67,36 @@ const APPROVED_CAMPAIGN = {
   templateId: null,
   layout: {
     canvas: { width: 1500, height: 843 },
-    avatarBox: { top: 335, left: 200, width: 286, height: 260, shape: "circle" as const },
-    nameBox: { top: 605, left: 159, width: 389, height: 40, shrinkAt: 29, textColor: "#ffffff" },
-    roleBox: { top: 650, left: 157, width: 389, height: 45, shrinkAt: 20, textColor: "#ffffff" },
-    messageBox: { top: 358, left: 506, width: 801, height: 229, textColor: "#000" },
+    avatarBox: {
+      top: 335,
+      left: 200,
+      width: 286,
+      height: 260,
+      shape: "circle" as const,
+    },
+    nameBox: {
+      top: 605,
+      left: 159,
+      width: 389,
+      height: 40,
+      shrinkAt: 29,
+      textColor: "#ffffff",
+    },
+    roleBox: {
+      top: 650,
+      left: 157,
+      width: 389,
+      height: 45,
+      shrinkAt: 20,
+      textColor: "#ffffff",
+    },
+    messageBox: {
+      top: 358,
+      left: 506,
+      width: 801,
+      height: 229,
+      textColor: "#000",
+    },
   },
   backgroundImageUrl:
     "https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg",
@@ -86,7 +112,7 @@ const APPROVED_CAMPAIGN = {
 
 const COMPOSITED_BLOB = new Blob(["composited"], { type: "image/jpeg" });
 
-function renderWithCampaign(campaign: Campaign | null) {
+async function renderWithCampaign(campaign: Campaign | null) {
   return await renderWithProviders(<CampaignPublicPage campaign={campaign} />);
 }
 
@@ -107,7 +133,7 @@ describe("CampaignPublicPage", () => {
   });
 
   it("renders the campaign template + background for an approved campaign, even with no submission content", async () => {
-    const { container } = renderWithCampaign(APPROVED_CAMPAIGN);
+    const { container } = await renderWithCampaign(APPROVED_CAMPAIGN);
 
     await screen.findByText("submit-tribute-form");
     const backgroundImg = container.querySelector(

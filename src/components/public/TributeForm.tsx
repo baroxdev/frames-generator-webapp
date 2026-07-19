@@ -7,13 +7,14 @@ import {
 import { Button, Form, Input, message, Modal, Upload } from "antd";
 import ImgCrop from "antd-img-crop";
 import { useEffect, useRef, useState } from "react";
+import { Controller, type UseFormReturn } from "react-hook-form";
+import { loadFacebookSdk, openShareDialog } from "../../lib/facebookSdk";
+import { type SubmissionInput } from "../../schemas/submission.schema";
+import { Campaign } from "../../services/campaign.service";
 import {
   TurnstileWidget,
   type TurnstileWidgetHandle,
 } from "../auth/TurnstileWidget";
-import { type SubmissionInput } from "../../schemas/submission.schema";
-import { Controller, type UseFormReturn } from "react-hook-form";
-import { loadFacebookSdk, openShareDialog } from "../../lib/facebookSdk";
 
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const TURNSTILE_ACTION = "submit-tribute";
@@ -30,6 +31,7 @@ type TributeFormProps = {
   onSubmit: (values: TributeSubmitValues) => Promise<void>;
   metadata?: {
     resultImage: string | null;
+    campaign: Campaign | null;
   } & Record<string, unknown>;
 };
 
@@ -292,16 +294,6 @@ export function TributeForm({
             >
               Gửi thông điệp
             </Button>
-            <Button
-              type="default"
-              className="w-2/6"
-              block
-              disabled={isSubmitting || !resultImage}
-              icon={<DownloadOutlined />}
-              onClick={() => setIsResultModalOpen(true)}
-            >
-              Tải về
-            </Button>
           </div>
         </div>
       </div>
@@ -315,11 +307,18 @@ export function TributeForm({
       >
         {resultImage && (
           <div className="flex flex-col items-center gap-4">
-            <img
-              src={resultImage}
-              alt="Khung ảnh tri ân"
-              className="w-full rounded-lg"
-            />
+            <div
+              className="bg-neutral-200 w-full"
+              style={{
+                aspectRatio: `${metadata?.campaign?.layout?.canvas?.width ?? 400} / ${metadata?.campaign?.layout?.canvas?.height ?? 400}`,
+              }}
+            >
+              <img
+                src={resultImage}
+                alt="Khung ảnh tri ân"
+                className="w-full"
+              />
+            </div>
             <div className="flex w-full items-center gap-3">
               <Button
                 block
@@ -331,6 +330,7 @@ export function TributeForm({
               </Button>
               <Button
                 block
+                type="primary"
                 icon={<FacebookOutlined />}
                 onClick={handleShareFacebook}
               >

@@ -1,7 +1,7 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../test/render';
-import { NewCampaignPage } from './NewCampaignPage';
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithProviders } from "../../test/render";
+import { NewCampaignPage } from "./NewCampaignPage";
 
 const {
   mockUseAuthSession,
@@ -21,37 +21,38 @@ const {
   mockGetImageDimensions: vi.fn(),
 }));
 
-vi.mock('@tanstack/react-router', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@tanstack/react-router')>();
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@tanstack/react-router")>();
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
 // Debouncing has no useful behavior to assert on here (it only delays when
 // the availability check fires) — replaced with an identity pass-through so
 // tests don't need fake timers.
-vi.mock('use-debounce', () => ({
+vi.mock("use-debounce", () => ({
   useDebounce: (value: string) => [value],
 }));
 
-vi.mock('../../hooks/useAuthSession', () => ({
+vi.mock("../../hooks/useAuthSession", () => ({
   useAuthSession: mockUseAuthSession,
 }));
 
-vi.mock('../../queries/campaign.queries', () => ({
-  campaignKeys: { list: () => ['campaigns', 'list'] },
+vi.mock("../../queries/campaign.queries", () => ({
+  campaignKeys: { list: () => ["campaigns", "list"] },
   uploadCampaignBackgroundMutationOptions: () => ({ mutationFn: mockUpload }),
   createCampaignMutationOptions: () => ({ mutationFn: mockCreate }),
   slugAvailabilityQueryOptions: (slug: string) => ({
-    queryKey: ['campaigns', 'slug-availability', slug],
+    queryKey: ["campaigns", "slug-availability", slug],
     queryFn: () => mockIsSlugAvailable(slug),
   }),
 }));
 
-vi.mock('../../utils/report-campaign-error', () => ({
+vi.mock("../../utils/report-campaign-error", () => ({
   reportCampaignError: mockReportCampaignError,
 }));
 
-vi.mock('../../utils/get-image-dimensions', () => ({
+vi.mock("../../utils/get-image-dimensions", () => ({
   getImageDimensions: mockGetImageDimensions,
 }));
 
@@ -59,20 +60,24 @@ vi.mock('../../utils/get-image-dimensions', () => ({
 // own dedicated tests — this page's tests only need to exercise the
 // upload -> default-layout -> submit orchestration around it, same
 // rationale as CampaignPublicPage.test.tsx's TributeForm stand-in.
-vi.mock('../../components/campaigns/LayoutEditor', () => ({
+vi.mock("../../components/campaigns/LayoutEditor", () => ({
   LayoutEditor: () => <div>layout-editor-placeholder</div>,
 }));
 
 function fillValidForm() {
-  fireEvent.change(screen.getByLabelText('Đường dẫn'), { target: { value: 'dai-hoi-ben-tre' } });
-  const file = new File(['background'], 'bg.jpg', { type: 'image/jpeg' });
+  fireEvent.change(screen.getByLabelText("Đường dẫn"), {
+    target: { value: "dai-hoi-ben-tre" },
+  });
+  const file = new File(["background"], "bg.jpg", { type: "image/jpeg" });
   // antd's Upload.Dragger renders a native <input type="file"> under its
   // drop zone rather than exposing an aria-label on it directly.
-  const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+  const fileInput = document.querySelector(
+    'input[type="file"]',
+  ) as HTMLInputElement;
   fireEvent.change(fileInput, { target: { files: [file] } });
 }
 
-describe('NewCampaignPage', () => {
+describe("NewCampaignPage", () => {
   beforeEach(() => {
     mockUseAuthSession.mockReset();
     mockNavigate.mockClear();
@@ -83,61 +88,89 @@ describe('NewCampaignPage', () => {
     mockReportCampaignError.mockClear();
     mockGetImageDimensions.mockReset();
     mockGetImageDimensions.mockResolvedValue({ width: 1500, height: 843 });
-    mockUseAuthSession.mockReturnValue({ session: {}, user: { id: 'user-1' }, isLoading: false, error: null });
+    mockUseAuthSession.mockReturnValue({
+      session: {},
+      user: { id: "user-1" },
+      isLoading: false,
+      error: null,
+    });
   });
 
-  it('shows a loading state while the session resolves', () => {
-    mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: true, error: null });
+  it("shows a loading state while the session resolves", async () => {
+    mockUseAuthSession.mockReturnValue({
+      session: null,
+      user: null,
+      isLoading: true,
+      error: null,
+    });
     await renderWithProviders(<NewCampaignPage />);
 
-    expect(screen.getByText('Đang tải...')).toBeTruthy();
+    expect(screen.getByText("Đang tải...")).toBeTruthy();
   });
 
-  it('redirects to /login when there is no session', async () => {
-    mockUseAuthSession.mockReturnValue({ session: null, user: null, isLoading: false, error: null });
+  it("redirects to /login when there is no session", async () => {
+    mockUseAuthSession.mockReturnValue({
+      session: null,
+      user: null,
+      isLoading: false,
+      error: null,
+    });
     await renderWithProviders(<NewCampaignPage />, {
-      route: '/campaigns/new',
-      additionalRoutes: [{ path: '/login', element: <div>login-page-placeholder</div> }],
+      route: "/campaigns/new",
+      additionalRoutes: [
+        { path: "/login", element: <div>login-page-placeholder</div> },
+      ],
     });
 
-    expect(screen.getByText('login-page-placeholder')).toBeTruthy();
+    expect(screen.getByText("login-page-placeholder")).toBeTruthy();
   });
 
-  it('shows validation errors and never calls the mutations when the slug is invalid and no background is chosen', async () => {
+  it("shows validation errors and never calls the mutations when the slug is invalid and no background is chosen", async () => {
     await renderWithProviders(<NewCampaignPage />);
 
-    fireEvent.change(screen.getByLabelText('Đường dẫn'), { target: { value: 'ab' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo chiến dịch' }));
+    fireEvent.change(screen.getByLabelText("Đường dẫn"), {
+      target: { value: "ab" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Tạo chiến dịch" }));
 
-    await screen.findByText('Đường dẫn cần có ít nhất 3 ký tự');
-    expect(screen.getByText('Vui lòng tải ảnh nền lên')).toBeTruthy();
+    await screen.findByText("Đường dẫn cần có ít nhất 3 ký tự");
+    expect(screen.getByText("Vui lòng tải ảnh nền lên")).toBeTruthy();
     expect(mockUpload).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
-  it('shows the live availability result once the slug passes format validation', async () => {
+  it("shows the live availability result once the slug passes format validation", async () => {
     mockIsSlugAvailable.mockResolvedValue(false);
     await renderWithProviders(<NewCampaignPage />);
 
-    fireEvent.change(screen.getByLabelText('Đường dẫn'), { target: { value: 'dai-hoi-ben-tre' } });
+    fireEvent.change(screen.getByLabelText("Đường dẫn"), {
+      target: { value: "dai-hoi-ben-tre" },
+    });
 
-    await screen.findByText('Đường dẫn này đã được sử dụng');
+    await screen.findByText("Đường dẫn này đã được sử dụng");
   });
 
-  it('uploads the background, creates the campaign with the computed default layout, invalidates the list, and navigates to /campaigns', async () => {
-    mockUpload.mockResolvedValue('https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg');
-    mockCreate.mockResolvedValue({ id: 'campaign-1', slug: 'dai-hoi-ben-tre' });
+  it("uploads the background, creates the campaign with the computed default layout, invalidates the list, and navigates to /campaigns", async () => {
+    mockUpload.mockResolvedValue(
+      "https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg",
+    );
+    mockCreate.mockResolvedValue({ id: "campaign-1", slug: "dai-hoi-ben-tre" });
     await renderWithProviders(<NewCampaignPage />);
 
     fillValidForm();
-    await screen.findByText('layout-editor-placeholder');
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo chiến dịch' }));
+    await screen.findByText("layout-editor-placeholder");
+    fireEvent.click(screen.getByRole("button", { name: "Tạo chiến dịch" }));
 
-    await waitFor(() => expect(mockUpload).toHaveBeenCalledWith(expect.any(File), expect.anything()));
+    await waitFor(() =>
+      expect(mockUpload).toHaveBeenCalledWith(
+        expect.any(File),
+        expect.anything(),
+      ),
+    );
     await waitFor(() =>
       expect(mockCreate).toHaveBeenCalledWith(
         {
-          slug: 'dai-hoi-ben-tre',
+          slug: "dai-hoi-ben-tre",
           // The mocked upload resolves a 1500x843 image — modernPortrait's
           // own canvas size — so the default layout's scale factor is 1:1
           // and comes back identical to its source box coordinates (see
@@ -146,74 +179,122 @@ describe('NewCampaignPage', () => {
           // implicit default.
           layout: {
             canvas: { width: 1500, height: 843 },
-            avatarBox: { top: 335, left: 200, width: 286, height: 260, shape: 'circle' },
-            nameBox: { top: 605, left: 159, width: 389, height: 40, autoFit: true, textColor: '#ffffff' },
-            roleBox: { top: 650, left: 157, width: 389, height: 45, autoFit: true, textColor: '#ffffff' },
-            messageBox: { top: 358, left: 506, width: 801, height: 229, autoFit: true, textColor: '#000' },
+            avatarBox: {
+              top: 335,
+              left: 200,
+              width: 286,
+              height: 260,
+              shape: "circle",
+            },
+            nameBox: {
+              top: 605,
+              left: 159,
+              width: 389,
+              height: 40,
+              autoFit: true,
+              textColor: "#ffffff",
+            },
+            roleBox: {
+              top: 650,
+              left: 157,
+              width: 389,
+              height: 45,
+              autoFit: true,
+              textColor: "#ffffff",
+            },
+            messageBox: {
+              top: 358,
+              left: 506,
+              width: 801,
+              height: 229,
+              autoFit: true,
+              textColor: "#000",
+            },
           },
-          backgroundImageUrl: 'https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg',
+          backgroundImageUrl:
+            "https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg",
         },
         expect.anything(),
       ),
     );
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: '/campaigns' }));
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith({ to: "/campaigns" }),
+    );
   });
 
-  it('includes title, description, and an uploaded thumbnail URL in the create payload when filled in', async () => {
-    mockUpload.mockResolvedValueOnce('https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg');
-    mockUpload.mockResolvedValueOnce('https://cdn.example.com/campaign-backgrounds/user-1/thumb.jpg');
-    mockCreate.mockResolvedValue({ id: 'campaign-1', slug: 'dai-hoi-ben-tre' });
+  it("includes title, description, and an uploaded thumbnail URL in the create payload when filled in", async () => {
+    mockUpload.mockResolvedValueOnce(
+      "https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg",
+    );
+    mockUpload.mockResolvedValueOnce(
+      "https://cdn.example.com/campaign-backgrounds/user-1/thumb.jpg",
+    );
+    mockCreate.mockResolvedValue({ id: "campaign-1", slug: "dai-hoi-ben-tre" });
     await renderWithProviders(<NewCampaignPage />);
 
     fillValidForm();
-    await screen.findByText('layout-editor-placeholder');
-    fireEvent.change(screen.getByLabelText('Tiêu đề'), { target: { value: 'Đại hội Bến Tre' } });
-    fireEvent.change(screen.getByLabelText('Mô tả'), { target: { value: 'Gửi lời chúc mừng của bạn.' } });
-    const thumbnailFile = new File(['thumb'], 'thumb.jpg', { type: 'image/jpeg' });
+    await screen.findByText("layout-editor-placeholder");
+    fireEvent.change(screen.getByLabelText("Tiêu đề"), {
+      target: { value: "Đại hội Bến Tre" },
+    });
+    fireEvent.change(screen.getByLabelText("Mô tả"), {
+      target: { value: "Gửi lời chúc mừng của bạn." },
+    });
+    const thumbnailFile = new File(["thumb"], "thumb.jpg", {
+      type: "image/jpeg",
+    });
     const fileInputs = document.querySelectorAll('input[type="file"]');
-    fireEvent.change(fileInputs[fileInputs.length - 1], { target: { files: [thumbnailFile] } });
+    fireEvent.change(fileInputs[fileInputs.length - 1], {
+      target: { files: [thumbnailFile] },
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo chiến dịch' }));
+    fireEvent.click(screen.getByRole("button", { name: "Tạo chiến dịch" }));
 
     await waitFor(() =>
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: 'Đại hội Bến Tre',
-          description: 'Gửi lời chúc mừng của bạn.',
-          thumbnailUrl: 'https://cdn.example.com/campaign-backgrounds/user-1/thumb.jpg',
+          title: "Đại hội Bến Tre",
+          description: "Gửi lời chúc mừng của bạn.",
+          thumbnailUrl:
+            "https://cdn.example.com/campaign-backgrounds/user-1/thumb.jpg",
         }),
         expect.anything(),
       ),
     );
   });
 
-  it('omits title, description, and thumbnailUrl from the create payload when left blank', async () => {
-    mockUpload.mockResolvedValue('https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg');
-    mockCreate.mockResolvedValue({ id: 'campaign-1', slug: 'dai-hoi-ben-tre' });
+  it("omits title, description, and thumbnailUrl from the create payload when left blank", async () => {
+    mockUpload.mockResolvedValue(
+      "https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg",
+    );
+    mockCreate.mockResolvedValue({ id: "campaign-1", slug: "dai-hoi-ben-tre" });
     await renderWithProviders(<NewCampaignPage />);
 
     fillValidForm();
-    await screen.findByText('layout-editor-placeholder');
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo chiến dịch' }));
+    await screen.findByText("layout-editor-placeholder");
+    fireEvent.click(screen.getByRole("button", { name: "Tạo chiến dịch" }));
 
     await waitFor(() => expect(mockCreate).toHaveBeenCalled());
     const payload = mockCreate.mock.calls[0][0];
-    expect(payload).not.toHaveProperty('title');
-    expect(payload).not.toHaveProperty('description');
-    expect(payload).not.toHaveProperty('thumbnailUrl');
+    expect(payload).not.toHaveProperty("title");
+    expect(payload).not.toHaveProperty("description");
+    expect(payload).not.toHaveProperty("thumbnailUrl");
   });
 
-  it('reports a friendly error and stays on the page when the upload fails', async () => {
-    const failure = new Error('upload failed');
+  it("reports a friendly error and stays on the page when the upload fails", async () => {
+    const failure = new Error("upload failed");
     mockUpload.mockRejectedValue(failure);
     await renderWithProviders(<NewCampaignPage />);
 
     fillValidForm();
-    await screen.findByText('layout-editor-placeholder');
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo chiến dịch' }));
+    await screen.findByText("layout-editor-placeholder");
+    fireEvent.click(screen.getByRole("button", { name: "Tạo chiến dịch" }));
 
     await waitFor(() =>
-      expect(mockReportCampaignError).toHaveBeenCalledWith(failure, 'Không thể tạo chiến dịch. Vui lòng thử lại.'),
+      expect(mockReportCampaignError).toHaveBeenCalledWith(
+        failure,
+        "Không thể tạo chiến dịch. Vui lòng thử lại.",
+      ),
     );
     expect(mockCreate).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalled();

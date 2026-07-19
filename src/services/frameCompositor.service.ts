@@ -7,8 +7,10 @@ import { MESSAGE_FONT_WEIGHT, NAME_ROLE_FONT_WEIGHT } from '../utils/textFonts';
 // Common social platforms (Facebook, Zalo, etc.) downscale a shared image's
 // long edge to somewhere in this neighborhood server-side regardless of
 // what's uploaded — exporting at a higher resolution than this spends bytes
-// on pixels no viewer will ever actually see.
-const MAX_EXPORT_LONG_EDGE = 2048;
+// on pixels no viewer will ever actually see. Matches
+// resizeImageIfOversized's own background-upload cap (2400px) so a sharp
+// background doesn't take a second, redundant downscale here on export.
+const MAX_EXPORT_LONG_EDGE = 2400;
 // Upper bound on the rasterization multiplier itself, so a small campaign
 // canvas doesn't get supersampled far beyond any visible benefit.
 const MAX_EXPORT_SCALE = 2;
@@ -84,7 +86,7 @@ export async function compositeFrameToBlob(
 
   return domToBlob(node, {
     type: 'image/jpeg',
-    quality: 0.9,
+    quality: 0.95,
     scale: computeExportScale(node),
     font: {},
   });

@@ -1,5 +1,6 @@
 import { CuratedFont, getCuratedFont } from "../constants/fonts";
 import type { CustomFont } from "../templates/types";
+import { MESSAGE_FONT_WEIGHT, NAME_ROLE_FONT_WEIGHT } from "./textFonts";
 
 // Tracks stylesheet hrefs already appended so repeated calls (e.g. on every
 // keystroke of a text field, or every font-picker re-render) don't pile up
@@ -84,13 +85,20 @@ function customFontStyleElementId(family: string): string {
  * R2) once something on the page requests that family/weight — same as any
  * other `@font-face` `src: url(...)`.
  *
- * `font-weight: 100 900` (a range, not a single value) is intentional: an
- * uploaded font is typically one static weight, but Name/Role/Message
- * request specific weights (400/500/700) that a single-weight `@font-face`
- * would otherwise force the browser to synthesize (fake-bold) instead of
- * reusing the one file it has — declaring the full range tells the browser
- * this file *is* whatever weight was asked for, so it's used as-is.
+ * Declares one `@font-face` rule per weight Name/Role/Message actually
+ * request (400/500/700 — see `textFonts.ts`), all pointing at the same
+ * uploaded file, rather than a single rule with a `font-weight: 100 900`
+ * *range* (the earlier approach). A range declaration is meant for a true
+ * variable font; browsers are inconsistent about how much they trust it for
+ * an ordinary static font file claiming to cover one — Safari in particular
+ * has been observed silently declining to use it at export time (falling
+ * back to the default font) even though the same file renders correctly
+ * on-screen. Three explicit single-weight rules sharing one `src` remove
+ * that ambiguity — the browser fetches the file once regardless of how many
+ * rules reference it.
  */
+const CUSTOM_FONT_WEIGHTS = [400, MESSAGE_FONT_WEIGHT, NAME_ROLE_FONT_WEIGHT];
+
 function injectCustomFontFace(font: CustomFont): void {
   if (typeof document === "undefined") return;
   const key = `${font.family}:${font.url}`;
@@ -102,15 +110,21 @@ function injectCustomFontFace(font: CustomFont): void {
     return;
   }
 
+  const familyName = font.family.replace(/'/g, "");
+  const src = `url('${encodeURI(font.url)}') format('${font.format}')`;
   const style = document.createElement("style");
   style.id = elementId;
-  style.textContent = `@font-face {
-    font-family: '${font.family.replace(/'/g, "")}';
-    src: url('${encodeURI(font.url)}') format('${font.format}');
-    font-weight: 100 900;
+  style.textContent = [...new Set(CUSTOM_FONT_WEIGHTS)]
+    .map(
+      (weight) => `@font-face {
+    font-family: '${familyName}';
+    src: ${src};
+    font-weight: ${weight};
     font-style: normal;
     font-display: swap;
-  }`;
+  }`,
+    )
+    .join("\n");
   document.head.appendChild(style);
   loadedCustomFontKeys.add(key);
 }

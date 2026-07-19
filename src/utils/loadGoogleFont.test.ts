@@ -56,9 +56,13 @@ describe('loadFont', () => {
     expect(style).not.toBeNull();
     expect(style?.textContent).toContain(`font-family: '${customFont.family}'`);
     expect(style?.textContent).toContain(`src: url('${customFont.url}') format('woff2')`);
-    // A range, not a single weight — see injectCustomFontFace's doc comment
-    // for why (avoids synthesized/fake bold at a weight the file doesn't declare).
-    expect(style?.textContent).toContain('font-weight: 100 900');
+    // One rule per actually-used weight, not a `100 900` range — see
+    // injectCustomFontFace's doc comment for why (Safari has been observed
+    // declining a range declaration for a non-variable font at export time).
+    expect(style?.textContent).toContain('font-weight: 400');
+    expect(style?.textContent).toContain('font-weight: 500');
+    expect(style?.textContent).toContain('font-weight: 700');
+    expect(style?.textContent).not.toContain('100 900');
   });
 
   it('does not duplicate the style tag when called again for the same custom font', () => {

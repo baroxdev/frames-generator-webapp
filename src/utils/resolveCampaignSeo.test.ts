@@ -18,6 +18,7 @@ function makeCampaign(overrides: Partial<Campaign> = {}): Campaign {
     title: null,
     description: null,
     thumbnailUrl: null,
+    headerImageUrl: null,
     ...overrides,
   };
 }

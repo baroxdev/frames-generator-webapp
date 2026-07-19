@@ -67,6 +67,11 @@ vi.mock('react-konva', () => ({
     </div>
   ),
   Transformer: () => null,
+  // Sector-clip drag handles/wedge overlay (LayoutEditor.tsx) — no test
+  // below drives these yet, so a no-op stub is enough to keep the mocked
+  // module's shape complete and avoid the "no export defined" crash.
+  Circle: () => null,
+  Shape: () => null,
 }));
 
 // The real hook loads an image asynchronously via `new window.Image()`,

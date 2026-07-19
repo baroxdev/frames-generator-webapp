@@ -17,6 +17,7 @@ const BASE_CAMPAIGN: Campaign = {
   title: null,
   description: null,
   thumbnailUrl: null,
+  headerImageUrl: null,
 };
 
 function findMeta(meta: ReturnType<typeof campaignHead>['meta'], key: 'title' | 'name' | 'property', value?: string) {

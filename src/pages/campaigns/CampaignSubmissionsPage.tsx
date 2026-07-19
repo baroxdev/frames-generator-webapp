@@ -98,7 +98,7 @@ function submissionColumns(
  * never a burst, so it never has to contend with r2.dev's throttling.
  *
  * Reuses `campaignsQueryOptions()` to resolve `:id` -> campaign, same as
- * `EditCampaignLayoutPage` — see that page's comment for why this doesn't
+ * `EditCampaignPage` — see that page's comment for why this doesn't
  * add a dedicated get-by-id service method.
  */
 export function CampaignSubmissionsPage() {

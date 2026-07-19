@@ -12,6 +12,7 @@ import {
   createCampaignMutationOptions,
   slugAvailabilityQueryOptions,
   uploadCampaignBackgroundMutationOptions,
+  uploadCampaignHeaderMutationOptions,
 } from '../../queries/campaign.queries';
 import type { CreateCampaignParams } from '../../services/campaign.service';
 import { createCampaignSchema, slugField, type CreateCampaignInput } from '../../schemas/campaign.schema';
@@ -40,6 +41,9 @@ export function NewCampaignPage() {
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailFileList, setThumbnailFileList] = useState<UploadFile[]>([]);
   const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState<string | null>(null);
+  const [headerFile, setHeaderFile] = useState<File | null>(null);
+  const [headerFileList, setHeaderFileList] = useState<UploadFile[]>([]);
+  const [headerPreviewUrl, setHeaderPreviewUrl] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [debouncedSlug] = useDebounce(slug.trim(), SLUG_DEBOUNCE_MS);
 
@@ -48,6 +52,7 @@ export function NewCampaignPage() {
   // background — a thumbnail is just another campaign image, no need for a
   // dedicated service method.
   const thumbnailUploadMutation = useMutation(uploadCampaignBackgroundMutationOptions());
+  const headerUploadMutation = useMutation(uploadCampaignHeaderMutationOptions());
   const createMutation = useMutation(createCampaignMutationOptions());
 
   const slugFormatValid = slugField.safeParse(debouncedSlug).success;
@@ -99,6 +104,16 @@ export function NewCampaignPage() {
     setThumbnailPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [thumbnailFile]);
+
+  useEffect(() => {
+    if (!headerFile) {
+      setHeaderPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(headerFile);
+    setHeaderPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [headerFile]);
 
   if (isLoading) {
     return (
@@ -157,7 +172,29 @@ export function NewCampaignPage() {
     setThumbnailFile(null);
   };
 
-  const isSubmitting = uploadMutation.isPending || thumbnailUploadMutation.isPending || createMutation.isPending;
+  const handleHeaderChange: UploadProps['onChange'] = (info) => {
+    const latest = info.fileList.slice(-1);
+    const file = latest[0]?.originFileObj as File | undefined;
+
+    if (!file || !ALLOWED_BACKGROUND_TYPES.includes(file.type)) {
+      setHeaderFileList([]);
+      setHeaderFile(null);
+      return;
+    }
+    setHeaderFileList(latest);
+    setHeaderFile(file);
+  };
+
+  const handleHeaderRemove = () => {
+    setHeaderFileList([]);
+    setHeaderFile(null);
+  };
+
+  const isSubmitting =
+    uploadMutation.isPending ||
+    thumbnailUploadMutation.isPending ||
+    headerUploadMutation.isPending ||
+    createMutation.isPending;
 
   const handleSubmit = async () => {
     const parsed = createCampaignSchema.safeParse({
@@ -182,6 +219,7 @@ export function NewCampaignPage() {
     try {
       const backgroundImageUrl = await uploadMutation.mutateAsync(backgroundFile);
       const thumbnailUrl = thumbnailFile ? await thumbnailUploadMutation.mutateAsync(thumbnailFile) : undefined;
+      const headerImageUrl = headerFile ? await headerUploadMutation.mutateAsync(headerFile) : undefined;
 
       const createParams: CreateCampaignParams = {
         slug: parsed.data.slug,
@@ -194,6 +232,7 @@ export function NewCampaignPage() {
         ...(parsed.data.title && { title: parsed.data.title }),
         ...(parsed.data.description && { description: parsed.data.description }),
         ...(thumbnailUrl && { thumbnailUrl }),
+        ...(headerImageUrl && { headerImageUrl }),
       };
       await createMutation.mutateAsync(createParams);
       await queryClient.invalidateQueries({ queryKey: campaignKeys.list() });
@@ -284,7 +323,7 @@ export function NewCampaignPage() {
           </div>
         </div>
 
-        {/* SEO / social-share metadata — all optional, see resolveCampaignSeo.ts for the fallbacks used when left blank. Editable again later from CampaignSeoPage. */}
+        {/* SEO / social-share metadata — all optional, see resolveCampaignSeo.ts for the fallbacks used when left blank. Editable again later from EditCampaignPage. */}
         <div className="rounded-md border border-slate-200 p-4">
           <h4 className="mb-3 text-sm font-semibold text-slate-700">SEO & chia sẻ (không bắt buộc)</h4>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
@@ -349,6 +388,34 @@ export function NewCampaignPage() {
               <p className="mt-1 text-xs text-slate-400">Mặc định dùng ảnh nền nếu không chọn.</p>
             </div>
           </div>
+        </div>
+
+        {/* Public-page header banner — optional, any aspect ratio accepted (no crop step); see CampaignPublicPage.tsx for how it's rendered. */}
+        <div className="rounded-md border border-slate-200 p-4">
+          <h4 className="mb-1 text-sm font-semibold text-slate-700">Ảnh bìa trang chiến dịch (không bắt buộc)</h4>
+          <p className="mb-3 text-xs text-slate-500">
+            Hiển thị ở đầu trang công khai của chiến dịch. Có thể tải lên ảnh với bất kỳ tỷ lệ nào.
+          </p>
+          {headerPreviewUrl ? (
+            <div className="flex flex-col gap-2">
+              <img src={headerPreviewUrl} alt="" className="w-full max-w-2xl rounded border border-slate-200" />
+              <Button size="small" onClick={handleHeaderRemove} className="self-start">
+                Xoá ảnh
+              </Button>
+            </div>
+          ) : (
+            <Upload
+              accept={ALLOWED_BACKGROUND_TYPES.join(',')}
+              listType="picture"
+              maxCount={1}
+              fileList={headerFileList}
+              beforeUpload={() => false}
+              onChange={handleHeaderChange}
+              onRemove={handleHeaderRemove}
+            >
+              <Button>Tải ảnh bìa lên</Button>
+            </Upload>
+          )}
         </div>
       </Form>
     </OwnerLayout>

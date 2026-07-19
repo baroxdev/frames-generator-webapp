@@ -127,14 +127,14 @@ describe("CampaignSubmissionsPage", () => {
       isLoading: false,
       error: null,
     });
-    renderAtId("campaign-1");
+    await renderAtId("campaign-1");
 
     expect(screen.getByText("login-page-placeholder")).toBeTruthy();
   });
 
   it("shows an error when no campaign with that id belongs to the owner", async () => {
     mockListCampaignsForOwner.mockResolvedValue([]);
-    renderAtId("unknown-id");
+    await renderAtId("unknown-id");
 
     expect(
       await screen.findByText("Không tìm thấy chiến dịch này."),
@@ -142,7 +142,7 @@ describe("CampaignSubmissionsPage", () => {
   });
 
   it("lists submissions and the count against the 5,000 cap", async () => {
-    renderAtId("campaign-1");
+    await renderAtId("campaign-1");
 
     expect(await screen.findByText("Nguyễn Văn A")).toBeTruthy();
     expect(screen.getByText("Trần Thị B")).toBeTruthy();
@@ -151,7 +151,7 @@ describe("CampaignSubmissionsPage", () => {
 
   it("deletes a submission and invalidates the submissions and campaigns caches", async () => {
     mockDeleteSubmission.mockResolvedValue({ id: "submission-1" });
-    renderAtId("campaign-1");
+    await renderAtId("campaign-1");
     await screen.findByText("Nguyễn Văn A");
 
     fireEvent.click(screen.getAllByLabelText("Xoá thông điệp")[0]);
@@ -168,7 +168,7 @@ describe("CampaignSubmissionsPage", () => {
   it("reports a friendly error when delete fails", async () => {
     const failure = new Error("network error");
     mockDeleteSubmission.mockRejectedValue(failure);
-    renderAtId("campaign-1");
+    await renderAtId("campaign-1");
     await screen.findByText("Nguyễn Văn A");
 
     fireEvent.click(screen.getAllByLabelText("Xoá thông điệp")[0]);
@@ -183,7 +183,7 @@ describe("CampaignSubmissionsPage", () => {
   });
 
   it("exports the loaded submissions to Excel", async () => {
-    renderAtId("campaign-1");
+    await renderAtId("campaign-1");
     await screen.findByText("Nguyễn Văn A");
 
     fireEvent.click(screen.getByRole("button", { name: /Xuất Excel/ }));
@@ -196,7 +196,7 @@ describe("CampaignSubmissionsPage", () => {
 
   it("downloads a single submission image when its row download button is clicked", async () => {
     mockDownloadImage.mockResolvedValue(undefined);
-    renderAtId("campaign-1");
+    await renderAtId("campaign-1");
     await screen.findByText("Nguyễn Văn A");
 
     fireEvent.click(screen.getAllByLabelText("Tải ảnh")[0]);
@@ -212,7 +212,7 @@ describe("CampaignSubmissionsPage", () => {
   it("reports a friendly error when a single-image download fails", async () => {
     const failure = new Error("network error");
     mockDownloadImage.mockRejectedValue(failure);
-    renderAtId("campaign-1");
+    await renderAtId("campaign-1");
     await screen.findByText("Nguyễn Văn A");
 
     fireEvent.click(screen.getAllByLabelText("Tải ảnh")[0]);

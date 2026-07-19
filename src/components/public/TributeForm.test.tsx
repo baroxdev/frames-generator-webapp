@@ -3,18 +3,7 @@ import { forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useForm } from "react-hook-form";
 
-const { mockReset, mockLoadFacebookSdk, mockOpenShareDialog } = vi.hoisted(
-  () => ({
-    mockReset: vi.fn(),
-    mockLoadFacebookSdk: vi.fn(),
-    mockOpenShareDialog: vi.fn(),
-  }),
-);
-
-vi.mock("../../lib/facebookSdk", () => ({
-  loadFacebookSdk: mockLoadFacebookSdk,
-  openShareDialog: mockOpenShareDialog,
-}));
+const { mockReset } = vi.hoisted(() => ({ mockReset: vi.fn() }));
 
 vi.mock("../auth/TurnstileWidget", () => ({
   TurnstileWidget: forwardRef(function MockTurnstileWidget(
@@ -41,6 +30,30 @@ import { TributeForm } from "./TributeForm";
 import type { TributeSubmitValues } from "./TributeForm";
 import { Campaign } from "../../services/campaign.service";
 
+const TEST_CAMPAIGN: Campaign = {
+  id: "test-campaign",
+  ownerId: "owner-1",
+  templateId: "template-1",
+  slug: "test-campaign",
+  backgroundImageUrl: "https://cdn.example.com/background.jpg",
+  layout: {
+    avatarBox: { top: 50, left: 50, width: 100, height: 100, shape: "circle" },
+    nameBox: { top: 200, left: 50, width: 300, height: 50, textColor: "#000000" },
+    roleBox: { top: 260, left: 50, width: 300, height: 50, textColor: "#000000" },
+    messageBox: { top: 320, left: 50, width: 300, height: 100, textColor: "#000000" },
+    canvas: { width: 400, height: 400 },
+  },
+  musicUrl: null,
+  visibility: "public",
+  status: "approved",
+  submissionCount: 0,
+  createdAt: "2024-01-01T00:00:00.000Z",
+  title: "Test Campaign",
+  description: "This is a test campaign.",
+  thumbnailUrl: null,
+  headerImageUrl: null,
+};
+
 function renderTributeForm(
   onSubmit: (values: TributeSubmitValues) => Promise<void>,
   metadata?: { resultImage: string | null; campaign: Campaign | null },
@@ -59,8 +72,6 @@ function renderTributeForm(
     return (
       <TributeForm
         turnstileSiteKey="test-site-key"
-        facebookAppId="test-fb-app-id"
-        shareUrl="https://example.com/dai-hoi"
         isSubmitting={false}
         onSubmit={onSubmit}
         form={form}
@@ -95,9 +106,6 @@ function fillValidForm() {
 describe("TributeForm", () => {
   beforeEach(() => {
     mockReset.mockClear();
-    mockLoadFacebookSdk.mockReset();
-    mockOpenShareDialog.mockReset();
-    mockLoadFacebookSdk.mockResolvedValue({ init: vi.fn(), ui: vi.fn() });
   });
 
   it("shows validation errors and does not submit when required fields are missing", async () => {
@@ -157,66 +165,10 @@ describe("TributeForm", () => {
     ).toBeTruthy();
   });
 
-  it("disables the footer download button until a result image exists", () => {
-    renderTributeForm(vi.fn());
-
-    const button = screen.getByText("Tải về").closest("button");
-    expect(button?.disabled).toBe(true);
-  });
-
   it("opens the result dialog automatically once a result image is available", async () => {
-    const campaign: Campaign = {
-      id: "test-campaign",
-      ownerId: "owner-1",
-      templateId: "template-1",
-      slug: "test-campaign",
-      backgroundImageUrl: "https://cdn.example.com/background.jpg",
-      layout: {
-        avatarBox: {
-          top: 50,
-          left: 50,
-          width: 100,
-          height: 100,
-          shape: "circle",
-        },
-        nameBox: {
-          top: 200,
-          left: 50,
-          width: 300,
-          height: 50,
-          textColor: "#000000",
-        },
-        roleBox: {
-          top: 260,
-          left: 50,
-          width: 300,
-          height: 50,
-          textColor: "#000000",
-        },
-        messageBox: {
-          top: 320,
-          left: 50,
-          width: 300,
-          height: 100,
-          textColor: "#000000",
-        },
-        canvas: {
-          width: 400,
-          height: 400,
-        },
-      },
-      musicUrl: null,
-      visibility: "public",
-      status: "approved",
-      submissionCount: 0,
-      createdAt: "2024-01-01T00:00:00.000Z",
-      title: "Test Campaign",
-      description: "This is a test campaign.",
-      thumbnailUrl: null,
-    };
     renderTributeForm(vi.fn(), {
       resultImage: "https://cdn.example.com/result.jpg",
-      campaign,
+      campaign: TEST_CAMPAIGN,
     });
 
     expect(await screen.findByText("Ảnh khung tri ân của bạn")).toBeTruthy();
@@ -235,58 +187,9 @@ describe("TributeForm", () => {
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
 
-    const campaign: Campaign = {
-      id: "test-campaign",
-      ownerId: "owner-1",
-      templateId: "template-1",
-      slug: "test-campaign",
-      backgroundImageUrl: "https://cdn.example.com/background.jpg",
-      layout: {
-        avatarBox: {
-          top: 50,
-          left: 50,
-          width: 100,
-          height: 100,
-          shape: "circle",
-        },
-        nameBox: {
-          top: 200,
-          left: 50,
-          width: 300,
-          height: 50,
-          textColor: "#000000",
-        },
-        roleBox: {
-          top: 260,
-          left: 50,
-          width: 300,
-          height: 50,
-          textColor: "#000000",
-        },
-        messageBox: {
-          top: 320,
-          left: 50,
-          width: 300,
-          height: 100,
-          textColor: "#000000",
-        },
-        canvas: {
-          width: 400,
-          height: 400,
-        },
-      },
-      musicUrl: null,
-      visibility: "public",
-      status: "approved",
-      submissionCount: 0,
-      createdAt: "2024-01-01T00:00:00.000Z",
-      title: "Test Campaign",
-      description: "This is a test campaign.",
-      thumbnailUrl: null,
-    };
     renderTributeForm(vi.fn(), {
       resultImage: "https://cdn.example.com/result.jpg",
-      campaign,
+      campaign: TEST_CAMPAIGN,
     });
     await screen.findByText("Ảnh khung tri ân của bạn");
 
@@ -295,6 +198,7 @@ describe("TributeForm", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "https://cdn.example.com/result.jpg",
+        expect.objectContaining({ method: "GET" }),
       ),
     );
     await waitFor(() => expect(createObjectURL).toHaveBeenCalledWith(blob));
@@ -303,68 +207,13 @@ describe("TributeForm", () => {
     vi.unstubAllGlobals();
   });
 
-  it("opens the Facebook share dialog for the campaign's public URL when sharing", async () => {
-    const campaign: Campaign = {
-      id: "test-campaign",
-      ownerId: "owner-1",
-      templateId: "template-1",
-      slug: "test-campaign",
-      backgroundImageUrl: "https://cdn.example.com/background.jpg",
-      layout: {
-        avatarBox: {
-          top: 50,
-          left: 50,
-          width: 100,
-          height: 100,
-          shape: "circle",
-        },
-        nameBox: {
-          top: 200,
-          left: 50,
-          width: 300,
-          height: 50,
-          textColor: "#000000",
-        },
-        roleBox: {
-          top: 260,
-          left: 50,
-          width: 300,
-          height: 50,
-          textColor: "#000000",
-        },
-        messageBox: {
-          top: 320,
-          left: 50,
-          width: 300,
-          height: 100,
-          textColor: "#000000",
-        },
-        canvas: {
-          width: 400,
-          height: 400,
-        },
-      },
-      musicUrl: null,
-      visibility: "public",
-      status: "approved",
-      submissionCount: 0,
-      createdAt: "2024-01-01T00:00:00.000Z",
-      title: "Test Campaign",
-      description: "This is a test campaign.",
-      thumbnailUrl: null,
-    };
-
+  it("does not show a Facebook share button in the result dialog", async () => {
     renderTributeForm(vi.fn(), {
       resultImage: "https://cdn.example.com/result.jpg",
-      campaign,
+      campaign: TEST_CAMPAIGN,
     });
     await screen.findByText("Ảnh khung tri ân của bạn");
 
-    fireEvent.click(screen.getByText("Chia sẻ Facebook"));
-
-    expect(mockOpenShareDialog).toHaveBeenCalledWith(
-      "test-fb-app-id",
-      "https://example.com/dai-hoi",
-    );
+    expect(screen.queryByText("Chia sẻ Facebook")).toBeNull();
   });
 });

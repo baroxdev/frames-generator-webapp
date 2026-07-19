@@ -39,6 +39,7 @@ const CAMPAIGN = {
   title: null,
   description: null,
   thumbnailUrl: null,
+  headerImageUrl: null,
 };
 
 describe("CampaignsPage", () => {

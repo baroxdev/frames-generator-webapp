@@ -14,9 +14,11 @@ import {
   campaignsQueryOptions,
   createCampaignMutationOptions,
   slugAvailabilityQueryOptions,
+  updateCampaignDetailsMutationOptions,
   updateCampaignLayoutMutationOptions,
   updateCampaignSeoMutationOptions,
   uploadCampaignBackgroundMutationOptions,
+  uploadCampaignHeaderMutationOptions,
 } from './campaign.queries';
 
 const LAYOUT = {
@@ -42,6 +44,7 @@ const CAMPAIGN = {
   title: null,
   description: null,
   thumbnailUrl: null,
+  headerImageUrl: null,
 };
 
 describe('campaign.queries', () => {
@@ -129,5 +132,33 @@ describe('campaign.queries', () => {
     await mutationFn?.(file, { client: new QueryClient(), meta: undefined });
 
     expect(uploadCampaignBackground).toHaveBeenCalledWith(file);
+  });
+
+  it('uploadCampaignHeaderMutationOptions wraps storage.service.uploadCampaignHeader without adding its own logic', async () => {
+    const uploadCampaignHeader = vi.fn().mockResolvedValue('https://cdn.example.com/header.jpg');
+    vi.mocked(getStorageService).mockReturnValue({ uploadCampaignHeader } as unknown as StorageService);
+
+    const file = new File(['x'], 'header.jpg', { type: 'image/jpeg' });
+    const mutationFn = uploadCampaignHeaderMutationOptions().mutationFn;
+    await mutationFn?.(file, { client: new QueryClient(), meta: undefined });
+
+    expect(uploadCampaignHeader).toHaveBeenCalledWith(file);
+  });
+
+  it('updateCampaignDetailsMutationOptions wraps campaign.service.updateCampaignDetails without adding its own logic', async () => {
+    const updateCampaignDetails = vi.fn().mockResolvedValue(CAMPAIGN);
+    vi.mocked(getCampaignService).mockReturnValue({ updateCampaignDetails } as unknown as CampaignService);
+
+    const details = {
+      title: 'Đại hội Bến Tre',
+      description: 'Gửi lời chúc mừng.',
+      thumbnailUrl: 'https://cdn.example.com/thumb.jpg',
+      headerImageUrl: 'https://cdn.example.com/header.jpg',
+      layout: LAYOUT,
+    };
+    const mutationFn = updateCampaignDetailsMutationOptions().mutationFn;
+    await mutationFn?.({ campaignId: 'campaign-1', details }, { client: new QueryClient(), meta: undefined });
+
+    expect(updateCampaignDetails).toHaveBeenCalledWith('campaign-1', details);
   });
 });

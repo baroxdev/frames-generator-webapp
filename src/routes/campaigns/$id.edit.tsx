@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { EditCampaignLayoutPage } from "../../pages/campaigns/EditCampaignLayoutPage";
+import { EditCampaignPage } from "../../pages/campaigns/EditCampaignPage";
 
 export const Route = createFileRoute("/campaigns/$id/edit")({
   ssr: false,
-  component: EditCampaignLayoutPage,
+  component: EditCampaignPage,
 });

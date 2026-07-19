@@ -19,6 +19,9 @@ export interface ResolvedBoxProps {
 
 export interface ResolvedAvatarProps extends ResolvedBoxProps {
   shape: AvatarShape;
+  clipAxis?: 'horizontal' | 'vertical';
+  clipRatio?: number;
+  clipKeepEnd?: boolean;
 }
 
 export interface ResolvedFrameLayout {
@@ -51,6 +54,9 @@ export function resolveTemplateLayout(
       x: template.avatarBox.top,
       y: template.avatarBox.left,
       shape: template.avatarBox.shape,
+      clipAxis: template.avatarBox.clipAxis,
+      clipRatio: template.avatarBox.clipRatio,
+      clipKeepEnd: template.avatarBox.clipKeepEnd,
     },
     name: {
       content: content.fullName,

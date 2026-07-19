@@ -1,13 +1,19 @@
 import { ColorPicker, Segmented } from 'antd';
 import Konva from 'konva';
 import { useEffect, useRef, useState } from 'react';
-import { Image as KonvaImage, Layer, Rect, Stage, Text, Transformer } from 'react-konva';
+import { Image as KonvaImage, Layer, Rect, Shape, Stage, Text, Transformer } from 'react-konva';
 import { useHtmlImage } from '../../hooks/useHtmlImage';
+import { buildChordSegment, pointOnCircle, type ChordClipAxis } from '../../utils/circleClip';
 import { fitTextFontSize } from '../../utils/fitTextToBox';
 import { measureTextWidth } from '../../utils/measureText';
 import { fontAtSize, MESSAGE_FONT_TEMPLATE, NAME_ROLE_FONT_TEMPLATE } from '../../utils/textFonts';
 import type { AvatarShape, Box, CampaignLayout } from '../../templates/types';
 import { clampBoxToCanvas } from './layoutBoxMath';
+
+// Thickness (canvas px, unaffected by the Stage's on-screen `scale`) of the
+// draggable crop-line bar — a full-width/height strip rather than a thin
+// line, so it stays a comfortable drag target even on a resized-down stage.
+const CROP_BAR_THICKNESS = 14;
 
 type BoxKey = 'avatarBox' | 'nameBox' | 'roleBox' | 'messageBox';
 type TextBoxKey = Exclude<BoxKey, 'avatarBox'>;
@@ -112,6 +118,28 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
 
   const setAvatarShape = (shape: AvatarShape) => {
     onChange({ ...layout, avatarBox: { ...layout.avatarBox, shape } });
+  };
+
+  // Switching into crop mode (from "no clip") starts at an exact half —
+  // the most useful starting point to drag from in either direction.
+  const setClipAxis = (clipAxis: ChordClipAxis | null) => {
+    onChange({
+      ...layout,
+      avatarBox: {
+        ...layout.avatarBox,
+        clipAxis: clipAxis ?? undefined,
+        clipRatio: clipAxis ? layout.avatarBox.clipRatio ?? 0.5 : undefined,
+        clipKeepEnd: clipAxis ? layout.avatarBox.clipKeepEnd ?? false : undefined,
+      },
+    });
+  };
+
+  const setClipRatio = (clipRatio: number) => {
+    onChange({ ...layout, avatarBox: { ...layout.avatarBox, clipRatio } });
+  };
+
+  const flipClipSide = () => {
+    onChange({ ...layout, avatarBox: { ...layout.avatarBox, clipKeepEnd: !layout.avatarBox.clipKeepEnd } });
   };
 
   const setTextColor = (key: TextBoxKey, textColor: string) => {
@@ -256,6 +284,101 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
               );
             })}
 
+            {selected === 'avatarBox' && layout.avatarBox.shape === 'circle' && layout.avatarBox.clipAxis && (() => {
+              const box = layout.avatarBox;
+              const axis = box.clipAxis!;
+              const ratio = box.clipRatio ?? 0.5;
+              const keepEnd = box.clipKeepEnd ?? false;
+              const segment = buildChordSegment(box.width, box.height, axis, ratio, keepEnd);
+              const steps = Math.max(2, Math.round(segment.sweep / 4));
+              const { radius } = segment;
+              const centerX = box.width / 2;
+              const centerY = box.height / 2;
+
+              // The bar's own center line — for a horizontal cut this is the
+              // (shared) y of both chord endpoints; for a vertical cut, the
+              // shared x. Dragging the bar only ever moves along this one
+              // axis, and only across the circle's own diameter — not the
+              // full box, which can be non-square (the circle is inscribed
+              // in the smaller dimension).
+              const lineY = segment.start.y;
+              const lineX = segment.start.x;
+
+              return (
+                <>
+                  {/* Kept-region overlay: the arc between the two chord
+                      endpoints, closed back to the start with a straight
+                      line (the cut itself) — a true half-moon/segment, never
+                      a wedge through the center. */}
+                  <Shape
+                    x={box.left}
+                    y={box.top}
+                    listening={false}
+                    fill="rgba(37, 99, 235, 0.35)"
+                    sceneFunc={(context, shape) => {
+                      context.beginPath();
+                      context.moveTo(segment.start.x, segment.start.y);
+                      for (let i = 1; i <= steps; i += 1) {
+                        const angle = segment.startAngle + (segment.sweep * i) / steps;
+                        const point = pointOnCircle(box.width, box.height, angle);
+                        context.lineTo(point.x, point.y);
+                      }
+                      context.closePath();
+                      context.fillStrokeShape(shape);
+                    }}
+                  />
+
+                  {/* Draggable crop bar — a full-width (horizontal cut) or
+                      full-height (vertical cut) strip constrained to move
+                      along only that one axis; its position maps directly
+                      to `clipRatio`. */}
+                  {axis === 'horizontal' ? (
+                    <Rect
+                      x={box.left}
+                      y={box.top + lineY - CROP_BAR_THICKNESS / 2}
+                      width={box.width}
+                      height={CROP_BAR_THICKNESS}
+                      fill="rgba(37, 99, 235, 0.25)"
+                      stroke="#2563eb"
+                      strokeWidth={2}
+                      draggable
+                      dragBoundFunc={(pos) => {
+                        const minY = box.top + centerY - radius - CROP_BAR_THICKNESS / 2;
+                        const maxY = box.top + centerY + radius - CROP_BAR_THICKNESS / 2;
+                        return { x: box.left, y: Math.max(minY, Math.min(maxY, pos.y)) };
+                      }}
+                      onDragMove={(event) => {
+                        const newLineY = event.target.y() + CROP_BAR_THICKNESS / 2 - box.top;
+                        const newRatio = (newLineY - centerY) / (2 * radius) + 0.5;
+                        setClipRatio(Math.max(0, Math.min(1, newRatio)));
+                      }}
+                    />
+                  ) : (
+                    <Rect
+                      x={box.left + lineX - CROP_BAR_THICKNESS / 2}
+                      y={box.top}
+                      width={CROP_BAR_THICKNESS}
+                      height={box.height}
+                      fill="rgba(37, 99, 235, 0.25)"
+                      stroke="#2563eb"
+                      strokeWidth={2}
+                      draggable
+                      dragBoundFunc={(pos) => {
+                        const minX = box.left + centerX - radius - CROP_BAR_THICKNESS / 2;
+                        const maxX = box.left + centerX + radius - CROP_BAR_THICKNESS / 2;
+                        return { x: Math.max(minX, Math.min(maxX, pos.x)), y: box.top };
+                      }}
+                      onDragMove={(event) => {
+                        const newLineX = event.target.x() + CROP_BAR_THICKNESS / 2 - box.left;
+                        const newRatio = (newLineX - centerX) / (2 * radius) + 0.5;
+                        setClipRatio(Math.max(0, Math.min(1, newRatio)));
+                      }}
+                    />
+                  )}
+                </>
+              );
+            })()}
+
             <Transformer
               ref={transformerRef}
               rotateEnabled={false}
@@ -322,6 +445,36 @@ export function LayoutEditor({ layout, backgroundImageUrl, onChange }: LayoutEdi
                     { label: 'Vuông', value: 'square' },
                   ]}
                 />
+              </div>
+            )}
+
+            {selected === 'avatarBox' && layout.avatarBox.shape === 'circle' && (
+              <div className="flex flex-col gap-2">
+                <span className="text-xs text-slate-500">Cắt hình tròn</span>
+                <Segmented
+                  block
+                  value={layout.avatarBox.clipAxis ?? 'none'}
+                  onChange={(value) => setClipAxis(value === 'none' ? null : (value as ChordClipAxis))}
+                  options={[
+                    { label: 'Tròn đầy', value: 'none' },
+                    { label: 'Ngang', value: 'horizontal' },
+                    { label: 'Dọc', value: 'vertical' },
+                  ]}
+                />
+                {layout.avatarBox.clipAxis && (
+                  <>
+                    <p className="text-xs text-slate-400">
+                      Kéo thanh xanh trên hình để chọn phần ảnh giữ lại.
+                    </p>
+                    <button
+                      type="button"
+                      className="self-start text-xs text-blue-600 underline"
+                      onClick={flipClipSide}
+                    >
+                      Đổi phía giữ lại
+                    </button>
+                  </>
+                )}
               </div>
             )}
 

@@ -76,3 +76,13 @@
   );
   clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
 }
+
+
+/* TODO: trace why the tailwindcss of react-easy-crop is not being applied */
+.reactEasyCrop_Container {
+  position: relative!important;
+  width: 100%;
+  height: 40vh;
+  margin-top:16px;
+  margin-bottom:16px;
+}

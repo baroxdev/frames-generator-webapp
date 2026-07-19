@@ -153,14 +153,11 @@ export function CampaignPublicPage({
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 px-4 py-10">
       <div className="mx-auto max-w-5xl w-full">
-        <div className="aspect-[1280/300] bg-neutral-200 border rounded-xl overflow-hidden">
-          <img
-            src="https://placehold.co/1280x300?text=Campaign+Header"
-            // src={campaign.headerImage} future
-            alt="Campaign Header"
-            className="w-full h-full object-cover"
-          />
-        </div>
+        {campaign.headerImageUrl && (
+          <div className="rounded-xl border overflow-hidden">
+            <img src={campaign.headerImageUrl} alt="" className="w-full h-auto" />
+          </div>
+        )}
         <div className="gap-8 flex-1 h-full max-md:flex-col w-full items-center flex max-md:mb-[100px]">
           <div className="mx-auto mt-8 w-full max-md:max-w-full max-w-md">
             {isFull ? (
@@ -180,8 +177,6 @@ export function CampaignPublicPage({
                 }}
                 form={form}
                 turnstileSiteKey={env.VITE_TURNSTILE_SITE_KEY}
-                facebookAppId={env.VITE_FACEBOOK_APP_ID}
-                shareUrl={`${window.location.origin}/${campaign.slug}`}
                 isSubmitting={
                   isCompositing ||
                   uploadImageMutation.isPending ||

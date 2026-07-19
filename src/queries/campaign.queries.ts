@@ -1,7 +1,7 @@
 import { queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 import { getCampaignService } from '../services/campaign.service.instance';
 import { getStorageService } from '../services/storage.service.instance';
-import type { Campaign, CampaignSeo, CreateCampaignParams } from '../services/campaign.service';
+import type { Campaign, CampaignDetails, CampaignSeo, CreateCampaignParams } from '../services/campaign.service';
 import type { CampaignLayout } from '../templates';
 
 /**
@@ -62,6 +62,13 @@ export function uploadCampaignBackgroundMutationOptions(): UseMutationOptions<st
   };
 }
 
+/** Powers the header image upload on the unified edit page. */
+export function uploadCampaignHeaderMutationOptions(): UseMutationOptions<string, Error, File> {
+  return {
+    mutationFn: (file) => getStorageService().uploadCampaignHeader(file),
+  };
+}
+
 /** Powers both the creation-time editor's save step and the standalone re-edit flow. */
 export function updateCampaignLayoutMutationOptions(): UseMutationOptions<
   Campaign,
@@ -81,5 +88,16 @@ export function updateCampaignSeoMutationOptions(): UseMutationOptions<
 > {
   return {
     mutationFn: ({ campaignId, seo }) => getCampaignService().updateCampaignSeo(campaignId, seo),
+  };
+}
+
+/** Powers the unified edit page's single save action (SEO + header image + layout). */
+export function updateCampaignDetailsMutationOptions(): UseMutationOptions<
+  Campaign,
+  Error,
+  { campaignId: string; details: CampaignDetails }
+> {
+  return {
+    mutationFn: ({ campaignId, details }) => getCampaignService().updateCampaignDetails(campaignId, details),
   };
 }

@@ -27,6 +27,13 @@ export interface Campaign {
   title: string | null;
   description: string | null;
   thumbnailUrl: string | null;
+  /**
+   * Banner shown at the top of the public campaign page — distinct from
+   * `thumbnailUrl` (social-share/OG card). Optional; the banner block just
+   * doesn't render when unset. No aspect ratio is enforced, so it's
+   * rendered at its natural ratio wherever it's shown.
+   */
+  headerImageUrl: string | null;
 }
 
 export type CampaignSeo = {
@@ -35,11 +42,17 @@ export type CampaignSeo = {
   thumbnailUrl: string | null;
 };
 
+/** Everything the unified edit page (EditCampaignPage.tsx) saves in one go. */
+export type CampaignDetails = CampaignSeo & {
+  headerImageUrl: string | null;
+  layout: CampaignLayout;
+};
+
 export type CreateCampaignParams = {
   slug: string;
   layout: CampaignLayout;
   backgroundImageUrl: string;
-} & Partial<CampaignSeo>;
+} & Partial<CampaignSeo> & Partial<{ headerImageUrl: string }>;
 
 export interface CampaignService {
   isSlugAvailable(slug: string): Promise<boolean>;
@@ -68,6 +81,15 @@ export interface CampaignService {
    * reason `updateCampaignLayout` does — see that method's comment.
    */
   updateCampaignSeo(campaignId: string, seo: CampaignSeo): Promise<Campaign>;
+  /**
+   * Persists everything the unified edit page saves in one action (SEO
+   * fields, header image, layout) via the `set_campaign_details` RPC —
+   * see 0007_campaign_header_image.sql for why this replaced separate
+   * `updateCampaignLayout`/`updateCampaignSeo` calls from that page (those
+   * two methods and their RPCs stay, unused by this page, since other
+   * callers may still exist).
+   */
+  updateCampaignDetails(campaignId: string, details: CampaignDetails): Promise<Campaign>;
 }
 
 /** Thrown by every campaign.service method; `message` is always safe to show a user. */
@@ -107,6 +129,7 @@ type CampaignRow = {
   title: string | null;
   description: string | null;
   thumbnail_url: string | null;
+  header_image_url: string | null;
 };
 
 function toCampaign(row: CampaignRow): Campaign {
@@ -130,6 +153,7 @@ function toCampaign(row: CampaignRow): Campaign {
     title: row.title,
     description: row.description,
     thumbnailUrl: row.thumbnail_url,
+    headerImageUrl: row.header_image_url,
   };
 }
 
@@ -161,7 +185,7 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
       return Boolean(data);
     },
 
-    async createCampaign({ slug, layout, backgroundImageUrl, title, description, thumbnailUrl }) {
+    async createCampaign({ slug, layout, backgroundImageUrl, title, description, thumbnailUrl, headerImageUrl }) {
       const user = await requireUser(client);
 
       const { data, error } = await client
@@ -174,6 +198,7 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
           title: title ?? null,
           description: description ?? null,
           thumbnail_url: thumbnailUrl ?? null,
+          header_image_url: headerImageUrl ?? null,
           visibility: 'private',
           status: 'pending',
         })
@@ -241,6 +266,23 @@ export function createCampaignService(client: SupabaseClient): CampaignService {
 
       if (error) {
         throw new CampaignServiceError('Không thể lưu thông tin SEO. Vui lòng thử lại.', { cause: error });
+      }
+
+      return toCampaign(data as CampaignRow);
+    },
+
+    async updateCampaignDetails(campaignId, details) {
+      const { data, error } = await client.rpc('set_campaign_details', {
+        campaign_id_input: campaignId,
+        title_input: details.title,
+        description_input: details.description,
+        thumbnail_url_input: details.thumbnailUrl,
+        header_image_url_input: details.headerImageUrl,
+        layout_input: details.layout,
+      });
+
+      if (error) {
+        throw new CampaignServiceError(FALLBACK_MESSAGE, { cause: error });
       }
 
       return toCampaign(data as CampaignRow);

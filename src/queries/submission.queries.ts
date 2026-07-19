@@ -1,7 +1,8 @@
 import { queryOptions, type UseMutationOptions } from '@tanstack/react-query';
-import { getStorageService } from '../services/storage.service.instance';
 import { getSubmissionService } from '../services/submission.service.instance';
-import type { Submission, SubmitTributeParams } from '../services/submission.service';
+import { SubmissionServiceError, type Submission, type SubmitTributeParams } from '../services/submission.service';
+import { submitTributeServerFn } from '../lib/submitTributeServerFn';
+import { uploadSubmissionImage } from '../lib/uploadSubmissionImage';
 
 /**
  * Centralized, typed query keys + mutation option factories for the
@@ -23,19 +24,37 @@ export function submissionsByCampaignQueryOptions(campaignId: string) {
   });
 }
 
+/**
+ * Compresses and uploads the visitor's composited tribute image via
+ * `uploadSubmissionImage` (see that module for why only the presign step
+ * moves server-side, not the file body).
+ */
 export function uploadSubmissionImageMutationOptions(): UseMutationOptions<
   string,
   Error,
   { campaignId: string; image: Blob }
 > {
   return {
-    mutationFn: ({ campaignId, image }) => getStorageService().uploadSubmissionImage(campaignId, image),
+    mutationFn: ({ campaignId, image }) => uploadSubmissionImage(campaignId, image),
   };
 }
 
+/**
+ * Routes the visitor's tribute submission through the `submitTributeServerFn`
+ * server function instead of calling Supabase directly from the browser
+ * (see that module's doc comment for why errors come back as a plain result
+ * object here, and get re-thrown as the real `SubmissionServiceError` the
+ * rest of the app already expects).
+ */
 export function submitTributeMutationOptions(): UseMutationOptions<{ id: string }, Error, SubmitTributeParams> {
   return {
-    mutationFn: (params) => getSubmissionService().submitTribute(params),
+    mutationFn: async (params) => {
+      const result = await submitTributeServerFn({ data: params });
+      if (!result.ok) {
+        throw new SubmissionServiceError(result.message, { code: result.code });
+      }
+      return { id: result.id };
+    },
   };
 }
 

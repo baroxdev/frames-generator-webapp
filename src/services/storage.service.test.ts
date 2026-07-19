@@ -79,59 +79,37 @@ describe('storage.service', () => {
     await expect(service.uploadCampaignBackground(ORIGINAL_FILE)).rejects.toBeInstanceOf(StorageServiceError);
   });
 
-  describe('uploadSubmissionImage', () => {
-    const COMPOSITED_IMAGE = new Blob(['composited'], { type: 'image/jpeg' });
-    const SUBMISSION_PRESIGNED = {
-      uploadUrl: 'https://r2.example.com/submissions/campaign-1/abc.jpg?X-Amz-Signature=...',
-      publicUrl: 'https://cdn.example.com/submissions/campaign-1/abc.jpg',
+  describe('uploadCampaignHeader', () => {
+    const HEADER_PRESIGNED = {
+      uploadUrl: 'https://r2.example.com/campaign-headers/user-1/abc.jpg?X-Amz-Signature=...',
+      publicUrl: 'https://cdn.example.com/campaign-headers/user-1/abc.jpg',
     };
 
-    it('compresses the composited image (targeting <700KB, see image.service.ts), PUTs the result to R2, and returns the public URL', async () => {
-      const compressedSubmissionImage = new File(['compressed-tribute'], 'tribute.jpg', { type: 'image/jpeg' });
-      mockCompressImage.mockResolvedValue(compressedSubmissionImage);
-      const invoke = vi.fn().mockResolvedValue({ data: SUBMISSION_PRESIGNED, error: null });
+    it('compresses the file, requests a presigned URL under the campaign-headers folder, PUTs the compressed file to R2, and returns the public URL', async () => {
+      const invoke = vi.fn().mockResolvedValue({ data: HEADER_PRESIGNED, error: null });
       const client = createMockSupabaseClient({ invoke });
       const service = createStorageService(client);
 
-      const result = await service.uploadSubmissionImage('campaign-1', COMPOSITED_IMAGE);
+      const result = await service.uploadCampaignHeader(ORIGINAL_FILE);
 
-      expect(mockCompressImage).toHaveBeenCalledWith(expect.any(File));
-      expect(invoke).toHaveBeenCalledWith('submission-presigned-upload', {
-        body: { campaignId: 'campaign-1' },
+      expect(mockCompressImage).toHaveBeenCalledWith(ORIGINAL_FILE);
+      expect(invoke).toHaveBeenCalledWith('r2-presigned-upload', {
+        body: { contentType: 'image/jpeg', folder: 'campaign-headers' },
       });
       expect(fetch).toHaveBeenCalledWith(
-        SUBMISSION_PRESIGNED.uploadUrl,
-        expect.objectContaining({
-          method: 'PUT',
-          headers: { 'Content-Type': 'image/jpeg' },
-          body: compressedSubmissionImage,
-        }),
+        HEADER_PRESIGNED.uploadUrl,
+        expect.objectContaining({ method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: COMPRESSED_FILE }),
       );
-      expect(result).toBe(SUBMISSION_PRESIGNED.publicUrl);
-    });
-
-    it('falls back to the uncompressed composited image when compression fails', async () => {
-      mockCompressImage.mockResolvedValue(null);
-      const invoke = vi.fn().mockResolvedValue({ data: SUBMISSION_PRESIGNED, error: null });
-      const client = createMockSupabaseClient({ invoke });
-      const service = createStorageService(client);
-
-      await service.uploadSubmissionImage('campaign-1', COMPOSITED_IMAGE);
-
-      expect(fetch).toHaveBeenCalledWith(
-        SUBMISSION_PRESIGNED.uploadUrl,
-        expect.objectContaining({ body: COMPOSITED_IMAGE }),
-      );
+      expect(result).toBe(HEADER_PRESIGNED.publicUrl);
     });
 
     it('throws a StorageServiceError when requesting the presigned URL fails', async () => {
-      const invoke = vi.fn().mockResolvedValue({ data: null, error: { message: 'campaign not approved' } });
+      const invoke = vi.fn().mockResolvedValue({ data: null, error: { message: 'unauthorized' } });
       const client = createMockSupabaseClient({ invoke });
       const service = createStorageService(client);
 
-      await expect(service.uploadSubmissionImage('campaign-1', COMPOSITED_IMAGE)).rejects.toBeInstanceOf(
-        StorageServiceError,
-      );
+      await expect(service.uploadCampaignHeader(ORIGINAL_FILE)).rejects.toBeInstanceOf(StorageServiceError);
     });
   });
+
 });

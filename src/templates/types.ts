@@ -34,6 +34,26 @@ export interface CanvasSize {
 /** Box config for the avatar photo. */
 export interface AvatarBoxConfig extends Box {
   shape: AvatarShape;
+  /**
+   * A single straight (horizontal or vertical) crop cut through the circle
+   * — a half-moon/D-shape crop, not a pie slice out of the middle — only
+   * meaningful when `shape === 'circle'`. Omit (leave `clipAxis` unset) for
+   * a full circle — today's default behavior, unchanged.
+   *
+   * `clipRatio` (0-1) is the cut line's position: for `horizontal`, `0`
+   * puts the line at the circle's top edge and `1` at its bottom edge
+   * (`0.5` = exactly through the center, a true half-circle); for
+   * `vertical`, `0` is the left edge and `1` the right edge. Defaults to
+   * `0.5` when `clipAxis` is set but `clipRatio` is omitted.
+   *
+   * `clipKeepEnd` picks which side of that line survives — for
+   * `horizontal`, `false` (default) keeps the top, `true` keeps the
+   * bottom; for `vertical`, `false` keeps the left, `true` keeps the
+   * right. See `src/utils/circleClip.ts`.
+   */
+  clipAxis?: 'horizontal' | 'vertical';
+  clipRatio?: number;
+  clipKeepEnd?: boolean;
 }
 
 /** Box config for a text field (name, role, message). */

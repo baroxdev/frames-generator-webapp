@@ -1,6 +1,5 @@
 import {
   DownloadOutlined,
-  FacebookOutlined,
   LoadingOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
@@ -8,7 +7,6 @@ import { Button, Form, Input, message, Modal, Upload } from "antd";
 import ImgCrop from "antd-img-crop";
 import { useEffect, useRef, useState } from "react";
 import { Controller, type UseFormReturn } from "react-hook-form";
-import { loadFacebookSdk, openShareDialog } from "../../lib/facebookSdk";
 import { type SubmissionInput } from "../../schemas/submission.schema";
 import { Campaign } from "../../services/campaign.service";
 import {
@@ -24,8 +22,6 @@ export type TributeSubmitValues = SubmissionInput;
 
 type TributeFormProps = {
   turnstileSiteKey: string;
-  facebookAppId: string;
-  shareUrl: string;
   isSubmitting: boolean;
   form: UseFormReturn<TributeSubmitValues>;
   onSubmit: (values: TributeSubmitValues) => Promise<void>;
@@ -37,8 +33,6 @@ type TributeFormProps = {
 
 export function TributeForm({
   turnstileSiteKey,
-  facebookAppId,
-  shareUrl,
   isSubmitting,
   onSubmit,
   form,
@@ -61,14 +55,6 @@ export function TributeForm({
 
     return () => URL.revokeObjectURL(url);
   }, [avatarFile]);
-
-  // Warms the Facebook SDK ahead of time so that when the visitor clicks
-  // "Chia sẻ Facebook" in the result dialog, FB.ui() can be called
-  // synchronously within the click handler — see facebookSdk.ts for why
-  // that matters for the popup not getting blocked.
-  useEffect(() => {
-    loadFacebookSdk(facebookAppId);
-  }, [facebookAppId]);
 
   // Once a submission produces a result image, surface it straight away in
   // the share/download dialog instead of leaving the visitor to notice the
@@ -111,10 +97,6 @@ export function TributeForm({
     } finally {
       setIsDownloading(false);
     }
-  };
-
-  const handleShareFacebook = () => {
-    openShareDialog(facebookAppId, shareUrl);
   };
 
   const handleSubmit = form.handleSubmit(async (values) => {
@@ -322,19 +304,12 @@ export function TributeForm({
             <div className="flex w-full items-center gap-3">
               <Button
                 block
+                type="primary"
                 icon={<DownloadOutlined />}
                 loading={isDownloading}
                 onClick={handleDownload}
               >
                 Tải về máy
-              </Button>
-              <Button
-                block
-                type="primary"
-                icon={<FacebookOutlined />}
-                onClick={handleShareFacebook}
-              >
-                Chia sẻ Facebook
               </Button>
             </div>
           </div>

@@ -56,10 +56,21 @@ function checkBoxWithinCanvas(
  * docs/specs/free-form-layout-editor.md), even though it still exists on
  * old, pre-editor rows (see `campaignLayoutRowSchema` below, used for those).
  */
+// Straight circle-crop cut (see AvatarBoxConfig.clipAxis/clipRatio/clipKeepEnd
+// in src/templates/types.ts).
+const clipFields = {
+  clipAxis: z.enum(['horizontal', 'vertical']).optional(),
+  clipRatio: z.number().min(0).max(1).optional(),
+  clipKeepEnd: z.boolean().optional(),
+};
+
 export const campaignLayoutSchema = z
   .object({
     canvas: canvasSchema,
-    avatarBox: boxSchema.extend({ shape: z.enum(['circle', 'square']) }),
+    avatarBox: boxSchema.extend({
+      shape: z.enum(['circle', 'square']),
+      ...clipFields,
+    }),
     nameBox: textBoxSchema,
     roleBox: textBoxSchema,
     messageBox: textBoxSchema,
@@ -79,7 +90,10 @@ export const campaignLayoutSchema = z
  */
 export const campaignLayoutRowSchema = z.object({
   canvas: canvasSchema,
-  avatarBox: boxSchema.extend({ shape: z.enum(['circle', 'square', 'diamond']) }),
+  avatarBox: boxSchema.extend({
+    shape: z.enum(['circle', 'square', 'diamond']),
+    ...clipFields,
+  }),
   nameBox: textBoxSchema,
   roleBox: textBoxSchema,
   messageBox: textBoxSchema,

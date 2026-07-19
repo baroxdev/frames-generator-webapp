@@ -1,13 +1,22 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import type { StorageService } from '../services/storage.service';
 import type { SubmissionService } from '../services/submission.service';
 
-vi.mock('../services/storage.service.instance', () => ({ getStorageService: vi.fn() }));
 vi.mock('../services/submission.service.instance', () => ({ getSubmissionService: vi.fn() }));
 
-import { getStorageService } from '../services/storage.service.instance';
+const { mockSubmitTributeServerFn, mockUploadSubmissionImage } = vi.hoisted(() => ({
+  mockSubmitTributeServerFn: vi.fn(),
+  mockUploadSubmissionImage: vi.fn(),
+}));
+vi.mock('../lib/submitTributeServerFn', () => ({
+  submitTributeServerFn: mockSubmitTributeServerFn,
+}));
+vi.mock('../lib/uploadSubmissionImage', () => ({
+  uploadSubmissionImage: mockUploadSubmissionImage,
+}));
+
 import { getSubmissionService } from '../services/submission.service.instance';
+import { SubmissionServiceError } from '../services/submission.service';
 import {
   deleteSubmissionMutationOptions,
   submissionsByCampaignQueryOptions,
@@ -16,33 +25,48 @@ import {
 } from './submission.queries';
 
 describe('submission.queries', () => {
-  it('uploadSubmissionImageMutationOptions wraps storage.service.uploadSubmissionImage without adding its own logic', async () => {
-    const uploadSubmissionImage = vi.fn().mockResolvedValue('https://cdn.example.com/submissions/campaign-1/a.jpg');
-    vi.mocked(getStorageService).mockReturnValue({ uploadSubmissionImage } as unknown as StorageService);
+  it('uploadSubmissionImageMutationOptions wraps uploadSubmissionImage without adding its own logic', async () => {
+    mockUploadSubmissionImage.mockReset().mockResolvedValue('https://cdn.example.com/submissions/campaign-1/a.jpg');
 
     const image = new Blob(['x'], { type: 'image/jpeg' });
     const mutationFn = uploadSubmissionImageMutationOptions().mutationFn;
     await mutationFn?.({ campaignId: 'campaign-1', image }, { client: new QueryClient(), meta: undefined });
 
-    expect(uploadSubmissionImage).toHaveBeenCalledWith('campaign-1', image);
+    expect(mockUploadSubmissionImage).toHaveBeenCalledWith('campaign-1', image);
   });
 
-  it('submitTributeMutationOptions wraps submission.service.submitTribute without adding its own logic', async () => {
-    const submitTribute = vi.fn().mockResolvedValue({ id: 'submission-1' });
-    vi.mocked(getSubmissionService).mockReturnValue({ submitTribute } as unknown as SubmissionService);
+  const TRIBUTE_PARAMS = {
+    campaignId: 'campaign-1',
+    turnstileToken: 'token-abc',
+    fullName: 'Nguyễn Văn A',
+    role: 'Cựu học sinh',
+    message: 'Chúc mừng đại hội!',
+    imageUrl: 'https://cdn.example.com/submissions/campaign-1/a.jpg',
+  };
 
-    const params = {
-      campaignId: 'campaign-1',
-      turnstileToken: 'token-abc',
-      fullName: 'Nguyễn Văn A',
-      role: 'Cựu học sinh',
-      message: 'Chúc mừng đại hội!',
-      imageUrl: 'https://cdn.example.com/submissions/campaign-1/a.jpg',
-    };
+  it('submitTributeMutationOptions calls submitTributeServerFn (not Supabase directly) and returns the id on success', async () => {
+    mockSubmitTributeServerFn.mockReset().mockResolvedValue({ ok: true, id: 'submission-1' });
+
     const mutationFn = submitTributeMutationOptions().mutationFn;
-    await mutationFn?.(params, { client: new QueryClient(), meta: undefined });
+    const result = await mutationFn?.(TRIBUTE_PARAMS, { client: new QueryClient(), meta: undefined });
 
-    expect(submitTribute).toHaveBeenCalledWith(params);
+    expect(mockSubmitTributeServerFn).toHaveBeenCalledWith({ data: TRIBUTE_PARAMS });
+    expect(result).toEqual({ id: 'submission-1' });
+  });
+
+  it('submitTributeMutationOptions re-throws a SubmissionServiceError (with code) when the server function reports failure', async () => {
+    mockSubmitTributeServerFn.mockReset().mockResolvedValue({
+      ok: false,
+      message: 'Chiến dịch đã đủ số lượng gửi. Vui lòng thử lại sau.',
+      code: 'CAMPAIGN_FULL',
+    });
+
+    const mutationFn = submitTributeMutationOptions().mutationFn;
+    await expect(
+      mutationFn?.(TRIBUTE_PARAMS, { client: new QueryClient(), meta: undefined }),
+    ).rejects.toMatchObject(
+      new SubmissionServiceError('Chiến dịch đã đủ số lượng gửi. Vui lòng thử lại sau.', { code: 'CAMPAIGN_FULL' }),
+    );
   });
 
   it('submissionsByCampaignQueryOptions wraps submission.service.listSubmissionsForCampaign without adding its own logic', async () => {

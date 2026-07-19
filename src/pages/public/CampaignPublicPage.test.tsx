@@ -108,6 +108,7 @@ const APPROVED_CAMPAIGN = {
   title: null,
   description: null,
   thumbnailUrl: null,
+  headerImageUrl: null,
 };
 
 const COMPOSITED_BLOB = new Blob(["composited"], { type: "image/jpeg" });
@@ -126,7 +127,7 @@ describe("CampaignPublicPage", () => {
   });
 
   it("shows the not-found page, with no campaign content, when the campaign is null (pending/rejected/suspended/nonexistent — RLS makes these indistinguishable)", async () => {
-    renderWithCampaign(null);
+    await renderWithCampaign(null);
 
     await screen.findByText("404");
     expect(screen.queryByAltText("Hiện đại")).toBeNull();
@@ -142,8 +143,32 @@ describe("CampaignPublicPage", () => {
     expect(backgroundImg).toBeTruthy();
   });
 
+  it("doesn't render a header banner when the campaign has no header image set", async () => {
+    const { container } = await renderWithCampaign(APPROVED_CAMPAIGN);
+
+    await screen.findByText("submit-tribute-form");
+    // "h-auto" is only ever applied to the header banner <img> (see the
+    // natural-aspect-ratio test below) — its absence means the block didn't render.
+    expect(container.querySelector("img.h-auto")).toBeNull();
+  });
+
+  it("renders the header image at its natural aspect ratio (no fixed aspect wrapper) when set", async () => {
+    const { container } = await renderWithCampaign({
+      ...APPROVED_CAMPAIGN,
+      headerImageUrl: "https://cdn.example.com/header.jpg",
+    });
+
+    await screen.findByText("submit-tribute-form");
+    const headerImg = container.querySelector(
+      `img[src="https://cdn.example.com/header.jpg"]`,
+    );
+    expect(headerImg).toBeTruthy();
+    expect(headerImg?.className).toContain("h-auto");
+    expect(headerImg?.className).not.toContain("aspect-");
+  });
+
   it('shows a "campaign full" notice instead of the form when the submission cap has been reached', async () => {
-    renderWithCampaign({
+    await renderWithCampaign({
       ...APPROVED_CAMPAIGN,
       submissionCount: 5000,
     });
@@ -157,7 +182,7 @@ describe("CampaignPublicPage", () => {
       "https://cdn.example.com/submissions/campaign-1/abc.jpg",
     );
     mockSubmitTribute.mockResolvedValue({ id: "submission-1" });
-    renderWithCampaign(APPROVED_CAMPAIGN);
+    await renderWithCampaign(APPROVED_CAMPAIGN);
 
     await screen.findByText("submit-tribute-form");
     fireEvent.click(screen.getByText("submit-tribute-form"));
@@ -190,7 +215,7 @@ describe("CampaignPublicPage", () => {
   it("reports a friendly error and never calls upload/submit when compositing itself fails", async () => {
     const failure = new Error("rasterization failed");
     mockCompositeFrameToBlob.mockRejectedValue(failure);
-    renderWithCampaign(APPROVED_CAMPAIGN);
+    await renderWithCampaign(APPROVED_CAMPAIGN);
 
     await screen.findByText("submit-tribute-form");
     fireEvent.click(screen.getByText("submit-tribute-form"));
@@ -218,7 +243,7 @@ describe("CampaignPublicPage", () => {
         { code: "CAMPAIGN_FULL" },
       ),
     );
-    renderWithCampaign(APPROVED_CAMPAIGN);
+    await renderWithCampaign(APPROVED_CAMPAIGN);
 
     await screen.findByText("submit-tribute-form");
     fireEvent.click(screen.getByText("submit-tribute-form"));
@@ -230,7 +255,7 @@ describe("CampaignPublicPage", () => {
   it("reports a friendly error for any other submission failure and stays on the form", async () => {
     const failure = new Error("network error");
     mockUploadSubmissionImage.mockRejectedValue(failure);
-    renderWithCampaign(APPROVED_CAMPAIGN);
+    await renderWithCampaign(APPROVED_CAMPAIGN);
 
     await screen.findByText("submit-tribute-form");
     fireEvent.click(screen.getByText("submit-tribute-form"));

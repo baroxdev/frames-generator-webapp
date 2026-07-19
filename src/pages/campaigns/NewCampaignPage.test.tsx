@@ -7,6 +7,7 @@ const {
   mockUseAuthSession,
   mockNavigate,
   mockUpload,
+  mockUploadHeader,
   mockCreate,
   mockIsSlugAvailable,
   mockReportCampaignError,
@@ -15,6 +16,7 @@ const {
   mockUseAuthSession: vi.fn(),
   mockNavigate: vi.fn(),
   mockUpload: vi.fn(),
+  mockUploadHeader: vi.fn(),
   mockCreate: vi.fn(),
   mockIsSlugAvailable: vi.fn(),
   mockReportCampaignError: vi.fn(),
@@ -41,6 +43,7 @@ vi.mock("../../hooks/useAuthSession", () => ({
 vi.mock("../../queries/campaign.queries", () => ({
   campaignKeys: { list: () => ["campaigns", "list"] },
   uploadCampaignBackgroundMutationOptions: () => ({ mutationFn: mockUpload }),
+  uploadCampaignHeaderMutationOptions: () => ({ mutationFn: mockUploadHeader }),
   createCampaignMutationOptions: () => ({ mutationFn: mockCreate }),
   slugAvailabilityQueryOptions: (slug: string) => ({
     queryKey: ["campaigns", "slug-availability", slug],
@@ -82,6 +85,7 @@ describe("NewCampaignPage", () => {
     mockUseAuthSession.mockReset();
     mockNavigate.mockClear();
     mockUpload.mockReset();
+    mockUploadHeader.mockReset();
     mockCreate.mockReset();
     mockIsSlugAvailable.mockReset();
     mockIsSlugAvailable.mockResolvedValue(true);
@@ -243,8 +247,12 @@ describe("NewCampaignPage", () => {
     const thumbnailFile = new File(["thumb"], "thumb.jpg", {
       type: "image/jpeg",
     });
+    // fillValidForm() already selected a background file, which swaps that
+    // section's <Upload.Dragger> input out for a preview (no input) — so
+    // only the thumbnail (0) and header banner (1) inputs remain at this
+    // point, in that DOM order.
     const fileInputs = document.querySelectorAll('input[type="file"]');
-    fireEvent.change(fileInputs[fileInputs.length - 1], {
+    fireEvent.change(fileInputs[0], {
       target: { files: [thumbnailFile] },
     });
 
@@ -263,7 +271,46 @@ describe("NewCampaignPage", () => {
     );
   });
 
-  it("omits title, description, and thumbnailUrl from the create payload when left blank", async () => {
+  it("includes an uploaded header image URL in the create payload when one is chosen", async () => {
+    mockUpload.mockResolvedValue(
+      "https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg",
+    );
+    mockUploadHeader.mockResolvedValue(
+      "https://cdn.example.com/campaign-headers/user-1/header.jpg",
+    );
+    mockCreate.mockResolvedValue({ id: "campaign-1", slug: "dai-hoi-ben-tre" });
+    await renderWithProviders(<NewCampaignPage />);
+
+    fillValidForm();
+    await screen.findByText("layout-editor-placeholder");
+    const headerFile = new File(["header"], "header.jpg", {
+      type: "image/jpeg",
+    });
+    // See the thumbnail test above: only thumbnail (0) and header banner (1)
+    // inputs remain once fillValidForm() has already picked a background.
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(fileInputs[1], { target: { files: [headerFile] } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Tạo chiến dịch" }));
+
+    await waitFor(() =>
+      expect(mockUploadHeader).toHaveBeenCalledWith(
+        headerFile,
+        expect.anything(),
+      ),
+    );
+    await waitFor(() =>
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headerImageUrl:
+            "https://cdn.example.com/campaign-headers/user-1/header.jpg",
+        }),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it("omits title, description, thumbnailUrl, and headerImageUrl from the create payload when left blank", async () => {
     mockUpload.mockResolvedValue(
       "https://cdn.example.com/campaign-backgrounds/user-1/bg.jpg",
     );
@@ -279,6 +326,8 @@ describe("NewCampaignPage", () => {
     expect(payload).not.toHaveProperty("title");
     expect(payload).not.toHaveProperty("description");
     expect(payload).not.toHaveProperty("thumbnailUrl");
+    expect(payload).not.toHaveProperty("headerImageUrl");
+    expect(mockUploadHeader).not.toHaveBeenCalled();
   });
 
   it("reports a friendly error and stays on the page when the upload fails", async () => {

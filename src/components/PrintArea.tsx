@@ -54,6 +54,9 @@ const PrintArea = React.forwardRef<HTMLDivElement, PrintAreaProps>(
             y={layout.avatar.y}
             content={layout.avatar.content}
             shape={layout.avatar.shape}
+            clipAxis={layout.avatar.clipAxis}
+            clipRatio={layout.avatar.clipRatio}
+            clipKeepEnd={layout.avatar.clipKeepEnd}
           />
           <Name
             width={layout.name.width}

@@ -25,6 +25,7 @@ const CAMPAIGN_ROW = {
   title: null,
   description: null,
   thumbnail_url: null,
+  header_image_url: null,
 };
 
 type MockQueryBuilder = {
@@ -122,6 +123,7 @@ describe('campaign.service', () => {
         title: null,
         description: null,
         thumbnailUrl: null,
+        headerImageUrl: null,
       });
       expect(client.from).toHaveBeenCalledWith('campaigns');
     });
@@ -137,6 +139,7 @@ describe('campaign.service', () => {
         title: 'Đại hội Bến Tre',
         description: 'Gửi lời chúc mừng của bạn.',
         thumbnailUrl: 'https://cdn.example.com/thumb.jpg',
+        headerImageUrl: 'https://cdn.example.com/header.jpg',
       });
 
       expect(builder.insert).toHaveBeenCalledWith(
@@ -144,6 +147,7 @@ describe('campaign.service', () => {
           title: 'Đại hội Bến Tre',
           description: 'Gửi lời chúc mừng của bạn.',
           thumbnail_url: 'https://cdn.example.com/thumb.jpg',
+          header_image_url: 'https://cdn.example.com/header.jpg',
         }),
       );
 
@@ -154,7 +158,12 @@ describe('campaign.service', () => {
       });
 
       expect(builder.insert).toHaveBeenLastCalledWith(
-        expect.objectContaining({ title: null, description: null, thumbnail_url: null }),
+        expect.objectContaining({
+          title: null,
+          description: null,
+          thumbnail_url: null,
+          header_image_url: null,
+        }),
       );
     });
 
@@ -249,6 +258,53 @@ describe('campaign.service', () => {
 
       await expect(
         service.updateCampaignSeo('campaign-1', { title: null, description: null, thumbnailUrl: null }),
+      ).rejects.toBeInstanceOf(CampaignServiceError);
+    });
+  });
+
+  describe('updateCampaignDetails', () => {
+    it('calls the set_campaign_details RPC and returns the updated campaign mapped to camelCase', async () => {
+      const updatedRow = {
+        ...CAMPAIGN_ROW,
+        title: 'Đại hội Bến Tre',
+        description: 'Gửi lời chúc mừng của bạn.',
+        thumbnail_url: 'https://cdn.example.com/thumb.jpg',
+        header_image_url: 'https://cdn.example.com/header.jpg',
+      };
+      const { client } = createMockSupabaseClient({ rpc: { data: updatedRow, error: null } });
+      const service = createCampaignService(client);
+
+      const result = await service.updateCampaignDetails('campaign-1', {
+        title: 'Đại hội Bến Tre',
+        description: 'Gửi lời chúc mừng của bạn.',
+        thumbnailUrl: 'https://cdn.example.com/thumb.jpg',
+        headerImageUrl: 'https://cdn.example.com/header.jpg',
+        layout: LAYOUT,
+      });
+
+      expect(client.rpc).toHaveBeenCalledWith('set_campaign_details', {
+        campaign_id_input: 'campaign-1',
+        title_input: 'Đại hội Bến Tre',
+        description_input: 'Gửi lời chúc mừng của bạn.',
+        thumbnail_url_input: 'https://cdn.example.com/thumb.jpg',
+        header_image_url_input: 'https://cdn.example.com/header.jpg',
+        layout_input: LAYOUT,
+      });
+      expect(result.headerImageUrl).toBe('https://cdn.example.com/header.jpg');
+    });
+
+    it('throws a friendly CampaignServiceError when the RPC fails', async () => {
+      const { client } = createMockSupabaseClient({ rpc: { data: null, error: { message: 'not found' } } });
+      const service = createCampaignService(client);
+
+      await expect(
+        service.updateCampaignDetails('campaign-1', {
+          title: null,
+          description: null,
+          thumbnailUrl: null,
+          headerImageUrl: null,
+          layout: LAYOUT,
+        }),
       ).rejects.toBeInstanceOf(CampaignServiceError);
     });
   });

@@ -3,7 +3,13 @@ import imageService from './image.service';
 
 export interface StorageService {
   uploadCampaignBackground(file: File): Promise<string>;
-  uploadSubmissionImage(campaignId: string, image: Blob): Promise<string>;
+  /**
+   * Uploads a campaign's public-page header banner. Any aspect ratio is
+   * accepted (no crop step) — only the same size/format compression as
+   * `uploadCampaignBackground` applies. Stored under its own
+   * `campaign-headers/` R2 prefix, see r2-presigned-upload's `folder` param.
+   */
+  uploadCampaignHeader(file: File): Promise<string>;
 }
 
 export class StorageServiceError extends Error {
@@ -57,10 +63,12 @@ export function createStorageService(client: SupabaseClient): StorageService {
         contentType: compressed.type,
       });
     },
-    async uploadSubmissionImage(campaignId, image) {
-      const asFile = new File([image], 'tribute.jpg', { type: 'image/jpeg' });
-      const compressed = (await imageService.compressImage(asFile)) ?? image;
-      return uploadViaPresignedUrl(client, 'submission-presigned-upload', compressed, 'image/jpeg', { campaignId });
+    async uploadCampaignHeader(file) {
+      const compressed = (await imageService.compressImage(file)) ?? file;
+      return uploadViaPresignedUrl(client, 'r2-presigned-upload', compressed, compressed.type, {
+        contentType: compressed.type,
+        folder: 'campaign-headers',
+      });
     },
   };
 }

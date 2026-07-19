@@ -112,16 +112,11 @@ function buildColumns(facebookAppId: string): ColumnsType<Campaign> {
       render: (_: unknown, campaign: Campaign) => (
         <span className="flex items-center gap-3">
           <Link to="/campaigns/$id/edit" params={{ id: campaign.id }}>
-            Chỉnh sửa bố cục
+            Chỉnh sửa
           </Link>
           <Link to="/campaigns/$id/submissions" params={{ id: campaign.id }}>
             Lượt gửi
           </Link>
-          {/* No /campaigns/$id/seo route exists yet (CampaignSeoPage is unrouted,
-              same as before this migration) — kept as a dead link to preserve
-              prior behavior exactly; wiring it up is a separate change. */}
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- see comment above: intentionally unrouted */}
-          <Link to={`/campaigns/${campaign.id}/seo` as any}>SEO & chia sẻ</Link>
           {isPubliclyReachable(campaign) && (
             <Button
               type="text"

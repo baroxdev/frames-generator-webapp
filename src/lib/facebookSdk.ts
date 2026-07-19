@@ -64,17 +64,3 @@ export function loadFacebookSdk(appId: string): Promise<FacebookSdk> {
 
   return sdkPromise;
 }
-
-/**
- * Opens Facebook's Share Dialog for `href` via `FB.ui`, loading/warming the
- * SDK first if it isn't already on the page — the same flow validated in
- * CampaignsPage's original `shareToFacebook`, kept here so other callers
- * (e.g. the visitor-facing result dialog) don't have to re-derive it.
- */
-export function openShareDialog(appId: string, href: string): void {
-  if (window.FB) {
-    window.FB.ui({ method: 'share', href }, () => undefined);
-    return;
-  }
-  loadFacebookSdk(appId).then((FB) => FB.ui({ method: 'share', href }, () => undefined));
-}

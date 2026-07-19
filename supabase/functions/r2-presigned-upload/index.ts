@@ -45,6 +45,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 
 const ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+// Object-key prefix a caller may request via `folder` in the body — keeps
+// the bucket organized by purpose (backgrounds/thumbnails vs. the public
+// page's header banner) without needing a separate edge function per
+// prefix. Defaults to the original prefix so existing callers that don't
+// send `folder` keep writing to the same place as before this was added.
+const ALLOWED_FOLDERS = new Set(['campaign-backgrounds', 'campaign-headers']);
+const DEFAULT_FOLDER = 'campaign-backgrounds';
 const PRESIGNED_URL_TTL_SECONDS = 60 * 5;
 
 // The browser client (client.functions.invoke) sends Authorization and
@@ -124,7 +131,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
-  let body: { contentType?: unknown };
+  let body: { contentType?: unknown; folder?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -136,7 +143,12 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'contentType must be one of image/jpeg, image/png, image/webp' }, 400);
   }
 
-  const objectKey = `campaign-backgrounds/${user.id}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
+  const folder = body.folder ?? DEFAULT_FOLDER;
+  if (typeof folder !== 'string' || !ALLOWED_FOLDERS.has(folder)) {
+    return jsonResponse({ error: `folder must be one of ${[...ALLOWED_FOLDERS].join(', ')}` }, 400);
+  }
+
+  const objectKey = `${folder}/${user.id}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
 
   const r2 = new AwsClient({
     accessKeyId,

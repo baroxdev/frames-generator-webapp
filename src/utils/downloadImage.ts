@@ -11,7 +11,7 @@
 // git history / the removed downloadSubmissionsAsZip.ts for what that
 // looked like), not occasional one-off reads.
 export async function downloadImage(url: string, fileName: string): Promise<void> {
-  const response = await fetch(url);
+  const response = await fetch(url, { method: 'GET', mode: 'cors' });
   if (!response.ok) {
     throw new Error(`Không thể tải ảnh (HTTP ${response.status}).`);
   }

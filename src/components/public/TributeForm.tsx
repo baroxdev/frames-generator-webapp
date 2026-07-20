@@ -48,6 +48,15 @@ export function TributeForm({
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
   const avatarFile = form.watch("avatar.file");
   const resultImage = metadata?.resultImage;
+  // Matches the crop tool's aspect ratio to the campaign's actual avatar
+  // box (frequently not square — e.g. the default template's 286x260)
+  // instead of a hardcoded 1:1. Avatar.tsx renders the cropped photo with
+  // `object-cover`, which silently re-crops (recentering on whatever the
+  // visitor framed) anything whose aspect ratio doesn't already match the
+  // box — so a mismatched crop aspect here is what makes the visitor's
+  // manual pan/zoom get discarded in the final composited frame.
+  const avatarBox = metadata?.campaign?.layout.avatarBox;
+  const avatarCropAspect = avatarBox ? avatarBox.width / avatarBox.height : 1;
   useEffect(() => {
     if (!avatarFile) {
       setAvatarPreviewUrl(null);
@@ -147,7 +156,7 @@ export function TributeForm({
               help={fieldState.error?.message}
             >
               <ImgCrop
-                aspect={1}
+                aspect={avatarCropAspect}
                 cropShape="round"
                 showGrid
                 rotationSlider

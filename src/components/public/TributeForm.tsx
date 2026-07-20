@@ -25,6 +25,8 @@ export type TributeSubmitValues = SubmissionInput;
 
 type TributeFormProps = {
   turnstileSiteKey: string;
+  // Temporary escape hatch — see VITE_TURNSTILE_BYPASS in src/config/env.ts.
+  turnstileBypass?: boolean;
   isSubmitting: boolean;
   form: UseFormReturn<TributeSubmitValues>;
   onSubmit: (values: TributeSubmitValues) => Promise<void>;
@@ -37,6 +39,7 @@ type TributeFormProps = {
 
 export function TributeForm({
   turnstileSiteKey,
+  turnstileBypass = false,
   isSubmitting,
   onSubmit,
   onResultModalClose,
@@ -72,8 +75,13 @@ export function TributeForm({
 
     const url = URL.createObjectURL(avatarFile);
     setAvatarPreviewUrl(url);
+    trackEvent("avatar_selected", {
+      campaign_id: metadata?.campaign?.id,
+      campaign_slug: metadata?.campaign?.slug,
+    });
 
     return () => URL.revokeObjectURL(url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [avatarFile]);
 
   // Once a submission produces a result image, surface it straight away in
@@ -113,6 +121,7 @@ export function TributeForm({
       URL.revokeObjectURL(blobUrl);
       trackEvent("tribute_image_download", {
         campaign_id: metadata?.campaign?.id,
+        campaign_slug: metadata?.campaign?.slug,
         owner_id: metadata?.campaign?.ownerId,
       });
     } catch (error) {
@@ -162,14 +171,16 @@ export function TributeForm({
       await onSubmit(values);
     } catch (e) {
       console.error("TributeForm submission failed", e);
-      // Turnstile tokens are single-use — without resetting, a retry would
-      // silently resend the already-consumed token.
-      turnstileRef.current?.reset();
-      form.setValue("turnstileToken", undefined);
-      form.setError("turnstileToken", {
-        type: "validate",
-        message: "Vui lòng xác thực CAPTCHA",
-      });
+      if (!turnstileBypass) {
+        // Turnstile tokens are single-use — without resetting, a retry
+        // would silently resend the already-consumed token.
+        turnstileRef.current?.reset();
+        form.setValue("turnstileToken", undefined);
+        form.setError("turnstileToken", {
+          type: "validate",
+          message: "Vui lòng xác thực CAPTCHA",
+        });
+      }
     }
   });
 
@@ -310,43 +321,57 @@ export function TributeForm({
           </Form.Item>
         )}
       />
-      <Controller
-        control={form.control}
-        name="turnstileToken"
-        rules={{ required: "Vui lòng xác thực CAPTCHA" }}
-        render={({ field }) => (
-          <Form.Item
-            validateStatus={form.formState.errors.turnstileToken ? "error" : ""}
-            help={form.formState.errors.turnstileToken?.message}
-          >
-            <div className="w-full flex items-center justify-center">
-              <TurnstileWidget
-                ref={turnstileRef}
-                siteKey={turnstileSiteKey}
-                action={TURNSTILE_ACTION}
-                onVerify={(token) => {
-                  field.onChange(token);
-                  form.clearErrors("turnstileToken");
-                }}
-                onExpire={() => {
-                  field.onChange(null);
-                  form.setError("turnstileToken", {
-                    type: "validate",
-                    message: "Vui lòng xác thực CAPTCHA",
-                  });
-                }}
-                onError={() => {
-                  field.onChange(null);
-                  form.setError("turnstileToken", {
-                    type: "validate",
-                    message: "Vui lòng xác thực CAPTCHA",
-                  });
-                }}
-              />
-            </div>
-          </Form.Item>
-        )}
-      />
+      {!turnstileBypass && (
+        <Controller
+          control={form.control}
+          name="turnstileToken"
+          rules={{ required: "Vui lòng xác thực CAPTCHA" }}
+          render={({ field }) => (
+            <Form.Item
+              validateStatus={
+                form.formState.errors.turnstileToken ? "error" : ""
+              }
+              help={form.formState.errors.turnstileToken?.message}
+            >
+              <div className="w-full flex items-center justify-center">
+                <TurnstileWidget
+                  ref={turnstileRef}
+                  siteKey={turnstileSiteKey}
+                  action={TURNSTILE_ACTION}
+                  onVerify={(token) => {
+                    field.onChange(token);
+                    form.clearErrors("turnstileToken");
+                  }}
+                  onExpire={() => {
+                    field.onChange(null);
+                    form.setError("turnstileToken", {
+                      type: "validate",
+                      message: "Vui lòng xác thực CAPTCHA",
+                    });
+                    trackEvent("tribute_turnstile_error", {
+                      campaign_id: metadata?.campaign?.id,
+                      campaign_slug: metadata?.campaign?.slug,
+                      reason: "expired",
+                    });
+                  }}
+                  onError={() => {
+                    field.onChange(null);
+                    form.setError("turnstileToken", {
+                      type: "validate",
+                      message: "Vui lòng xác thực CAPTCHA",
+                    });
+                    trackEvent("tribute_turnstile_error", {
+                      campaign_id: metadata?.campaign?.id,
+                      campaign_slug: metadata?.campaign?.slug,
+                      reason: "error",
+                    });
+                  }}
+                />
+              </div>
+            </Form.Item>
+          )}
+        />
+      )}
 
       <div className="fixed z-50 bottom-0 left-0 border-t right-0 bg-white p-4">
         <div className=" max-w-5xl mx-auto w-full">

@@ -24,6 +24,12 @@
 //                              response.hostname must match (prevents a
 //                              token solved on another site from being
 //                              replayed here) — e.g. "localhost,your-app-domain.example"
+//   TURNSTILE_BYPASS_ENABLED  Temporary escape hatch ("true" to enable) while
+//                              the Turnstile UX is being reworked — matches
+//                              VITE_TURNSTILE_BYPASS on the frontend. Skips
+//                              the siteverify call entirely. Unset (or
+//                              anything other than "true") once Turnstile is
+//                              reinstated.
 //   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME,
 //   R2_PUBLIC_BASE_URL          Same R2 secrets as the other two upload
 //                              functions, needed here to HEAD-verify the
@@ -91,6 +97,7 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const turnstileSecretKey = Deno.env.get('TURNSTILE_SECRET_KEY');
   const allowedHostnames = Deno.env.get('TURNSTILE_ALLOWED_HOSTNAMES');
+  const turnstileBypassEnabled = Deno.env.get('TURNSTILE_BYPASS_ENABLED') === 'true';
   const accountId = Deno.env.get('R2_ACCOUNT_ID');
   const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID');
   const secretAccessKey = Deno.env.get('R2_SECRET_ACCESS_KEY');
@@ -100,8 +107,7 @@ Deno.serve(async (req) => {
   if (
     !supabaseUrl ||
     !serviceRoleKey ||
-    !turnstileSecretKey ||
-    !allowedHostnames ||
+    (!turnstileBypassEnabled && (!turnstileSecretKey || !allowedHostnames)) ||
     !accountId ||
     !accessKeyId ||
     !secretAccessKey ||
@@ -110,6 +116,10 @@ Deno.serve(async (req) => {
   ) {
     console.error('submit-tribute is missing required secrets; run `supabase secrets set` and retry.');
     return jsonResponse({ error: 'Server misconfigured: missing required secrets' }, 500);
+  }
+
+  if (turnstileBypassEnabled) {
+    console.warn('submit-tribute: TURNSTILE_BYPASS_ENABLED is set — skipping CAPTCHA verification.');
   }
 
   let body: SubmitTributeBody;
@@ -124,7 +134,7 @@ Deno.serve(async (req) => {
   if (typeof campaignId !== 'string' || !new RegExp(`^${UUID_PATTERN}$`, 'i').test(campaignId)) {
     return jsonResponse({ error: 'campaignId must be a valid UUID' }, 400);
   }
-  if (!isNonEmptyString(turnstileToken)) {
+  if (!turnstileBypassEnabled && !isNonEmptyString(turnstileToken)) {
     return jsonResponse({ error: 'Vui lòng xác thực CAPTCHA trước khi gửi.' }, 400);
   }
   if (!isNonEmptyString(fullName) || fullName.trim().length < FULL_NAME_MIN || fullName.trim().length > FULL_NAME_MAX) {
@@ -156,40 +166,42 @@ Deno.serve(async (req) => {
   // (not just `success`) closes the token-replay gap — without it, a token
   // solved on a different site (or for a different action on this one)
   // would still pass.
-  const turnstileForm = new URLSearchParams();
-  turnstileForm.set('secret', turnstileSecretKey);
-  turnstileForm.set('response', turnstileToken);
-  const remoteIp = req.headers.get('cf-connecting-ip');
-  if (remoteIp) turnstileForm.set('remoteip', remoteIp);
+  if (!turnstileBypassEnabled) {
+    const turnstileForm = new URLSearchParams();
+    turnstileForm.set('secret', turnstileSecretKey!);
+    turnstileForm.set('response', turnstileToken as string);
+    const remoteIp = req.headers.get('cf-connecting-ip');
+    if (remoteIp) turnstileForm.set('remoteip', remoteIp);
 
-  let turnstileResult: { success?: boolean; hostname?: string; action?: string; 'error-codes'?: string[] };
-  try {
-    const turnstileResponse = await fetch(TURNSTILE_VERIFY_URL, { method: 'POST', body: turnstileForm });
-    turnstileResult = await turnstileResponse.json();
-  } catch (error) {
-    console.error('Turnstile siteverify request failed', error);
-    return jsonResponse({ error: 'Không thể xác thực CAPTCHA. Vui lòng thử lại.' }, 502);
-  }
+    let turnstileResult: { success?: boolean; hostname?: string; action?: string; 'error-codes'?: string[] };
+    try {
+      const turnstileResponse = await fetch(TURNSTILE_VERIFY_URL, { method: 'POST', body: turnstileForm });
+      turnstileResult = await turnstileResponse.json();
+    } catch (error) {
+      console.error('Turnstile siteverify request failed', error);
+      return jsonResponse({ error: 'Không thể xác thực CAPTCHA. Vui lòng thử lại.' }, 502);
+    }
 
-  const allowedHostnameList = allowedHostnames.split(',').map((hostname) => hostname.trim());
-  if (
-    !turnstileResult.success ||
-    !turnstileResult.hostname ||
-    !allowedHostnameList.includes(turnstileResult.hostname) ||
-    turnstileResult.action !== EXPECTED_TURNSTILE_ACTION
-  ) {
-    // None of these fields are sensitive (no token, no PII) — logging them
-    // is what actually makes a "CAPTCHA invalid" report debuggable instead
-    // of a black box, since the client only ever sees the generic message.
-    console.error('Turnstile verification rejected', {
-      success: turnstileResult.success,
-      hostname: turnstileResult.hostname,
-      action: turnstileResult.action,
-      errorCodes: turnstileResult['error-codes'],
-      allowedHostnames: allowedHostnameList,
-      expectedAction: EXPECTED_TURNSTILE_ACTION,
-    });
-    return jsonResponse({ error: 'Xác thực CAPTCHA không hợp lệ. Vui lòng thử lại.' }, 400);
+    const allowedHostnameList = allowedHostnames!.split(',').map((hostname) => hostname.trim());
+    if (
+      !turnstileResult.success ||
+      !turnstileResult.hostname ||
+      !allowedHostnameList.includes(turnstileResult.hostname) ||
+      turnstileResult.action !== EXPECTED_TURNSTILE_ACTION
+    ) {
+      // None of these fields are sensitive (no token, no PII) — logging them
+      // is what actually makes a "CAPTCHA invalid" report debuggable instead
+      // of a black box, since the client only ever sees the generic message.
+      console.error('Turnstile verification rejected', {
+        success: turnstileResult.success,
+        hostname: turnstileResult.hostname,
+        action: turnstileResult.action,
+        errorCodes: turnstileResult['error-codes'],
+        allowedHostnames: allowedHostnameList,
+        expectedAction: EXPECTED_TURNSTILE_ACTION,
+      });
+      return jsonResponse({ error: 'Xác thực CAPTCHA không hợp lệ. Vui lòng thử lại.' }, 400);
+    }
   }
 
   // Confirm the object this URL claims to point at actually exists, is one

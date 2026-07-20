@@ -11,6 +11,14 @@ const envSchema = z.object({
   // takes the App ID as a plain query param in the share link itself, unlike
   // the App Secret, which never appears client-side.
   VITE_FACEBOOK_APP_ID: z.string().min(1, 'VITE_FACEBOOK_APP_ID is required'),
+  // Temporary escape hatch while the Turnstile UX is being reworked (see
+  // supabase/functions/submit-tribute's matching `TURNSTILE_BYPASS_ENABLED`
+  // secret) — skips rendering the widget on TributeForm. Must be unset
+  // (or "false") in production once Turnstile is reinstated.
+  VITE_TURNSTILE_BYPASS: z
+    .string()
+    .optional()
+    .transform((value) => value === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;

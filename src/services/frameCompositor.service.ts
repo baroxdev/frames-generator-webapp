@@ -3,6 +3,7 @@ import { domToBlob } from 'modern-screenshot';
 import type { CustomFont } from '../templates/types';
 import { ensureFontReady } from '../utils/loadGoogleFont';
 import { MESSAGE_FONT_WEIGHT, NAME_ROLE_FONT_WEIGHT } from '../utils/textFonts';
+import { waitForImagesReady } from '../utils/waitForImagesReady';
 
 // Common social platforms (Facebook, Zalo, etc.) downscale a shared image's
 // long edge to somewhere in this neighborhood server-side regardless of
@@ -70,6 +71,12 @@ export function computeExportScale(node: HTMLElement): number {
  * `customFont`, when set, is the campaign's own uploaded font (see
  * `CustomFont` in `src/templates/types.ts`) — takes priority over
  * `fontFamily` for loading purposes, same as `Name`/`Role`/`Message`.
+ *
+ * Also awaits every `<img>` inside `node` via `waitForImagesReady` — the
+ * avatar's `blob:` URL is freshly created moments before this runs (see
+ * `CampaignPublicPage.handleSubmit`), so without this a slower device can
+ * rasterize before the image is decoded, producing a solid black avatar
+ * with no error (seen on Android via session replay).
  */
 export async function compositeFrameToBlob(
   node: HTMLElement,
@@ -79,6 +86,7 @@ export async function compositeFrameToBlob(
   await Promise.all([
     ensureFontReady(fontFamily, NAME_ROLE_FONT_WEIGHT, customFont),
     ensureFontReady(fontFamily, MESSAGE_FONT_WEIGHT, customFont),
+    waitForImagesReady(node),
   ]);
   if ('fonts' in document) {
     await document.fonts.ready;

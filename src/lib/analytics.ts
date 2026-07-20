@@ -84,6 +84,12 @@ function withGtag(send: (gtag: Gtag) => void) {
  * Initializes posthog-js exactly once. `capture_pageview`/`capture_pageleave`
  * are disabled because page views are already reported explicitly by
  * `trackPageView`, the same "no automatic page_view" split used for gtag.
+ *
+ * Autocapture stays on (rage-clicks, dead-clicks, which buttons get used —
+ * useful UI-friction signal) but `mask_all_text`/`mask_all_element_attributes`
+ * strip element text and attributes from those events, since this form
+ * collects real names, roles, and tribute messages that must never leave
+ * the browser as a side effect of a click.
  */
 function loadPosthog(key: string) {
   if (posthogInitialized) return;
@@ -93,6 +99,8 @@ function loadPosthog(key: string) {
     api_host: POSTHOG_HOST,
     capture_pageview: false,
     capture_pageleave: false,
+    mask_all_text: true,
+    mask_all_element_attributes: true,
   });
 }
 
@@ -112,11 +120,16 @@ function withPosthog(send: (client: typeof posthog) => void) {
   }
 }
 
-export function trackPageView(path: string, title?: string) {
+export function trackPageView(
+  path: string,
+  title?: string,
+  properties?: { campaignSlug?: string },
+) {
   trackEvent("page_view", {
     page_path: path,
     page_title: title,
     page_location: typeof window !== "undefined" ? window.location.href : undefined,
+    campaign_slug: properties?.campaignSlug,
   });
 }
 

@@ -168,7 +168,10 @@ describe("CampaignsPage", () => {
     fireEvent.click(await screen.findByLabelText("Chia sẻ lên Facebook"));
 
     expect(ui).toHaveBeenCalledWith(
-      { method: "share", href: `${window.location.origin}/dai-hoi-ben-tre` },
+      {
+        method: "share",
+        href: `${window.location.origin}/dai-hoi-ben-tre?utm_source=facebook&utm_medium=share&utm_campaign=dai-hoi-ben-tre`,
+      },
       expect.any(Function),
     );
   });
@@ -191,7 +194,10 @@ describe("CampaignsPage", () => {
 
     await waitFor(() =>
       expect(ui).toHaveBeenCalledWith(
-        { method: "share", href: `${window.location.origin}/dai-hoi-ben-tre` },
+        {
+          method: "share",
+          href: `${window.location.origin}/dai-hoi-ben-tre?utm_source=facebook&utm_medium=share&utm_campaign=dai-hoi-ben-tre`,
+        },
         expect.any(Function),
       ),
     );

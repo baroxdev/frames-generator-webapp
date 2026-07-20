@@ -6,6 +6,7 @@ import { AuthLayout } from '../../components/auth/AuthLayout';
 import { ConfigErrorNotice } from '../../components/auth/ConfigErrorNotice';
 import { TurnstileWidget, type TurnstileWidgetHandle } from '../../components/auth/TurnstileWidget';
 import { useEnv } from '../../config/useEnv';
+import { trackEvent } from '../../lib/analytics';
 import { signUpMutationOptions } from '../../queries/auth.queries';
 import { signUpSchema, type SignUpInput } from '../../schemas/auth.schema';
 import { reportAuthError } from '../../utils/report-auth-error';
@@ -51,6 +52,7 @@ export function SignUpPage() {
         emailRedirectTo: `${window.location.origin}/auth/confirm`,
       });
       setSubmitted(true);
+      trackEvent('signup_completed');
     } catch (error) {
       // Turnstile tokens are single-use: without resetting the widget, a
       // retry would silently resend the already-consumed token and fail

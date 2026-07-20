@@ -17,6 +17,7 @@ import {
 } from '../../queries/campaign.queries';
 import type { CreateCampaignParams } from '../../services/campaign.service';
 import { createCampaignSchema, slugField, type CreateCampaignInput } from '../../schemas/campaign.schema';
+import { trackEvent } from '../../lib/analytics';
 import { getDefaultCampaignLayout, type CampaignLayout } from '../../templates';
 import { getImageDimensions } from '../../utils/get-image-dimensions';
 import { reportCampaignError } from '../../utils/report-campaign-error';
@@ -247,7 +248,11 @@ export function NewCampaignPage() {
         ...(thumbnailUrl && { thumbnailUrl }),
         ...(headerImageUrl && { headerImageUrl }),
       };
-      await createMutation.mutateAsync(createParams);
+      const campaign = await createMutation.mutateAsync(createParams);
+      trackEvent('campaign_created', {
+        campaign_id: campaign.id,
+        campaign_slug: campaign.slug,
+      });
       await queryClient.invalidateQueries({ queryKey: campaignKeys.list() });
       message.success('Chiến dịch đã được tạo và đang chờ duyệt. Đường dẫn sẽ chưa công khai cho đến khi được duyệt.');
       navigate({ to: '/campaigns' });

@@ -116,6 +116,12 @@ export function CampaignPublicPage({
     });
     setIsCompositing(true);
 
+    // Tracks which stage of the pipeline is in flight, so a failure can be
+    // attributed to composite (local rendering) vs. upload (R2) vs. submit
+    // (the tribute API) instead of one opaque error bucket — the three
+    // stages have very different fixes.
+    let stage: "composite" | "upload" | "submit" = "composite";
+
     try {
       if (!compositeRef.current) {
         throw new Error("Compositor node did not mount");
@@ -128,10 +134,12 @@ export function CampaignPublicPage({
         campaign.layout.fontFamily,
         campaign.layout.customFont,
       );
+      stage = "upload";
       const imageUrl = await uploadImageMutation.mutateAsync({
         campaignId: campaign.id,
         image: imageBlob,
       });
+      stage = "submit";
       await submitTributeMutation.mutateAsync({
         campaignId: campaign.id,
         turnstileToken: values.turnstileToken ?? "",
@@ -143,6 +151,7 @@ export function CampaignPublicPage({
       setResultImage(imageUrl);
       trackEvent("tribute_submit_success", {
         campaign_id: campaign.id,
+        campaign_slug: campaign.slug,
         owner_id: campaign.ownerId,
       });
     } catch (error) {
@@ -154,6 +163,7 @@ export function CampaignPublicPage({
         setCampaignFull(true);
         trackEvent("tribute_submit_blocked", {
           campaign_id: campaign.id,
+          campaign_slug: campaign.slug,
           owner_id: campaign.ownerId,
           reason: "campaign_full",
         });
@@ -164,7 +174,9 @@ export function CampaignPublicPage({
         );
         trackEvent("tribute_submit_error", {
           campaign_id: campaign.id,
+          campaign_slug: campaign.slug,
           owner_id: campaign.ownerId,
+          stage,
         });
       }
       throw error;
@@ -211,6 +223,7 @@ export function CampaignPublicPage({
                 }}
                 form={form}
                 turnstileSiteKey={env.VITE_TURNSTILE_SITE_KEY}
+                turnstileBypass={env.VITE_TURNSTILE_BYPASS}
                 isSubmitting={
                   isCompositing ||
                   uploadImageMutation.isPending ||

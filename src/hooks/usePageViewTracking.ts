@@ -13,7 +13,17 @@ export function usePageViewTracking() {
 
   useEffect(() => {
     return router.subscribe("onResolved", ({ toLocation }) => {
-      trackPageView(toLocation.pathname);
+      // Only the public campaign route (`/$slug`) has a campaign to attach
+      // — matching on the resolved route id rather than parsing the path
+      // avoids misreading other single-segment routes (/login, /account,
+      // /signup, ...) as campaign slugs.
+      const slugMatch = router.state.matches.find(
+        (match) => match.routeId === "/$slug",
+      );
+      const campaignSlug = (slugMatch?.params as { slug?: string } | undefined)
+        ?.slug;
+
+      trackPageView(toLocation.pathname, undefined, { campaignSlug });
     });
   }, [router]);
 }

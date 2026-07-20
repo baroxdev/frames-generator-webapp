@@ -53,9 +53,13 @@ function isPubliclyReachable(campaign: Campaign): boolean {
  * the same trap the earlier `window.open()` attempt fell into.
  */
 function shareToFacebook(appId: string, campaign: Campaign) {
-  const href = `${window.location.origin}/${campaign.slug}`;
+  // UTM-tagged so a visitor returning via this share is reliably
+  // attributable in GA4/PostHog — Facebook's in-app browser frequently
+  // strips the Referer header, so referrer-based attribution alone
+  // undercounts the share -> revisit loop.
+  const href = `${window.location.origin}/${campaign.slug}?utm_source=facebook&utm_medium=share&utm_campaign=${campaign.slug}`;
   trackEvent('campaign_share_facebook', {
-    slug: campaign.slug,
+    campaign_slug: campaign.slug,
     campaign_id: campaign.id,
     owner_id: campaign.ownerId,
   });

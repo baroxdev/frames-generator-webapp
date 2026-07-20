@@ -97,6 +97,7 @@ export function TributeForm({
       URL.revokeObjectURL(blobUrl);
       trackEvent("tribute_image_download", {
         campaign_id: metadata?.campaign?.id,
+        owner_id: metadata?.campaign?.ownerId,
       });
     } catch (error) {
       console.error("Failed to download result image", error);

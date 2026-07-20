@@ -141,7 +141,10 @@ export function CampaignPublicPage({
         imageUrl,
       });
       setResultImage(imageUrl);
-      trackEvent("tribute_submit_success", { campaign_id: campaign.id });
+      trackEvent("tribute_submit_success", {
+        campaign_id: campaign.id,
+        owner_id: campaign.ownerId,
+      });
     } catch (error) {
       setSubmittedContent(null);
       if (
@@ -151,6 +154,7 @@ export function CampaignPublicPage({
         setCampaignFull(true);
         trackEvent("tribute_submit_blocked", {
           campaign_id: campaign.id,
+          owner_id: campaign.ownerId,
           reason: "campaign_full",
         });
       } else {
@@ -158,7 +162,10 @@ export function CampaignPublicPage({
           error,
           "Không thể gửi thông điệp. Vui lòng thử lại.",
         );
-        trackEvent("tribute_submit_error", { campaign_id: campaign.id });
+        trackEvent("tribute_submit_error", {
+          campaign_id: campaign.id,
+          owner_id: campaign.ownerId,
+        });
       }
       throw error;
     } finally {

@@ -3,6 +3,13 @@
 // billing account, and tying analytics to that project's health would take
 // tracking down along with it. gtag.js only needs the GA4 property's
 // Measurement ID, no Firebase project required.
+//
+// PostHog runs alongside GA4 as a backup: every `trackEvent`/`trackPageView`
+// call fans out to both providers independently, so an outage or ad-blocker
+// hit on one (e.g. GA4 is commonly blocked) still leaves the other with a
+// full record of the same events.
+import posthog from "posthog-js";
+
 type Gtag = (...args: unknown[]) => void;
 
 declare global {
@@ -16,7 +23,13 @@ const MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID as
   | string
   | undefined;
 
+const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
+const POSTHOG_HOST =
+  (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ??
+  "https://us.i.posthog.com";
+
 let gtagPromise: Promise<Gtag> | null = null;
+let posthogInitialized = false;
 
 /**
  * Loads gtag.js and configures it exactly once, memoizing the in-flight
@@ -67,6 +80,38 @@ function withGtag(send: (gtag: Gtag) => void) {
   }
 }
 
+/**
+ * Initializes posthog-js exactly once. `capture_pageview`/`capture_pageleave`
+ * are disabled because page views are already reported explicitly by
+ * `trackPageView`, the same "no automatic page_view" split used for gtag.
+ */
+function loadPosthog(key: string) {
+  if (posthogInitialized) return;
+  posthogInitialized = true;
+
+  posthog.init(key, {
+    api_host: POSTHOG_HOST,
+    capture_pageview: false,
+    capture_pageleave: false,
+  });
+}
+
+/**
+ * Fire-and-forget wrapper mirroring `withGtag`: a missing project key, an ad
+ * blocker, or an init failure should never break the user-facing action this
+ * is attached to.
+ */
+function withPosthog(send: (client: typeof posthog) => void) {
+  if (typeof window === "undefined" || !POSTHOG_KEY) return;
+
+  try {
+    loadPosthog(POSTHOG_KEY);
+    send(posthog);
+  } catch (error) {
+    console.error("Failed to send PostHog event", error);
+  }
+}
+
 export function trackPageView(path: string, title?: string) {
   trackEvent("page_view", {
     page_path: path,
@@ -80,4 +125,5 @@ export function trackEvent(
   params?: Record<string, string | number | boolean | undefined>,
 ) {
   withGtag((gtag) => gtag("event", name, params));
+  withPosthog((client) => client.capture(name, params));
 }

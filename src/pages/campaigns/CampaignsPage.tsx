@@ -52,9 +52,13 @@ function isPubliclyReachable(campaign: Campaign): boolean {
  * from being treated as an untrusted, non-user-gesture popup and blocked,
  * the same trap the earlier `window.open()` attempt fell into.
  */
-function shareToFacebook(appId: string, slug: string) {
-  const href = `${window.location.origin}/${slug}`;
-  trackEvent('campaign_share_facebook', { slug });
+function shareToFacebook(appId: string, campaign: Campaign) {
+  const href = `${window.location.origin}/${campaign.slug}`;
+  trackEvent('campaign_share_facebook', {
+    slug: campaign.slug,
+    campaign_id: campaign.id,
+    owner_id: campaign.ownerId,
+  });
   if (window.FB) {
     window.FB.ui({ method: 'share', href }, () => undefined);
     return;
@@ -125,7 +129,7 @@ function buildColumns(facebookAppId: string): ColumnsType<Campaign> {
               size="small"
               icon={<FacebookOutlined />}
               aria-label="Chia sẻ lên Facebook"
-              onClick={() => shareToFacebook(facebookAppId, campaign.slug)}
+              onClick={() => shareToFacebook(facebookAppId, campaign)}
             />
           )}
         </span>

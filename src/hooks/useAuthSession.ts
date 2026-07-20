@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { authKeys, sessionQueryOptions } from '../queries/auth.queries';
 import { getSupabaseClient } from '../lib/supabase-client';
+import { identifyUser, resetUser } from '../lib/analytics';
 
 type AuthSessionState = {
   session: Session | null;
@@ -53,6 +54,11 @@ export function useAuthSessionSync(): void {
       data: { subscription },
     } = client.auth.onAuthStateChange((_event, session) => {
       queryClient.setQueryData(authKeys.session(), session);
+      if (session?.user) {
+        identifyUser(session.user.id, { email: session.user.email });
+      } else {
+        resetUser();
+      }
     });
 
     return () => subscription.unsubscribe();

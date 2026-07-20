@@ -127,3 +127,24 @@ export function trackEvent(
   withGtag((gtag) => gtag("event", name, params));
   withPosthog((client) => client.capture(name, params));
 }
+
+/**
+ * Ties subsequent events to a logged-in owner, so owner-level rollups (e.g.
+ * "submissions across all of this owner's campaigns this month", for
+ * scalability/paywall analysis) work in both tools instead of only landing
+ * as anonymous, per-session events. Call on sign-in; pair with `resetUser`
+ * on sign-out.
+ */
+export function identifyUser(
+  userId: string,
+  properties?: Record<string, string | number | boolean | undefined>,
+) {
+  withGtag((gtag) => gtag("set", { user_id: userId }));
+  withPosthog((client) => client.identify(userId, properties));
+}
+
+/** Clears the identity set by `identifyUser`. Call on sign-out. */
+export function resetUser() {
+  withGtag((gtag) => gtag("set", { user_id: undefined }));
+  withPosthog((client) => client.reset());
+}

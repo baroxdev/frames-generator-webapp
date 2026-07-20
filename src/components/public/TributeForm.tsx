@@ -1,5 +1,6 @@
 import {
   DownloadOutlined,
+  EditOutlined,
   LoadingOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
@@ -46,6 +47,12 @@ export function TributeForm({
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const avatarContainerRef = useRef<HTMLDivElement>(null);
+  // The pre-crop photo, captured via ImgCrop's `beforeCrop` — kept so the
+  // recrop button can reopen the crop modal on the original framing instead
+  // of re-cropping an already-cropped (and thus lower-quality, re-centered)
+  // image.
+  const originalAvatarFileRef = useRef<File | null>(null);
   const avatarFile = form.watch("avatar.file");
   const resultImage = metadata?.resultImage;
   // Matches the crop tool's aspect ratio to the campaign's actual avatar
@@ -116,6 +123,30 @@ export function TributeForm({
     }
   };
 
+  // Re-selecting the same File object through a real OS file dialog doesn't
+  // fire a `change` event, so we drive the hidden input's file list directly
+  // via DataTransfer and dispatch the event ourselves — this re-enters
+  // ImgCrop's beforeUpload pipeline exactly as if the visitor had picked the
+  // photo again, reopening the crop modal on it.
+  const handleRecrop = () => {
+    const input =
+      avatarContainerRef.current?.querySelector<HTMLInputElement>(
+        'input[type="file"]',
+      );
+    if (!input) return;
+
+    const original = originalAvatarFileRef.current;
+    if (!original) {
+      input.click();
+      return;
+    }
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(original);
+    input.files = dataTransfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
   const handleCloseResultModal = () => {
     setIsResultModalOpen(false);
     form.reset();
@@ -155,53 +186,68 @@ export function TributeForm({
               validateStatus={fieldState.invalid ? "error" : ""}
               help={fieldState.error?.message}
             >
-              <ImgCrop
-                aspect={avatarCropAspect}
-                cropShape="round"
-                showGrid
-                rotationSlider
-                showReset
-                resetText="Đặt lại"
-                modalCancel="Hủy"
-                modalOk="Xác nhận"
-                modalTitle="Chỉnh sửa ảnh đại diện"
-              >
-                <Upload
-                  style={{ width: 120, height: 120 }}
-                  listType="picture-circle"
-                  maxCount={1}
-                  showUploadList={false}
-                  accept={ALLOWED_AVATAR_TYPES.join(",")}
-                  beforeUpload={(file) => {
-                    if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
-                      form.setError("avatar.file", {
-                        type: "validate",
-                        message: "Chỉ chấp nhận ảnh JPEG, PNG hoặc WEBP",
-                      });
-                      return Upload.LIST_IGNORE;
-                    }
-                    form.clearErrors("avatar.file");
-                    return false;
-                  }}
-                  onChange={(info) => {
-                    const latest = info.fileList.slice(-1);
-                    const file = latest[0]?.originFileObj as File | undefined;
-                    field.onChange(file ?? null);
+              <div ref={avatarContainerRef} className="relative block">
+                <ImgCrop
+                  aspect={avatarCropAspect}
+                  cropShape="round"
+                  showGrid
+                  rotationSlider
+                  showReset
+                  resetText="Đặt lại"
+                  modalCancel="Hủy"
+                  modalOk="Xác nhận"
+                  modalTitle="Chỉnh sửa ảnh đại diện"
+                  beforeCrop={(file) => {
+                    originalAvatarFileRef.current = file;
+                    return true;
                   }}
                 >
-                  {avatarPreviewUrl ? (
-                    <img
-                      src={avatarPreviewUrl}
-                      alt="Ảnh đại diện"
-                      className="h-full w-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <div>
-                      {isSubmitting ? <LoadingOutlined /> : <PlusOutlined />}
-                    </div>
-                  )}
-                </Upload>
-              </ImgCrop>
+                  <Upload
+                    style={{ width: 120, height: 120 }}
+                    listType="picture-circle"
+                    maxCount={1}
+                    showUploadList={false}
+                    accept={ALLOWED_AVATAR_TYPES.join(",")}
+                    beforeUpload={(file) => {
+                      if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+                        form.setError("avatar.file", {
+                          type: "validate",
+                          message: "Chỉ chấp nhận ảnh JPEG, PNG hoặc WEBP",
+                        });
+                        return Upload.LIST_IGNORE;
+                      }
+                      form.clearErrors("avatar.file");
+                      return true;
+                    }}
+                    customRequest={({ file, onSuccess }) => {
+                      field.onChange(file as File);
+                      onSuccess?.({});
+                    }}
+                  >
+                    {avatarPreviewUrl ? (
+                      <>
+                        <img
+                          src={avatarPreviewUrl}
+                          alt="Ảnh đại diện"
+                          className="h-full w-full rounded-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRecrop}
+                          aria-label="Chỉnh sửa vùng cắt ảnh"
+                          className="absolute bottom-[3%] right-[8%] flex h-8 w-8 items-center justify-center rounded-full border border-white bg-blue-600 text-white shadow-md hover:bg-blue-700"
+                        >
+                          <EditOutlined />
+                        </button>
+                      </>
+                    ) : (
+                      <div>
+                        {isSubmitting ? <LoadingOutlined /> : <PlusOutlined />}
+                      </div>
+                    )}
+                  </Upload>
+                </ImgCrop>
+              </div>
             </Form.Item>
           );
         }}

@@ -9,12 +9,22 @@
 -- `anon`/`authenticated` below: it must only run after that function has
 -- already verified the caller's Turnstile token, never on its own.
 
+-- full_name/role/message length bounds below are duplicated in two other
+-- places that can't share this constant (different language/runtime each):
+--   src/schemas/submission.schema.ts (FE validation)
+--   supabase/functions/submit-tribute/index.ts (FULL_NAME_MIN/MAX etc.)
+-- Changing a limit here without updating both of those leaves the DB as the
+-- only thing actually enforcing the new bound — the FE/edge function would
+-- keep validating (and rejecting, or silently allowing) the old range. Since
+-- this migration has already been applied, widen/narrow a bound via a new
+-- migration (`alter table ... drop constraint ... add constraint ...`)
+-- rather than editing the `check` below in place.
 create table if not exists public.submissions (
   id uuid primary key default gen_random_uuid(),
   campaign_id uuid not null references public.campaigns (id) on delete cascade,
   full_name text not null check (char_length(full_name) between 2 and 25),
-  role text not null check (char_length(role) between 3 and 36),
-  message text not null check (char_length(message) between 10 and 400),
+  role text not null check (char_length(role) between 3 and 50),
+  message text not null check (char_length(message) between 10 and 600),
   -- The final composited tribute frame (background + avatar + text),
   -- produced client-side and uploaded as one image — never the visitor's
   -- raw avatar photo, which is never uploaded or stored anywhere.

@@ -1,4 +1,10 @@
 export const config = {
+  // Drives the Input's maxLength/showCount in TributeForm.tsx — must match
+  // src/schemas/submission.schema.ts's z.string().max(...) bounds (which in
+  // turn mirror the DB check constraints in
+  // supabase/migrations/0003_submissions.sql and the constants in
+  // supabase/functions/submit-tribute/index.ts). A higher limit here than in
+  // the schema lets a visitor type past what validation/the DB will accept.
   limit: {
     fullName: 25,
     role: 50,

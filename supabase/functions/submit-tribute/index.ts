@@ -39,9 +39,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 
-// Mirrors src/schemas/submission.schema.ts — kept in sync by hand since the
-// two run in different languages/runtimes (same pattern as
-// campaign.schema.ts's SLUG_PATTERN comment).
+// Mirrors src/schemas/submission.schema.ts (FE validation) and the `check`
+// constraints on public.submissions (supabase/migrations/0003_submissions.sql)
+// — kept in sync by hand across all three since each runs in a different
+// language/runtime (same pattern as campaign.schema.ts's SLUG_PATTERN
+// comment). Changing a limit here without updating both of those means this
+// function accepts input the DB insert then rejects (a confusing 500
+// instead of the intended 400), or vice versa.
 const FULL_NAME_MIN = 2;
 const FULL_NAME_MAX = 25;
 const ROLE_MIN = 3;

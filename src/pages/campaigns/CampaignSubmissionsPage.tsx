@@ -35,7 +35,7 @@ import { reportSubmissionError } from "../../utils/report-submission-error";
 // Mirrors the authoritative cap enforced by create_submission
 // (supabase/migrations/0003_submissions.sql) — see that file's comment for
 // why this can only ever be a display value, never enforcement.
-const SUBMISSION_CAP = 9999;
+const SUBMISSION_CAP = 200000;
 
 function fileNameFor(submission: Submission): string {
   return `${submission.fullName.replace(/[\\/:*?"<>|]/g, "_").trim() || "submission"}-${submission.id.slice(0, 8)}.jpg`;

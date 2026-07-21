@@ -94,7 +94,7 @@ export async function compositeFrameToBlob(
 
   return domToBlob(node, {
     type: 'image/jpeg',
-    quality: 0.95,
+    quality: 0.85,
     scale: computeExportScale(node),
     font: {},
   });

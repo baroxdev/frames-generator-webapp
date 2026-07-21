@@ -63,7 +63,7 @@ describe('compositeFrameToBlob', () => {
 
     expect(mockDomToBlob).toHaveBeenCalledWith(
       node,
-      expect.objectContaining({ type: 'image/jpeg', quality: 0.95, scale: computeExportScale(node), font: {} }),
+      expect.objectContaining({ type: 'image/jpeg', quality: 0.85, scale: computeExportScale(node), font: {} }),
     );
     expect(result).toBe(blob);
   });

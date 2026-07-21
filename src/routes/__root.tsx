@@ -5,6 +5,7 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
+import { App as AntdApp } from "antd";
 import type { ReactNode } from "react";
 import { AuthSessionSync } from "../components/auth/AuthSessionSync";
 import { usePageViewTracking } from "../hooks/usePageViewTracking";
@@ -87,8 +88,11 @@ function RootComponent() {
   return (
     <RootDocument>
       <QueryClientProvider client={queryClient}>
-        <AuthSessionSync />
-        <Outlet />
+        {/* Routes static antd message/Modal/notification calls through a context-bound instance so they don't crash on a null render container under SSR — see https://ant.design/docs/blog/why-not-static */}
+        <AntdApp>
+          <AuthSessionSync />
+          <Outlet />
+        </AntdApp>
       </QueryClientProvider>
     </RootDocument>
   );

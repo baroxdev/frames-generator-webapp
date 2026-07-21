@@ -98,6 +98,79 @@ const ROW = {
   created_at: '2026-01-01T00:00:00.000Z',
 };
 
+/** Builds a chainable `.from().select().eq().order().range()` mock that resolves once with `{ data, count, error }`. */
+function createPageChain(result: { data: unknown[] | null; count: number | null; error: unknown }) {
+  const range = vi.fn().mockResolvedValue(result);
+  const order = vi.fn().mockReturnValue({ range });
+  const eq = vi.fn().mockReturnValue({ order });
+  const select = vi.fn().mockReturnValue({ eq });
+  return { select, eq, order, range };
+}
+
+describe('submission.service.listSubmissionsPage', () => {
+  it('fetches a single page with the total count, without looping', async () => {
+    const chain = createPageChain({ data: [ROW], count: 1, error: null });
+    const from = vi.fn().mockReturnValue(chain);
+    const service = createSubmissionService(createMockSupabaseClient({ from }));
+
+    const result = await service.listSubmissionsPage('campaign-1', 0, 20);
+
+    expect(from).toHaveBeenCalledWith('submissions');
+    expect(chain.select).toHaveBeenCalledWith('*', { count: 'exact' });
+    expect(chain.eq).toHaveBeenCalledWith('campaign_id', 'campaign-1');
+    expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(chain.range).toHaveBeenCalledWith(0, 19);
+    expect(chain.range).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      totalCount: 1,
+      rows: [
+        {
+          id: 'submission-1',
+          campaignId: 'campaign-1',
+          fullName: 'Nguyễn Văn A',
+          role: 'Cựu học sinh',
+          message: 'Chúc mừng đại hội!',
+          imageUrl: 'https://cdn.example.com/submissions/campaign-1/abc.jpg',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+  });
+
+  it('requests the correct offset for a later page', async () => {
+    const chain = createPageChain({ data: [], count: 0, error: null });
+    const from = vi.fn().mockReturnValue(chain);
+    const service = createSubmissionService(createMockSupabaseClient({ from }));
+
+    await service.listSubmissionsPage('campaign-1', 2, 20);
+
+    expect(chain.range).toHaveBeenCalledWith(40, 59);
+  });
+
+  it('throws a SubmissionServiceError when the query fails', async () => {
+    const chain = createPageChain({ data: null, count: null, error: new Error('boom') });
+    const from = vi.fn().mockReturnValue(chain);
+    const service = createSubmissionService(createMockSupabaseClient({ from }));
+
+    const error = await service.listSubmissionsPage('campaign-1', 0, 20).catch((error: unknown) => error);
+
+    expect(error).toBeInstanceOf(SubmissionServiceError);
+    expect((error as SubmissionServiceError).message).toBe('Không thể tải danh sách thông điệp. Vui lòng thử lại.');
+  });
+
+  it('throws a session-expired SubmissionServiceError instead of querying when there is no user', async () => {
+    const getUser = vi.fn().mockResolvedValue({ data: { user: null }, error: null });
+    const from = vi.fn();
+    const service = createSubmissionService(createMockSupabaseClient({ from, getUser }));
+
+    const error = await service.listSubmissionsPage('campaign-1', 0, 20).catch((error: unknown) => error);
+
+    expect(error).toBeInstanceOf(SubmissionServiceError);
+    expect((error as SubmissionServiceError).message).toBe('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    expect(from).not.toHaveBeenCalled();
+  });
+});
+
 describe('submission.service.listSubmissionsForCampaign', () => {
   it('lists and maps submissions for a campaign', async () => {
     const chain = createRangeChain([{ data: [ROW], error: null }]);

@@ -1,24 +1,44 @@
-import { DeleteOutlined, DownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Image, Popconfirm, Table, Tag, Tooltip, message } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { Navigate, useParams } from '@tanstack/react-router';
-import { OwnerLayout } from '../../components/owner/OwnerLayout';
-import { useAuthSession } from '../../hooks/useAuthSession';
-import { campaignKeys, campaignsQueryOptions } from '../../queries/campaign.queries';
-import { deleteSubmissionMutationOptions, submissionKeys, submissionsByCampaignQueryOptions } from '../../queries/submission.queries';
-import type { Submission } from '../../services/submission.service';
-import { downloadImage } from '../../utils/downloadImage';
-import { exportSubmissionsToExcel } from '../../utils/exportSubmissionsToExcel';
-import { reportSubmissionError } from '../../utils/report-submission-error';
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  FileExcelOutlined,
+} from "@ant-design/icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Alert,
+  Button,
+  Image,
+  Popconfirm,
+  Table,
+  Tag,
+  Tooltip,
+  message,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import { Navigate, useParams } from "@tanstack/react-router";
+import { OwnerLayout } from "../../components/owner/OwnerLayout";
+import { useAuthSession } from "../../hooks/useAuthSession";
+import {
+  campaignKeys,
+  campaignsQueryOptions,
+} from "../../queries/campaign.queries";
+import {
+  deleteSubmissionMutationOptions,
+  submissionKeys,
+  submissionsByCampaignQueryOptions,
+} from "../../queries/submission.queries";
+import type { Submission } from "../../services/submission.service";
+import { downloadImage } from "../../utils/downloadImage";
+import { exportSubmissionsToExcel } from "../../utils/exportSubmissionsToExcel";
+import { reportSubmissionError } from "../../utils/report-submission-error";
 
 // Mirrors the authoritative cap enforced by create_submission
 // (supabase/migrations/0003_submissions.sql) — see that file's comment for
 // why this can only ever be a display value, never enforcement.
-const SUBMISSION_CAP = 5000;
+const SUBMISSION_CAP = 9999;
 
 function fileNameFor(submission: Submission): string {
-  return `${submission.fullName.replace(/[\\/:*?"<>|]/g, '_').trim() || 'submission'}-${submission.id.slice(0, 8)}.jpg`;
+  return `${submission.fullName.replace(/[\\/:*?"<>|]/g, "_").trim() || "submission"}-${submission.id.slice(0, 8)}.jpg`;
 }
 
 function submissionColumns(
@@ -29,19 +49,26 @@ function submissionColumns(
 ): ColumnsType<Submission> {
   return [
     {
-      title: 'Ảnh',
-      dataIndex: 'imageUrl',
-      key: 'imageUrl',
+      title: "Ảnh",
+      dataIndex: "imageUrl",
+      key: "imageUrl",
       // antd's Image has a built-in click-to-zoom preview lightbox — no
       // custom modal needed for "view the full image".
-      render: (imageUrl: string) => <Image src={imageUrl} width={48} height={48} className="!object-cover" />,
+      render: (imageUrl: string) => (
+        <Image
+          src={imageUrl}
+          width={48}
+          height={48}
+          className="!object-cover"
+        />
+      ),
     },
-    { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName' },
-    { title: 'Đơn vị', dataIndex: 'role', key: 'role' },
+    { title: "Họ và tên", dataIndex: "fullName", key: "fullName" },
+    { title: "Đơn vị", dataIndex: "role", key: "role" },
     {
-      title: 'Thông điệp',
-      dataIndex: 'message',
-      key: 'message',
+      title: "Thông điệp",
+      dataIndex: "message",
+      key: "message",
       render: (text: string) => (
         <Tooltip title={text}>
           <span className="line-clamp-2 max-w-xs">{text}</span>
@@ -49,14 +76,15 @@ function submissionColumns(
       ),
     },
     {
-      title: 'Thời gian gửi',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (createdAt: string) => new Date(createdAt).toLocaleString('vi-VN'),
+      title: "Thời gian gửi",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (createdAt: string) =>
+        new Date(createdAt).toLocaleString("vi-VN"),
     },
     {
-      title: '',
-      key: 'actions',
+      title: "",
+      key: "actions",
       render: (_: unknown, submission: Submission) => (
         <div className="flex gap-1">
           <Button
@@ -74,7 +102,12 @@ function submissionColumns(
             okButtonProps={{ danger: true, loading: isDeleting }}
             onConfirm={() => onDelete(submission)}
           >
-            <Button danger type="text" icon={<DeleteOutlined />} aria-label="Xoá thông điệp" />
+            <Button
+              danger
+              type="text"
+              icon={<DeleteOutlined />}
+              aria-label="Xoá thông điệp"
+            />
           </Popconfirm>
         </div>
       ),
@@ -106,17 +139,23 @@ export function CampaignSubmissionsPage() {
   const { user, isLoading: isSessionLoading } = useAuthSession();
   const queryClient = useQueryClient();
 
-  const campaignsQuery = useQuery({ ...campaignsQueryOptions(), enabled: Boolean(user) });
-  const campaign = campaignsQuery.data?.find((candidate) => candidate.id === id);
+  const campaignsQuery = useQuery({
+    ...campaignsQueryOptions(),
+    enabled: Boolean(user),
+  });
+  const campaign = campaignsQuery.data?.find(
+    (candidate) => candidate.id === id,
+  );
 
   const submissionsQuery = useQuery({
-    ...submissionsByCampaignQueryOptions(id ?? ''),
+    ...submissionsByCampaignQueryOptions(id ?? ""),
     enabled: Boolean(user) && Boolean(id),
   });
 
   const deleteMutation = useMutation(deleteSubmissionMutationOptions());
   const downloadMutation = useMutation({
-    mutationFn: (submission: Submission) => downloadImage(submission.imageUrl, fileNameFor(submission)),
+    mutationFn: (submission: Submission) =>
+      downloadImage(submission.imageUrl, fileNameFor(submission)),
   });
 
   if (isSessionLoading || campaignsQuery.isLoading) {
@@ -144,11 +183,16 @@ export function CampaignSubmissionsPage() {
   const handleDelete = async (submission: Submission) => {
     try {
       await deleteMutation.mutateAsync(submission.id);
-      await queryClient.invalidateQueries({ queryKey: submissionKeys.listByCampaign(campaign.id) });
+      await queryClient.invalidateQueries({
+        queryKey: submissionKeys.listByCampaign(campaign.id),
+      });
       await queryClient.invalidateQueries({ queryKey: campaignKeys.list() });
-      message.success('Đã xoá thông điệp.');
+      message.success("Đã xoá thông điệp.");
     } catch (error) {
-      reportSubmissionError(error, 'Không thể xoá thông điệp. Vui lòng thử lại.');
+      reportSubmissionError(
+        error,
+        "Không thể xoá thông điệp. Vui lòng thử lại.",
+      );
     }
   };
 
@@ -161,7 +205,7 @@ export function CampaignSubmissionsPage() {
     try {
       await downloadMutation.mutateAsync(submission);
     } catch (error) {
-      reportSubmissionError(error, 'Không thể tải ảnh. Vui lòng thử lại.');
+      reportSubmissionError(error, "Không thể tải ảnh. Vui lòng thử lại.");
     }
   };
 
@@ -170,20 +214,34 @@ export function CampaignSubmissionsPage() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <h3 className="text-base font-semibold text-slate-700">/{campaign.slug}</h3>
-            <Tag color={campaign.submissionCount >= SUBMISSION_CAP ? 'red' : 'blue'}>
+            <h3 className="text-base font-semibold text-slate-700">
+              /{campaign.slug}
+            </h3>
+            <Tag
+              color={
+                campaign.submissionCount >= SUBMISSION_CAP ? "red" : "blue"
+              }
+            >
               {campaign.submissionCount} / {SUBMISSION_CAP}
             </Tag>
           </div>
           <div className="flex gap-2">
-            <Button icon={<FileExcelOutlined />} onClick={handleExportExcel} disabled={submissions.length === 0}>
+            <Button
+              icon={<FileExcelOutlined />}
+              onClick={handleExportExcel}
+              disabled={submissions.length === 0}
+            >
               Xuất Excel
             </Button>
           </div>
         </div>
 
         {submissionsQuery.isError && (
-          <Alert type="error" showIcon message="Không thể tải danh sách thông điệp. Vui lòng thử lại." />
+          <Alert
+            type="error"
+            showIcon
+            message="Không thể tải danh sách thông điệp. Vui lòng thử lại."
+          />
         )}
 
         <Table<Submission>
@@ -192,11 +250,13 @@ export function CampaignSubmissionsPage() {
             handleDelete,
             deleteMutation.isPending,
             handleDownload,
-            downloadMutation.isPending ? (downloadMutation.variables?.id ?? null) : null,
+            downloadMutation.isPending
+              ? (downloadMutation.variables?.id ?? null)
+              : null,
           )}
           dataSource={submissions}
           loading={submissionsQuery.isLoading}
-          locale={{ emptyText: 'Chưa có thông điệp nào.' }}
+          locale={{ emptyText: "Chưa có thông điệp nào." }}
         />
       </div>
     </OwnerLayout>

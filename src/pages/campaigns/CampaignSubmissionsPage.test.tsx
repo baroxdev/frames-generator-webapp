@@ -146,7 +146,7 @@ describe("CampaignSubmissionsPage", () => {
 
     expect(await screen.findByText("Nguyễn Văn A")).toBeTruthy();
     expect(screen.getByText("Trần Thị B")).toBeTruthy();
-    expect(screen.getByText("2 / 5000")).toBeTruthy();
+    expect(screen.getByText("2 / 9999")).toBeTruthy();
   });
 
   it("deletes a submission and invalidates the submissions and campaigns caches", async () => {

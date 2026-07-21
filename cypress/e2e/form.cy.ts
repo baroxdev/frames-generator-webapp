@@ -80,7 +80,7 @@ describe("Form Tests", () => {
     cy.contains("button", "Xem trước").click();
 
     // Wait 5 seconds to review the content
-    cy.wait(5000);
+    cy.wait(9999);
 
     // Review step: Verify the modal and content
     cy.get(".ant-modal").should("be.visible");
@@ -120,7 +120,7 @@ describe("Form Tests", () => {
     cy.contains("button", "Xem trước").click();
 
     // Wait 5 seconds to review the content
-    cy.wait(5000);
+    cy.wait(9999);
 
     // Review step: Verify the modal and content
     cy.get(".ant-modal").should("be.visible");
@@ -167,7 +167,7 @@ describe("Form Tests", () => {
     cy.contains("button", "Xem trước").click();
 
     // Wait 5 seconds to review the content
-    cy.wait(5000);
+    cy.wait(9999);
 
     // Review step: Verify the modal and content
     cy.get(".ant-modal").should("be.visible");
@@ -233,7 +233,7 @@ describe("Form Tests", () => {
     cy.contains("button", "Xem trước").click();
 
     // Wait 5 seconds to review the content
-    cy.wait(5000);
+    cy.wait(9999);
 
     // Review step: Verify the modal and content
     cy.get(".ant-modal").should("be.visible");
@@ -276,7 +276,7 @@ describe("Form Tests", () => {
     cy.contains("button", "Xem trước").click();
 
     // Wait 5 seconds to review the content
-    cy.wait(5000);
+    cy.wait(9999);
 
     // Preview Review Step: Verify the modal and its contents
     cy.get(".ant-modal").should("be.visible");

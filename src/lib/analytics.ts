@@ -112,12 +112,36 @@ function withPosthog(send: (client: typeof posthog) => void) {
   }
 }
 
+/**
+ * Deliberately doesn't delegate to `trackEvent`: GA4 and PostHog each have
+ * their own reserved page-view event name, and sending the wrong one to
+ * either silently breaks that tool's own pageview-dependent features. GA4
+ * uses a plain `"page_view"` custom event name; PostHog specifically
+ * expects the special `"$pageview"` event — sending a differently-named
+ * event (as this used to, via `trackEvent`) leaves PostHog's own Web
+ * Analytics/session pageview counts empty even though a custom event was
+ * technically recorded, which is what its setup check was warning about.
+ */
 export function trackPageView(path: string, title?: string) {
-  trackEvent("page_view", {
-    page_path: path,
-    page_title: title,
-    page_location: typeof window !== "undefined" ? window.location.href : undefined,
-  });
+  const pageLocation =
+    typeof window !== "undefined" ? window.location.href : undefined;
+
+  withGtag((gtag) =>
+    gtag("event", "page_view", {
+      page_path: path,
+      page_title: title,
+      page_location: pageLocation,
+    }),
+  );
+  withPosthog((client) =>
+    // `$current_url`/`$pathname`/`$host` are attached automatically by
+    // posthog-js from `window.location` at capture time — no need to pass
+    // `page_location` here the way GA4 needs it.
+    client.capture("$pageview", {
+      page_path: path,
+      page_title: title,
+    }),
+  );
 }
 
 export function trackEvent(

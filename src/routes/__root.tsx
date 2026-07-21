@@ -1,18 +1,16 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import {
-  ClientOnly,
-  createRootRoute,
   createRootRouteWithContext,
   HeadContent,
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { GoogleAnalytics } from "tanstack-router-ga4";
 import { AuthSessionSync } from "../components/auth/AuthSessionSync";
 import { usePageViewTracking } from "../hooks/usePageViewTracking";
-import { NotFoundPage } from "../pages/public/NotFoundPage";
 import appCss from "../index.css?url";
-import { GoogleAnalytics } from "tanstack-router-ga4";
+import { NotFoundPage } from "../pages/public/NotFoundPage";
 
 const SITE_TITLE = "Đại hội Cháu ngoan Bác Hồ tỉnh Bến Tre lần thứ XIII 2025";
 const SITE_DESCRIPTION =

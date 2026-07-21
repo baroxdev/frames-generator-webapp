@@ -1,3 +1,4 @@
+"use client";
 import { useMutation } from "@tanstack/react-query";
 import { Alert } from "antd";
 import React, { useEffect, useRef, useState } from "react";
@@ -23,32 +24,8 @@ import type { CampaignLayout, FrameContent } from "../../templates/types";
 import { reportSubmissionError } from "../../utils/report-submission-error";
 import { NotFoundPage } from "./NotFoundPage";
 
-// Mirrors the `200000` in `create_submission`'s guard
-// (supabase/migrations/0003_submissions.sql) — this copy only drives a
-// proactive UI check (skip rendering the form when we already know it's
-// full); the RPC's own check is the actual, authoritative enforcement.
 const SUBMISSION_CAP = 200000;
 
-/**
- * The public landing page for an approved campaign, at /:slug. Renders the
- * campaign's chosen template + uploaded background using the same template
- * engine as the owner's live preview (#3/#4), plus (#6) the visitor tribute
- * form: on submit, the visitor's content is composited into the final frame
- * *before* anything is uploaded — only that final image ever reaches R2,
- * never the visitor's raw avatar photo — and the same image is then shown
- * with an active download link.
- *
- * A pending/rejected/suspended campaign and a slug that was never
- * registered are indistinguishable here on purpose — both resolve to
- * `campaign === null` (RLS silently withholds the row rather than the
- * client trying to tell them apart) and render the same not-found page,
- * per #5's "no campaign content, background, or branding is exposed"
- * requirement.
- *
- * `campaign` is fetched by the `/$slug` route's server-side loader (see
- * `routes/$slug.tsx`) rather than by this component — the initial lookup
- * runs server-side so the SSR response can carry real Open Graph tags.
- */
 export function CampaignPublicPage({
   campaign,
 }: {

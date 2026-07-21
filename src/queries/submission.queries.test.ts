@@ -19,7 +19,7 @@ import { getSubmissionService } from '../services/submission.service.instance';
 import { SubmissionServiceError } from '../services/submission.service';
 import {
   deleteSubmissionMutationOptions,
-  submissionsByCampaignQueryOptions,
+  submissionsPageQueryOptions,
   submitTributeMutationOptions,
   uploadSubmissionImageMutationOptions,
 } from './submission.queries';
@@ -69,27 +69,30 @@ describe('submission.queries', () => {
     );
   });
 
-  it('submissionsByCampaignQueryOptions wraps submission.service.listSubmissionsForCampaign without adding its own logic', async () => {
-    const submissions = [
-      {
-        id: 'submission-1',
-        campaignId: 'campaign-1',
-        fullName: 'Nguyễn Văn A',
-        role: 'Cựu học sinh',
-        message: 'Chúc mừng đại hội!',
-        imageUrl: 'https://cdn.example.com/submissions/campaign-1/a.jpg',
-        createdAt: '2026-01-01T00:00:00.000Z',
-      },
-    ];
-    const listSubmissionsForCampaign = vi.fn().mockResolvedValue(submissions);
-    vi.mocked(getSubmissionService).mockReturnValue({ listSubmissionsForCampaign } as unknown as SubmissionService);
+  it('submissionsPageQueryOptions wraps submission.service.listSubmissionsPage without adding its own logic', async () => {
+    const page = {
+      rows: [
+        {
+          id: 'submission-1',
+          campaignId: 'campaign-1',
+          fullName: 'Nguyễn Văn A',
+          role: 'Cựu học sinh',
+          message: 'Chúc mừng đại hội!',
+          imageUrl: 'https://cdn.example.com/submissions/campaign-1/a.jpg',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      totalCount: 1,
+    };
+    const listSubmissionsPage = vi.fn().mockResolvedValue(page);
+    vi.mocked(getSubmissionService).mockReturnValue({ listSubmissionsPage } as unknown as SubmissionService);
 
-    const options = submissionsByCampaignQueryOptions('campaign-1');
+    const options = submissionsPageQueryOptions('campaign-1', 0, 20);
     const result = await options.queryFn?.({} as never);
 
-    expect(listSubmissionsForCampaign).toHaveBeenCalledWith('campaign-1');
-    expect(result).toEqual(submissions);
-    expect(options.queryKey).toEqual(['submissions', 'by-campaign', 'campaign-1']);
+    expect(listSubmissionsPage).toHaveBeenCalledWith('campaign-1', 0, 20);
+    expect(result).toEqual(page);
+    expect(options.queryKey).toEqual(['submissions', 'by-campaign', 'campaign-1', 'page', 0, 20]);
   });
 
   it('deleteSubmissionMutationOptions wraps submission.service.deleteSubmission without adding its own logic', async () => {

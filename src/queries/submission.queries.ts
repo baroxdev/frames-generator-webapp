@@ -1,6 +1,10 @@
 import { queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 import { getSubmissionService } from '../services/submission.service.instance';
-import { SubmissionServiceError, type Submission, type SubmitTributeParams } from '../services/submission.service';
+import {
+  SubmissionServiceError,
+  type SubmissionPage,
+  type SubmitTributeParams,
+} from '../services/submission.service';
 import { submitTributeServerFn } from '../lib/submitTributeServerFn';
 import { uploadSubmissionImage } from '../lib/uploadSubmissionImage';
 
@@ -14,13 +18,19 @@ import { uploadSubmissionImage } from '../lib/uploadSubmissionImage';
 export const submissionKeys = {
   all: ['submissions'] as const,
   listByCampaign: (campaignId: string) => [...submissionKeys.all, 'by-campaign', campaignId] as const,
+  page: (campaignId: string, page: number, pageSize: number) =>
+    [...submissionKeys.listByCampaign(campaignId), 'page', page, pageSize] as const,
 };
 
-/** Powers the owner's private submissions dashboard (ticket #7). */
-export function submissionsByCampaignQueryOptions(campaignId: string) {
+/**
+ * Powers the owner's private submissions dashboard (ticket #7) — one page
+ * per request, so opening the dashboard never loads the full dataset. See
+ * `submission.service.ts`'s `listSubmissionsPage` doc comment.
+ */
+export function submissionsPageQueryOptions(campaignId: string, page: number, pageSize: number) {
   return queryOptions({
-    queryKey: submissionKeys.listByCampaign(campaignId),
-    queryFn: (): Promise<Submission[]> => getSubmissionService().listSubmissionsForCampaign(campaignId),
+    queryKey: submissionKeys.page(campaignId, page, pageSize),
+    queryFn: (): Promise<SubmissionPage> => getSubmissionService().listSubmissionsPage(campaignId, page, pageSize),
   });
 }
 

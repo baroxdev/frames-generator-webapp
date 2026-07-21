@@ -4,6 +4,7 @@ import {
   FileExcelOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   Alert,
   Button,
@@ -25,8 +26,9 @@ import {
 import {
   deleteSubmissionMutationOptions,
   submissionKeys,
-  submissionsByCampaignQueryOptions,
+  submissionsPageQueryOptions,
 } from "../../queries/submission.queries";
+import { getSubmissionService } from "../../services/submission.service.instance";
 import type { Submission } from "../../services/submission.service";
 import { downloadImage } from "../../utils/downloadImage";
 import { exportSubmissionsToExcel } from "../../utils/exportSubmissionsToExcel";
@@ -36,6 +38,12 @@ import { reportSubmissionError } from "../../utils/report-submission-error";
 // (supabase/migrations/0003_submissions.sql) — see that file's comment for
 // why this can only ever be a display value, never enforcement.
 const SUBMISSION_CAP = 200000;
+
+// Rows per dashboard page. Kept small and separate from
+// submission.service.ts's LIST_PAGE_SIZE (1000, the export path's PostgREST
+// chunk size) — this one drives the antd Table's page size, not a batching
+// limit.
+const PAGE_SIZE = 20;
 
 function fileNameFor(submission: Submission): string {
   return `${submission.fullName.replace(/[\\/:*?"<>|]/g, "_").trim() || "submission"}-${submission.id.slice(0, 8)}.jpg`;
@@ -138,6 +146,8 @@ export function CampaignSubmissionsPage() {
   const { id } = useParams({ strict: false }) as { id: string };
   const { user, isLoading: isSessionLoading } = useAuthSession();
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
 
   const campaignsQuery = useQuery({
     ...campaignsQueryOptions(),
@@ -148,7 +158,7 @@ export function CampaignSubmissionsPage() {
   );
 
   const submissionsQuery = useQuery({
-    ...submissionsByCampaignQueryOptions(id ?? ""),
+    ...submissionsPageQueryOptions(id ?? "", page - 1, PAGE_SIZE),
     enabled: Boolean(user) && Boolean(id),
   });
 
@@ -178,7 +188,8 @@ export function CampaignSubmissionsPage() {
     );
   }
 
-  const submissions = submissionsQuery.data ?? [];
+  const submissions = submissionsQuery.data?.rows ?? [];
+  const totalCount = submissionsQuery.data?.totalCount ?? 0;
 
   const handleDelete = async (submission: Submission) => {
     try {
@@ -196,9 +207,28 @@ export function CampaignSubmissionsPage() {
     }
   };
 
-  const handleExportExcel = () => {
-    if (submissions.length === 0) return;
-    exportSubmissionsToExcel(submissions, `submissions-${campaign.slug}.xlsx`);
+  // The only place the full (un-paginated) submission list is fetched —
+  // everything else on this page reads one page at a time via
+  // submissionsPageQueryOptions. Fetched on click, not eagerly, so opening
+  // the dashboard never pulls the entire campaign's submissions.
+  const handleExportExcel = async () => {
+    if (totalCount === 0 || isExporting) return;
+    setIsExporting(true);
+    try {
+      const allSubmissions =
+        await getSubmissionService().listSubmissionsForCampaign(campaign.id);
+      exportSubmissionsToExcel(
+        allSubmissions,
+        `submissions-${campaign.slug}.xlsx`,
+      );
+    } catch (error) {
+      reportSubmissionError(
+        error,
+        "Không thể xuất Excel. Vui lòng thử lại.",
+      );
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleDownload = async (submission: Submission) => {
@@ -229,7 +259,8 @@ export function CampaignSubmissionsPage() {
             <Button
               icon={<FileExcelOutlined />}
               onClick={handleExportExcel}
-              disabled={submissions.length === 0}
+              loading={isExporting}
+              disabled={totalCount === 0}
             >
               Xuất Excel
             </Button>
@@ -257,6 +288,13 @@ export function CampaignSubmissionsPage() {
           dataSource={submissions}
           loading={submissionsQuery.isLoading}
           locale={{ emptyText: "Chưa có thông điệp nào." }}
+          pagination={{
+            current: page,
+            pageSize: PAGE_SIZE,
+            total: totalCount,
+            onChange: setPage,
+            showSizeChanger: false,
+          }}
         />
       </div>
     </OwnerLayout>

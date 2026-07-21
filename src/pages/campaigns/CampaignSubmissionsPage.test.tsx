@@ -6,6 +6,7 @@ import { CampaignSubmissionsPage } from "./CampaignSubmissionsPage";
 const {
   mockUseAuthSession,
   mockListCampaignsForOwner,
+  mockListSubmissionsPage,
   mockListSubmissionsForCampaign,
   mockDeleteSubmission,
   mockReportSubmissionError,
@@ -14,6 +15,7 @@ const {
 } = vi.hoisted(() => ({
   mockUseAuthSession: vi.fn(),
   mockListCampaignsForOwner: vi.fn(),
+  mockListSubmissionsPage: vi.fn(),
   mockListSubmissionsForCampaign: vi.fn(),
   mockDeleteSubmission: vi.fn(),
   mockReportSubmissionError: vi.fn(),
@@ -37,11 +39,17 @@ vi.mock("../../queries/submission.queries", () => ({
   submissionKeys: {
     listByCampaign: (id: string) => ["submissions", "by-campaign", id],
   },
-  submissionsByCampaignQueryOptions: (id: string) => ({
-    queryKey: ["submissions", "by-campaign", id],
-    queryFn: mockListSubmissionsForCampaign,
+  submissionsPageQueryOptions: (id: string, page: number, pageSize: number) => ({
+    queryKey: ["submissions", "by-campaign", id, "page", page, pageSize],
+    queryFn: () => mockListSubmissionsPage(id, page, pageSize),
   }),
   deleteSubmissionMutationOptions: () => ({ mutationFn: mockDeleteSubmission }),
+}));
+
+vi.mock("../../services/submission.service.instance", () => ({
+  getSubmissionService: () => ({
+    listSubmissionsForCampaign: mockListSubmissionsForCampaign,
+  }),
 }));
 
 vi.mock("../../utils/report-submission-error", () => ({
@@ -105,6 +113,7 @@ describe("CampaignSubmissionsPage", () => {
   beforeEach(() => {
     mockUseAuthSession.mockReset();
     mockListCampaignsForOwner.mockReset();
+    mockListSubmissionsPage.mockReset();
     mockListSubmissionsForCampaign.mockReset();
     mockDeleteSubmission.mockReset();
     mockReportSubmissionError.mockClear();
@@ -117,6 +126,10 @@ describe("CampaignSubmissionsPage", () => {
       error: null,
     });
     mockListCampaignsForOwner.mockResolvedValue([CAMPAIGN]);
+    mockListSubmissionsPage.mockResolvedValue({
+      rows: SUBMISSIONS,
+      totalCount: SUBMISSIONS.length,
+    });
     mockListSubmissionsForCampaign.mockResolvedValue(SUBMISSIONS);
   });
 
@@ -182,16 +195,40 @@ describe("CampaignSubmissionsPage", () => {
     );
   });
 
-  it("exports the loaded submissions to Excel", async () => {
+  it("fetches the full submission list on demand and exports it, without loading it on page open", async () => {
+    await renderAtId("campaign-1");
+    await screen.findByText("Nguyễn Văn A");
+
+    expect(mockListSubmissionsForCampaign).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /Xuất Excel/ }));
+
+    await waitFor(() =>
+      expect(mockListSubmissionsForCampaign).toHaveBeenCalledWith(
+        "campaign-1",
+      ),
+    );
+    expect(mockExportSubmissionsToExcel).toHaveBeenCalledWith(
+      SUBMISSIONS,
+      "submissions-dai-hoi-ben-tre.xlsx",
+    );
+  });
+
+  it("reports a friendly error when export fails", async () => {
+    const failure = new Error("network error");
+    mockListSubmissionsForCampaign.mockRejectedValue(failure);
     await renderAtId("campaign-1");
     await screen.findByText("Nguyễn Văn A");
 
     fireEvent.click(screen.getByRole("button", { name: /Xuất Excel/ }));
 
-    expect(mockExportSubmissionsToExcel).toHaveBeenCalledWith(
-      SUBMISSIONS,
-      "submissions-dai-hoi-ben-tre.xlsx",
+    await waitFor(() =>
+      expect(mockReportSubmissionError).toHaveBeenCalledWith(
+        failure,
+        "Không thể xuất Excel. Vui lòng thử lại.",
+      ),
     );
+    expect(mockExportSubmissionsToExcel).not.toHaveBeenCalled();
   });
 
   it("downloads a single submission image when its row download button is clicked", async () => {

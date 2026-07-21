@@ -23,7 +23,6 @@ import { campaignLayoutToTemplate } from "../../templates";
 import type { CampaignLayout, FrameContent } from "../../templates/types";
 import { reportSubmissionError } from "../../utils/report-submission-error";
 import { NotFoundPage } from "./NotFoundPage";
-import { ClientOnly } from "@tanstack/react-router";
 
 const SUBMISSION_CAP = 200000;
 

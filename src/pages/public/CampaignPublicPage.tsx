@@ -23,11 +23,11 @@ import type { CampaignLayout, FrameContent } from "../../templates/types";
 import { reportSubmissionError } from "../../utils/report-submission-error";
 import { NotFoundPage } from "./NotFoundPage";
 
-// Mirrors the `5000` in `create_submission`'s guard
+// Mirrors the `9999` in `create_submission`'s guard
 // (supabase/migrations/0003_submissions.sql) — this copy only drives a
 // proactive UI check (skip rendering the form when we already know it's
 // full); the RPC's own check is the actual, authoritative enforcement.
-const SUBMISSION_CAP = 5000;
+const SUBMISSION_CAP = 9999;
 
 /**
  * The public landing page for an approved campaign, at /:slug. Renders the

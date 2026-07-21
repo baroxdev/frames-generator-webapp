@@ -170,7 +170,7 @@ describe("CampaignPublicPage", () => {
   it('shows a "campaign full" notice instead of the form when the submission cap has been reached', async () => {
     await renderWithCampaign({
       ...APPROVED_CAMPAIGN,
-      submissionCount: 5000,
+      submissionCount: 9999,
     });
 
     await screen.findByText("Chiến dịch đã đủ số lượng gửi");

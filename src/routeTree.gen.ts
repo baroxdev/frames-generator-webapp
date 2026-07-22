@@ -19,6 +19,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthConfirmRouteImport } from './routes/auth.confirm'
 import { Route as CampaignsIndexRouteImport } from './routes/campaigns/index'
 import { Route as CampaignsNewRouteImport } from './routes/campaigns/new'
+import { Route as DevPrintAreaSpikeRouteImport } from './routes/dev.print-area-spike'
 import { Route as CampaignsIdEditRouteImport } from './routes/campaigns/$id.edit'
 import { Route as CampaignsIdSubmissionsRouteImport } from './routes/campaigns/$id.submissions'
 
@@ -72,6 +73,11 @@ const CampaignsNewRoute = CampaignsNewRouteImport.update({
   path: '/campaigns/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DevPrintAreaSpikeRoute = DevPrintAreaSpikeRouteImport.update({
+  id: '/dev/print-area-spike',
+  path: '/dev/print-area-spike',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CampaignsIdEditRoute = CampaignsIdEditRouteImport.update({
   id: '/campaigns/$id/edit',
   path: '/campaigns/$id/edit',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/auth/confirm': typeof AuthConfirmRoute
   '/campaigns/new': typeof CampaignsNewRoute
+  '/dev/print-area-spike': typeof DevPrintAreaSpikeRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/campaigns/$id/edit': typeof CampaignsIdEditRoute
   '/campaigns/$id/submissions': typeof CampaignsIdSubmissionsRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/auth/confirm': typeof AuthConfirmRoute
   '/campaigns/new': typeof CampaignsNewRoute
+  '/dev/print-area-spike': typeof DevPrintAreaSpikeRoute
   '/campaigns': typeof CampaignsIndexRoute
   '/campaigns/$id/edit': typeof CampaignsIdEditRoute
   '/campaigns/$id/submissions': typeof CampaignsIdSubmissionsRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/auth/confirm': typeof AuthConfirmRoute
   '/campaigns/new': typeof CampaignsNewRoute
+  '/dev/print-area-spike': typeof DevPrintAreaSpikeRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/campaigns/$id/edit': typeof CampaignsIdEditRoute
   '/campaigns/$id/submissions': typeof CampaignsIdSubmissionsRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/auth/confirm'
     | '/campaigns/new'
+    | '/dev/print-area-spike'
     | '/campaigns/'
     | '/campaigns/$id/edit'
     | '/campaigns/$id/submissions'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/auth/confirm'
     | '/campaigns/new'
+    | '/dev/print-area-spike'
     | '/campaigns'
     | '/campaigns/$id/edit'
     | '/campaigns/$id/submissions'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/auth/confirm'
     | '/campaigns/new'
+    | '/dev/print-area-spike'
     | '/campaigns/'
     | '/campaigns/$id/edit'
     | '/campaigns/$id/submissions'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   AuthConfirmRoute: typeof AuthConfirmRoute
   CampaignsNewRoute: typeof CampaignsNewRoute
+  DevPrintAreaSpikeRoute: typeof DevPrintAreaSpikeRoute
   CampaignsIndexRoute: typeof CampaignsIndexRoute
   CampaignsIdEditRoute: typeof CampaignsIdEditRoute
   CampaignsIdSubmissionsRoute: typeof CampaignsIdSubmissionsRoute
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CampaignsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dev/print-area-spike': {
+      id: '/dev/print-area-spike'
+      path: '/dev/print-area-spike'
+      fullPath: '/dev/print-area-spike'
+      preLoaderRoute: typeof DevPrintAreaSpikeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/campaigns/$id/edit': {
       id: '/campaigns/$id/edit'
       path: '/campaigns/$id/edit'
@@ -285,6 +305,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   AuthConfirmRoute: AuthConfirmRoute,
   CampaignsNewRoute: CampaignsNewRoute,
+  DevPrintAreaSpikeRoute: DevPrintAreaSpikeRoute,
   CampaignsIndexRoute: CampaignsIndexRoute,
   CampaignsIdEditRoute: CampaignsIdEditRoute,
   CampaignsIdSubmissionsRoute: CampaignsIdSubmissionsRoute,

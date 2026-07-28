@@ -47,12 +47,23 @@ export function KonvaMessage({
   const fontSize = autoFitSize ?? (isLong ? TEXT_3XL_PX : isShort ? TEXT_5XL_PX : undefined);
   const verticalAlign = autoFit || isShort ? "middle" : "top";
 
+  // Konva.Text treats an explicit `height` as a hard clip — once wrapped
+  // lines exceed it, the overflow is silently dropped (see Text.ts's
+  // `_setTextData`: `if (fixedHeight && currentHeightPx + lineHeightPx >
+  // maxHeightPx) break;`). Message.tsx's DOM box has no `overflow: hidden`,
+  // so the same case there just spills visually past the box instead of
+  // losing content — only `autoFit` mode actually needs the height
+  // constraint (its font size is chosen specifically to fit inside it);
+  // the fixed-size tiers below should be allowed to overflow the same way
+  // the DOM version does, rather than silently truncating the message.
+  const konvaHeight = autoFit ? height : undefined;
+
   return (
     <Text
       x={y}
       y={x - 15}
       width={width}
-      height={height}
+      height={konvaHeight}
       text={message}
       fontSize={fontSize}
       fontStyle={String(MESSAGE_FONT_WEIGHT)}

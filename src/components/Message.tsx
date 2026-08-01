@@ -1,10 +1,10 @@
 import clsx from "clsx";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { cssFontFamily } from "../constants/fonts";
 import { ObjectLayer } from "../types";
 import { fitTextFontSize } from "../utils/fitTextToBox";
-import { loadFont } from "../utils/loadGoogleFont";
+import { ensureFontReady } from "../utils/loadGoogleFont";
 import { measureTextWidth } from "../utils/measureText";
 import { buildFontString, MESSAGE_FONT_WEIGHT } from "../utils/textFonts";
 
@@ -35,8 +35,22 @@ const Message = ({
   const message = content || defaultMessage;
   const resolvedFontFamily = cssFontFamily(fontFamily, Boolean(customFont));
 
+  // See Name.tsx's matching effect/useMemo pair for why this generation
+  // counter exists: the plain `useMemo` below runs before the font this
+  // effect requests has actually finished loading (most visibly for a
+  // campaign's own uploaded R2 font, never pre-cached like a Google Font),
+  // so without a forced recompute the auto-fit size stays fit to the
+  // fallback font's glyph widths forever.
+  const [fontReadyGeneration, setFontReadyGeneration] = useState(0);
+
   useEffect(() => {
-    loadFont(fontFamily, customFont);
+    let cancelled = false;
+    ensureFontReady(fontFamily, MESSAGE_FONT_WEIGHT, customFont).then(() => {
+      if (!cancelled) setFontReadyGeneration((generation) => generation + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [fontFamily, customFont]);
 
   const autoFitSize = useMemo(() => {
@@ -52,7 +66,10 @@ const Message = ({
           buildFontString(MESSAGE_FONT_WEIGHT, fontSizePx, resolvedFontFamily),
         ),
     });
-  }, [autoFit, message, width, height, resolvedFontFamily]);
+    // fontReadyGeneration deliberately forces a recompute once the real font
+    // has loaded — it isn't read inside the callback itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFit, message, width, height, resolvedFontFamily, fontReadyGeneration]);
 
   const limit = 150;
   const lte = message.length < limit;

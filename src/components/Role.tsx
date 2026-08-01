@@ -1,11 +1,11 @@
 import clsx from "clsx";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { cssFontFamily } from "../constants/fonts";
 import { ROLE_FIELD_PREFIX } from "../constants/fieldPrefixes";
 import { ObjectLayer } from "../types";
 import { fitTextFontSize } from "../utils/fitTextToBox";
-import { loadFont } from "../utils/loadGoogleFont";
+import { ensureFontReady } from "../utils/loadGoogleFont";
 import { measureTextWidth } from "../utils/measureText";
 import { buildFontString, NAME_ROLE_FONT_WEIGHT } from "../utils/textFonts";
 
@@ -28,8 +28,22 @@ const Role = ({
   const role = showPrefix ? `${ROLE_FIELD_PREFIX}${content || defaultRole}` : content || defaultRole;
   const resolvedFontFamily = cssFontFamily(fontFamily, Boolean(customFont));
 
+  // See Name.tsx's matching effect/useMemo pair for why this generation
+  // counter exists: the plain `useMemo` below runs before the font this
+  // effect requests has actually finished loading (most visibly for a
+  // campaign's own uploaded R2 font, never pre-cached like a Google Font),
+  // so without a forced recompute the auto-fit size stays fit to the
+  // fallback font's glyph widths forever.
+  const [fontReadyGeneration, setFontReadyGeneration] = useState(0);
+
   useEffect(() => {
-    loadFont(fontFamily, customFont);
+    let cancelled = false;
+    ensureFontReady(fontFamily, NAME_ROLE_FONT_WEIGHT, customFont).then(() => {
+      if (!cancelled) setFontReadyGeneration((generation) => generation + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [fontFamily, customFont]);
 
   const autoFitSize = useMemo(() => {
@@ -40,7 +54,10 @@ const Role = ({
       measure: (text, fontSizePx) =>
         measureTextWidth(text, buildFontString(NAME_ROLE_FONT_WEIGHT, fontSizePx, resolvedFontFamily)),
     });
-  }, [autoFit, role, width, height, resolvedFontFamily]);
+    // fontReadyGeneration deliberately forces a recompute once the real font
+    // has loaded — it isn't read inside the callback itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFit, role, width, height, resolvedFontFamily, fontReadyGeneration]);
 
   const _limit = limit || 25;
   const lte = role.length <= _limit;

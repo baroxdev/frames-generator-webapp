@@ -39,7 +39,11 @@ vi.mock("../../queries/submission.queries", () => ({
   submissionKeys: {
     listByCampaign: (id: string) => ["submissions", "by-campaign", id],
   },
-  submissionsPageQueryOptions: (id: string, page: number, pageSize: number) => ({
+  submissionsPageQueryOptions: (
+    id: string,
+    page: number,
+    pageSize: number,
+  ) => ({
     queryKey: ["submissions", "by-campaign", id, "page", page, pageSize],
     queryFn: () => mockListSubmissionsPage(id, page, pageSize),
   }),
@@ -159,7 +163,7 @@ describe("CampaignSubmissionsPage", () => {
 
     expect(await screen.findByText("Nguyễn Văn A")).toBeTruthy();
     expect(screen.getByText("Trần Thị B")).toBeTruthy();
-    expect(screen.getByText("2 / 200000")).toBeTruthy();
+    expect(screen.getByText("2 / 20000")).toBeTruthy();
   });
 
   it("deletes a submission and invalidates the submissions and campaigns caches", async () => {
@@ -204,9 +208,7 @@ describe("CampaignSubmissionsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /Xuất Excel/ }));
 
     await waitFor(() =>
-      expect(mockListSubmissionsForCampaign).toHaveBeenCalledWith(
-        "campaign-1",
-      ),
+      expect(mockListSubmissionsForCampaign).toHaveBeenCalledWith("campaign-1"),
     );
     expect(mockExportSubmissionsToExcel).toHaveBeenCalledWith(
       SUBMISSIONS,

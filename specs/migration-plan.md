@@ -107,7 +107,7 @@ Key dialect differences to handle, table by table:
 | RLS policies | no equivalent — becomes an explicit filter/check in the Worker handler, as above |
 
 `campaigns.submission_count` race-safety (currently
-`UPDATE ... WHERE submission_count < 200000 RETURNING`, relying on Postgres
+`UPDATE ... WHERE submission_count < 20000 RETURNING`, relying on Postgres
 row locks + EvalPlanQual): D1 doesn't have the same MVCC guarantees under
 concurrent writers from multiple Worker isolates. Needs its own design spike
 before implementation — likely candidates: D1's `batch()` with a conditional

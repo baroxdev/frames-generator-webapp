@@ -37,7 +37,7 @@ import { reportSubmissionError } from "../../utils/report-submission-error";
 // Mirrors the authoritative cap enforced by create_submission
 // (supabase/migrations/0003_submissions.sql) — see that file's comment for
 // why this can only ever be a display value, never enforcement.
-const SUBMISSION_CAP = 200000;
+const SUBMISSION_CAP = 20000;
 
 // Rows per dashboard page. Kept small and separate from
 // submission.service.ts's LIST_PAGE_SIZE (1000, the export path's PostgREST
@@ -222,10 +222,7 @@ export function CampaignSubmissionsPage() {
         `submissions-${campaign.slug}.xlsx`,
       );
     } catch (error) {
-      reportSubmissionError(
-        error,
-        "Không thể xuất Excel. Vui lòng thử lại.",
-      );
+      reportSubmissionError(error, "Không thể xuất Excel. Vui lòng thử lại.");
     } finally {
       setIsExporting(false);
     }

@@ -51,10 +51,10 @@ alter table public.submissions enable row level security;
 -- authoritative enforcement) and inserts the row in one
 -- transaction, so a failed insert can never leave `submission_count`
 -- incremented with no matching row (the increment and the insert must not
--- be two separate round-trips). `UPDATE ... WHERE submission_count < 200000`
+-- be two separate round-trips). `UPDATE ... WHERE submission_count < 20000`
 -- is race-safe under Postgres's default read-committed isolation: the row
 -- lock plus EvalPlanQual re-check on a concurrent update means the count
--- can never exceed 200000, even under concurrent submissions.
+-- can never exceed 20000, even under concurrent submissions.
 create or replace function public.create_submission(
   campaign_id_input uuid,
   full_name_input text,
@@ -75,7 +75,7 @@ begin
   set submission_count = submission_count + 1
   where id = campaign_id_input
     and status = 'approved'
-    and submission_count < 200000
+    and submission_count < 20000
   returning submission_count into updated_count;
 
   if updated_count is null then

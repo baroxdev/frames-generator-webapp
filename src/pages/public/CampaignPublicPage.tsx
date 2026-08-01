@@ -24,7 +24,7 @@ import type { CampaignLayout, FrameContent } from "../../templates/types";
 import { reportSubmissionError } from "../../utils/report-submission-error";
 import { NotFoundPage } from "./NotFoundPage";
 
-const SUBMISSION_CAP = 200000;
+const SUBMISSION_CAP = 20000;
 
 export function CampaignPublicPage({
   campaign,
